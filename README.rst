@@ -12,7 +12,7 @@ Installation
 torf is available on `PyPI <https://pypi.org/project/torf>`_.
 
 The latest development version is in the master branch on
-`Github <https://github.org/rndusr/torf>`_.
+`Github <https://github.com/rndusr/torf>`_.
 
 License
 -------
