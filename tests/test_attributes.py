@@ -108,16 +108,11 @@ def test_name_multifile(torrent, multifile_content):
     assert torrent.name == 'Any name should be allowed'
 
 
-def test_size_singlefile(torrent, singlefile_content):
+def test_size(torrent, singlefile_content, multifile_content):
     assert torrent.size is None
-    torrent.path = singlefile_content.path
-    assert torrent.size == singlefile_content.exp_attrs.size
-
-def test_size_multifile(torrent, multifile_content):
-    assert torrent.size is None
-    torrent.path = multifile_content.path
-    assert torrent.size == multifile_content.exp_attrs.size
-
+    for content in (singlefile_content, multifile_content):
+        torrent.path = content.path
+        assert torrent.size == content.exp_attrs.size
 
 
 def test_piece_size(torrent, multifile_content):
