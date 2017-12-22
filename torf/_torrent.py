@@ -89,7 +89,7 @@ class Torrent():
     MIN_PIECE_SIZE = 2 ** 14  # 16 KiB
     MAX_PIECE_SIZE = 2 ** 26  # 64 MiB
 
-    def __init__(self, path=None, exclude=(), trackers=(), webseeds=(),
+    def __init__(self, path=None, name=None, exclude=(), trackers=(), webseeds=(),
                  httpseeds=(), private=False, comment=None, creation_date=None,
                  created_by=None, source=None, piece_size=None,
                  include_md5=False):
@@ -105,8 +105,9 @@ class Torrent():
         self.include_md5 = include_md5
         self.exclude = exclude
         self.path = path
-        # Set piece_size after path because setting path invalidates piece_size
+        # Some values are set by setting path
         self.piece_size = piece_size
+        self.name = name
 
     @property
     def metainfo(self):
@@ -249,7 +250,11 @@ class Torrent():
         return self.metainfo['info'].get('name', None)
     @name.setter
     def name(self, value):
-        self.metainfo['info']['name'] = str(value)
+        if value is None:
+            self.metainfo['info'].pop('name', None)
+            self.name  # Set default name
+        else:
+            self.metainfo['info']['name'] = str(value)
 
     @property
     def trackers(self):
@@ -286,7 +291,8 @@ class Torrent():
                 self.metainfo['announce-list'].append(tier)
 
             # First tracker is also available via 'announce'
-            self.metainfo['announce'] = self.metainfo['announce-list'][0]
+            if self.metainfo['announce-list']:
+                self.metainfo['announce'] = self.metainfo['announce-list'][0]
 
     @property
     def webseeds(self):
