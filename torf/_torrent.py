@@ -92,7 +92,7 @@ class Torrent():
     def __init__(self, path=None, name=None, exclude=(), trackers=(), webseeds=(),
                  httpseeds=(), private=False, comment=None, creation_date=None,
                  created_by=None, source=None, piece_size=None,
-                 include_md5=False):
+                 include_md5=False, randomize_infohash=False):
         self._metainfo = {}
         self.trackers = trackers
         self.webseeds = webseeds
@@ -103,6 +103,7 @@ class Torrent():
         self.created_by = created_by
         self.source = source
         self.include_md5 = include_md5
+        self.randomize_infohash = randomize_infohash
         self.exclude = exclude
         self.path = path
         # Some values are set by setting path
