@@ -95,17 +95,18 @@ def test_filepaths_with_no_path(torrent):
     assert tuple(torrent.filepaths) == ()
 
 
-def test_name_singlefile(torrent, singlefile_content):
-    torrent.path = singlefile_content.path
-    assert torrent.name == os.path.basename(torrent.path)
-    torrent.name = 'Any name should be allowed'
-    assert torrent.name == 'Any name should be allowed'
-
-def test_name_multifile(torrent, multifile_content):
-    torrent.path = multifile_content.path
-    assert torrent.name == os.path.basename(torrent.path)
-    torrent.name = 'Any name should be allowed'
-    assert torrent.name == 'Any name should be allowed'
+def test_name(torrent, singlefile_content, multifile_content):
+    for content in (singlefile_content, multifile_content):
+        torrent.path = content.path
+        assert torrent.name == os.path.basename(torrent.path)
+        torrent.name = 'Any name should be allowed'
+        assert torrent.name == 'Any name should be allowed'
+        torrent.path = None
+        assert torrent.name == None
+        torrent.name = 'foo'
+        assert torrent.name == 'foo'
+        torrent.path = content.path
+        assert torrent.name == os.path.basename(torrent.path)
 
 
 def test_size(torrent, singlefile_content, multifile_content):
