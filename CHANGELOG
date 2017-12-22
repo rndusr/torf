@@ -1,2 +1,8 @@
+2017-??-?? 1.0rc2
+  - Add 'randomize_infohash' as a Torrent argument
+  - Add 'name' as a Torrent argument
+  - Call generate() callback again when all pieces are hashed
+
+
 2017-12-21 1.0rc1
   Initial release
