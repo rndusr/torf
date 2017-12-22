@@ -496,11 +496,12 @@ class Torrent():
 
         # Iterate over hashed pieces and send status information
         last_cb_call = 0
-        for status in set_pieces:
+        for filepath,piece_counter,total_pieces in set_pieces:
             now = time.time()
-            if now - last_cb_call >= interval:
+            if now - last_cb_call >= interval or \
+               piece_counter >= total_pieces:
                 last_cb_call = now
-                if cancel(*status):
+                if cancel(filepath, piece_counter, total_pieces):
                     return False
         return True
 
@@ -522,6 +523,9 @@ class Torrent():
         self.metainfo['info']['pieces'] = pieces
         if md5_hasher:
             self.metainfo['info']['md5sum'] = md5_hasher.hexdigest()
+
+        # Report completion
+        yield (filepath, total_pieces, total_pieces)
 
     def _set_pieces_multifile(self):
         piece_size = self.piece_size
@@ -561,6 +565,9 @@ class Torrent():
         if md5_hasher:
             for md5sum,fileinfo in zip(md5sums, self.metainfo['info']['files']):
                 fileinfo['md5sum'] = md5sum
+
+        # Report completion
+        yield (filepath, total_pieces, total_pieces)
 
     utils.ENCODE_CONVERTERS[datetime] = lambda dt: int(dt.timestamp())
     def convert(self):
