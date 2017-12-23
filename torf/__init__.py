@@ -19,9 +19,7 @@
 # SOFTWARE.
 
 """
-High-level and low-level creation and manipulation of torrent files and magnet links
-
-This module is a fork/rewrite of <https://github.com/kz26/dottorrent>.
+High-level, flexible torrent file and magnet link handling
 """
 
 from ._version import __version__
