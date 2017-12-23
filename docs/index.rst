@@ -1,0 +1,2 @@
+.. automodule:: torf
+   :members: Torrent
