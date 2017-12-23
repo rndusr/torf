@@ -257,6 +257,11 @@ def check_hash(content, hashname):
     exp_attrs = content.exp_attrs
     assert getattr(t, hashname) == getattr(exp_attrs, hashname)
 
+    del t.metainfo['info']['piece length']
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        getattr(t, hashname)
+    assert str(excinfo.value) == "Invalid metainfo: Missing 'piece length' in ['info']"
+
 def test_infohash_singlefile(singlefile_content):
     check_hash(singlefile_content, 'infohash')
 
@@ -273,6 +278,8 @@ def test_infohash_base32_multifile(multifile_content):
 def test_randomize_infohash(singlefile_content):
     t1 = torf.Torrent(singlefile_content.path)
     t2 = torf.Torrent(singlefile_content.path)
+    t1.generate()
+    t2.generate()
 
     t1.randomize_infohash = False
     t2.randomize_infohash = False

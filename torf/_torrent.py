@@ -437,12 +437,14 @@ class Torrent():
     @property
     def infohash(self):
         """SHA1 info hash (generate() must run first)"""
+        self.validate()
         info = self.convert()[b'info']
         return sha1(bencode(info)).hexdigest()
 
     @property
     def infohash_base32(self):
         """Base32 encoded SHA1 info hash (generate() must run first)"""
+        self.validate()
         info = self.convert()[b'info']
         return b32encode(sha1(bencode(info)).digest())
 
