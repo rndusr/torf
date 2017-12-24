@@ -363,7 +363,7 @@ class Torrent():
     @property
     def creation_date(self):
         """
-        :class:`~datetime.datetime` object, :class:`int` (as from :func:`time.time`)
+        :class:`datetime.datetime` object, :class:`int` (as from :func:`time.time`)
         or ``None``
 
         Setting this property sets or removes ``creation date`` in
