@@ -680,6 +680,8 @@ class Torrent():
 
     def dump(self, validate=True):
         """
+        Create bencoded :attr:`metainfo`
+
         :param bool validate: Whether to run :meth:`validate` first
 
         :return: :attr:`metainfo` as validated, bencoded :class:`bytes`
