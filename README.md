@@ -24,8 +24,8 @@ with open('my.torrent', 'wb') as f:
     t.write(f)
 ```
 
-Everything is documented in the docstrings. Run `pydoc3 torf.Torrent` to read
-it.
+Documentation is in the docstrings. Run `pydoc3 torf.Torrent` to read it
+locally. It's also available [online](https://rndusr.github.io/torf/).
 
 Installation
 ------------
