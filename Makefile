@@ -10,7 +10,7 @@ test:
 
 doc:
 	@rm -rf ./build
-	@rm -r ./docs/index.html ./docs/_static/*
+	@rm -rf ./docs/index.html ./docs/_static/*
 	@sphinx-build -M singlehtml ./docs ./build
 	@mv ./build/singlehtml/index.html ./build/singlehtml/_static ./docs
 	@rm -r ./build
