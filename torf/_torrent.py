@@ -106,7 +106,7 @@ class Torrent():
         self.randomize_infohash = randomize_infohash
         self.exclude = exclude
         self.path = path
-        # Some values are set by setting path
+        # Values that are implicitly changed by setting self.path
         self.piece_size = piece_size
         self.name = name
 
@@ -128,7 +128,21 @@ class Torrent():
 
     @property
     def path(self):
-        """Path to torrent content or ``None``"""
+        """
+        Path to torrent content
+
+        Setting this property to a file path sets ``name`` and ``length`` in the
+        ``info`` dictionary in :attr:`metainfo`.
+
+        Setting this property to a directory path sets ``name`` and ``files`` in
+        the ``info`` dictionary in :attr:`metainfo`.
+
+        Setting this property to ``None`` removes the following keys from the
+        ``info`` dictionary in :attr:`metainfo`: ``piece length``, ``pieces``,
+        ``name``, ``length``, ``md5sum``, ``files``
+
+        :raises PathEmptyError: if :attr:`path` contains no data
+        """
         return getattr(self, '_path', None)
     @path.setter
     def path(self, value):
@@ -190,10 +204,8 @@ class Torrent():
     @property
     def size(self):
         """
-        Total size of content in bytes
-
-        If the ``info`` dictionary in :attr:`metainfo` doesn't have ``length``
-        or ``files`` set, return ``None`` instead.
+        Total size of content in bytes or ``None`` if the ``info`` dictionary in
+        :attr:`metainfo` doesn't have ``length`` or ``files`` set
         """
         if 'length' in self.metainfo['info']:   # Singlefile
             return self.metainfo['info']['length']
@@ -208,12 +220,13 @@ class Torrent():
         """
         Piece size/length or ``None`` to pick one automatically
 
-        Setting this property sets ``piece length`` in the ``info`` dictionary
-        in :attr:`metainfo`.
+        Setting this property sets or removes ``piece length`` in the ``info``
+        dictionary in :attr:`metainfo`.
 
         Getting this property if it hasn't been set calculates ``piece length``
         so that there are approximately 1500 pieces in total. The result is
-        stored in :attr:`metainfo`.
+        stored as the ``piece length`` value in the ``info`` dictionary in
+        :attr:`metainfo`.
         """
         if 'piece length' not in self.metainfo['info']:
             if self.size is None:
@@ -263,7 +276,7 @@ class Torrent():
     @property
     def trackers(self):
         """
-        List of tiers of announce URLs or ``None``
+        List of tiers of announce URLs or ``None`` for no trackers
 
         A tier is either a single announce URL (:class:`str`) or an
         :class:`~collections.abc.Iterable` (e.g. a :class:`list`) of announce
@@ -272,6 +285,8 @@ class Torrent():
         Setting this property sets or removes ``announce`` and ``announce-list``
         in :attr:`metainfo`. ``announce`` is set to the first tracker of the
         first tier.
+
+        :raise URLError: if any of the announce URLs is invalid
         """
         announce_list = self.metainfo.get('announce-list', None)
         if not announce_list:
@@ -302,7 +317,7 @@ class Torrent():
 
     @property
     def webseeds(self):
-        """List of webseed URLs or ``None``
+        """List of webseed URLs or ``None`` for no webseeds
 
         http://bittorrent.org/beps/bep_0019.html
         """
@@ -317,7 +332,7 @@ class Torrent():
     @property
     def httpseeds(self):
         """
-        List of httpseed URLs or ``None``
+        List of httpseed URLs or ``None`` for no httpseeds
 
         http://bittorrent.org/beps/bep_0017.html
         """
@@ -348,7 +363,7 @@ class Torrent():
     @property
     def comment(self):
         """
-        Comment string or ``None``
+        Comment string or ``None`` for no comment
 
         Setting this property sets or removes ``comment`` in :attr:`metainfo`.
         """
@@ -363,8 +378,10 @@ class Torrent():
     @property
     def creation_date(self):
         """
-        :class:`datetime.datetime` object, :class:`int` (as from :func:`time.time`)
-        or ``None``
+        :class:`datetime.datetime` instance or ``None`` for no creation date
+
+        :class:`int` and :class:`float` are also allowed and converted with
+        :meth:`datetime.datetime.fromtimestamp`.
 
         Setting this property sets or removes ``creation date`` in
         :attr:`metainfo`.
@@ -384,7 +401,7 @@ class Torrent():
     @property
     def created_by(self):
         """
-        Application name or ``None``
+        Application name or ``None`` for no creator
 
         Setting this property sets or removes ``created by`` in
         :attr:`metainfo`.
@@ -400,7 +417,7 @@ class Torrent():
     @property
     def source(self):
         """
-        Source string or ``None``
+        Source string or ``None`` for no source
 
         Setting this property sets or removes ``source`` in :attr:`metainfo`.
         """
@@ -487,15 +504,14 @@ class Torrent():
         Set ``pieces`` in ``info`` dictionary of :attr:`metainfo`
 
         :param callable callback: Callable with signature ``(filepath,
-            pieces_completed, pieces_total)``; if *callable* returns anything
+            pieces_completed, pieces_total)``; if *callback* returns anything
             that is not None, hashing is canceled
-
         :param int interval: Number of seconds between calls to *callback*
 
-        Raise :exc:`PathEmptyError` if :attr:`path` contains no data.
+        :raises PathEmptyError: if :attr:`path` contains no data
 
         :return: True if ``pieces`` was successfully added to :attr:`metainfo`,
-                 ``False`` otherwise.
+                 ``False`` otherwise
         """
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
@@ -593,7 +609,7 @@ class Torrent():
         values encoded to :class:`bytes`, :class:`int`, :class:`list` or
         :class:`OrderedDict`
 
-        Raise :exc:`MetainfoError` on values that cannot be converted properly.
+        :raises MetainfoError: on values that cannot be converted properly
         """
         try:
             return utils.encode_dict(self.metainfo)
@@ -609,10 +625,11 @@ class Torrent():
             | http://bittorrent.org/beps/bep_0003.html
             | https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
 
-        Note that ``announce`` is not considered mandatory because of DHT.
+        Note that ``announce`` is not considered mandatory because clients can
+        find peers via DHT.
 
-        Raise :exc:`MetainfoError` if :attr:`metainfo` would not generate a
-        valid torrent file or magnet link.
+        :raises MetainfoError: if :attr:`metainfo` would not generate a valid
+            torrent file or magnet link
         """
         md = self.metainfo
         info = md['info']
@@ -740,11 +757,11 @@ class Torrent():
         Read torrent metainfo from file object
 
         :param stream: Stream or file object (must be opened in ``'rb'`` mode)
-        :param bool validate: Whether to run :meth:`validate` on the Torrent
+        :param bool validate: Whether to run :meth:`validate` on the new Torrent
             object
 
-        Raise :exc:`MetainfoParseError` if `stream` does not contain a valid
-        bencoded byte string.
+        :raises MetainfoParseError: if `stream` does not contain a valid
+            bencoded byte string
 
         :return: New Torrent object
         """
