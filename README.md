@@ -9,10 +9,7 @@ turned into a rewrite with more features like full control over the torrent's
 metainfo, validation, randomization of the info hash to help with cross-seeding
 and more.
 
-Documentation
--------------
-
-**Example usage**
+## Example
 
 ```python
 t = torf.Torrent(path='path/to/content',
@@ -24,18 +21,19 @@ with open('my.torrent', 'wb') as f:
     t.write(f)
 ```
 
-Documentation is in the docstrings. Run `pydoc3 torf.Torrent` to read it
-locally. It's also available [online](https://rndusr.github.io/torf/).
+## Documentation
 
-Installation
-------------
+Documentation is in the docstrings. Read it locally by running `pydoc3
+torf.Torrent` after the installation. It's also available
+[online](https://rndusr.github.io/torf/).
+
+## Installation
 
 torf is available on [PyPI](https://pypi.org/project/torf).
 
 The latest development version is in the master branch on
 [GitHub](https://github.com/rndusr/torf).
 
-License
--------
+## License
 
 [MIT](https://opensource.org/licenses/MIT)
