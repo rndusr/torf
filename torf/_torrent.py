@@ -389,7 +389,7 @@ class Torrent():
         return self.metainfo.get('creation date', None)
     @creation_date.setter
     def creation_date(self, value):
-        if isinstance(value, int):
+        if isinstance(value, (float, int)):
             self.metainfo['creation date'] = datetime.fromtimestamp(value)
         elif isinstance(value, datetime):
             self.metainfo['creation date'] = value
