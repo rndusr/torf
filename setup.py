@@ -3,6 +3,11 @@ from setuptools import setup, find_packages
 with open('torf/_version.py') as f:
     exec(f.read())
 
+try:
+    long_description = open('README.rst').read()
+except OSError:
+    long_description = ''
+
 setup(
     name               = 'torf',
     version            = __version__,
@@ -12,7 +17,7 @@ setup(
     author             = 'Random User',
     author_email       = 'rndusr@posteo.de',
     description        = 'High-level Python 3 module for creating and parsing torrent files',
-    long_description   = open('README.rst').read(),
+    long_description   = long_description,
     keywords           = 'bittorrent torrent bencode magnet',
     url                = 'https://github.com/rndusr/torf',
 
