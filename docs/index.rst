@@ -3,3 +3,4 @@
 
 .. automodule:: torf
    :members: Torrent
+   :member-order: bysource
