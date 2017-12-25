@@ -742,12 +742,13 @@ class Torrent():
         if size:
             parts.append(f'xl={self.size}')
 
-        if tracker:
-            parts.append(f'tr={utils.urlquote(self.trackers[0][0])}')
-        elif trackers and self.trackers is not None:
-            for tier in self.trackers:
-                for url in tier:
-                    parts.append(f'tr={utils.urlquote(url)}')
+        if self.trackers is not None:
+            if tracker:
+                parts.append(f'tr={utils.urlquote(self.trackers[0][0])}')
+            elif trackers:
+                for tier in self.trackers:
+                    for url in tier:
+                        parts.append(f'tr={utils.urlquote(url)}')
 
         return 'magnet:?' + '&'.join(parts)
 
