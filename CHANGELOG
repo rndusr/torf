@@ -1,3 +1,8 @@
+2017-12-27 1.0rc3
+  - Reduce entropy with 'randomize_infohash' enabled (some parsers seem to have
+    issues with large integers)
+
+
 2017-12-25 1.0rc2
   - Add 'randomize_infohash' as a Torrent argument
   - Add 'name' as a Torrent argument
