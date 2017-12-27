@@ -495,7 +495,9 @@ class Torrent():
     @randomize_infohash.setter
     def randomize_infohash(self, value):
         if value:
-            self.metainfo['info']['entropy'] = random.getrandbits(64)
+            # According to BEP0003 "Integers have no size limitation", but some
+            # parsers seem to have problems with large numbers.
+            self.metainfo['info']['entropy'] = random.randint(-2e9, 2e9)
         else:
             self.metainfo['info'].pop('entropy', None)
 
