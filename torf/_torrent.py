@@ -33,6 +33,8 @@ import random
 from . import _utils as utils
 from . import _errors as error
 from ._version import __version__
+_PACKAGE_NAME = __name__.split('.')[0]
+
 
 class Torrent():
     """
@@ -89,10 +91,11 @@ class Torrent():
     MIN_PIECE_SIZE = 2 ** 14  # 16 KiB
     MAX_PIECE_SIZE = 2 ** 26  # 64 MiB
 
-    def __init__(self, path=None, name=None, exclude=(), trackers=(), webseeds=(),
-                 httpseeds=(), private=False, comment=None, creation_date=None,
-                 created_by=None, source=None, piece_size=None,
-                 include_md5=False, randomize_infohash=False):
+    def __init__(self, path=None, name=None,
+                 exclude=(), trackers=(), webseeds=(), httpseeds=(),
+                 private=False, comment=None, source=None,
+                 creation_date=None, created_by='%s/%s' % (_PACKAGE_NAME, __version__),
+                 piece_size=None, include_md5=False, randomize_infohash=False):
         self._metainfo = {}
         self.trackers = trackers
         self.webseeds = webseeds
