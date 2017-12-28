@@ -1,3 +1,7 @@
+2017-??-?? 1.0?
+  - Default 'created_by' value is now 'torf/<version>'
+
+
 2017-12-27 1.0rc3
   - Reduce entropy with 'randomize_infohash' enabled (some parsers seem to have
     issues with large integers)
