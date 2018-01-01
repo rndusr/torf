@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 def test_valid_metainfo():
-    t = torf.Torrent()
+    t = torf.Torrent(created_by=None)
     now = datetime.now()
     t.metainfo['foo'] = now
     t.metainfo['baz'] = {'one': True, 'two': 2.34,
