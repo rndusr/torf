@@ -783,11 +783,22 @@ class Torrent():
             except BTFailure as e:
                 raise error.MetainfoParseError()
 
+            if validate:
+                if b'info' not in md_enc:
+                    raise error.MetainfoError("Missing 'info'")
+                elif not isinstance(md_enc[b'info'], abc.Mapping):
+                    raise error.MetainfoError("'info' is not a dictionary")
+                elif b'pieces' not in md_enc[b'info']:
+                    raise error.MetainfoError("Missing 'pieces' in ['info']")
+
             # Extract 'pieces' from metainfo because it's the only byte string
             # that isn't supposed to be decoded to unicode.
-            pieces = md_enc[b'info'].pop(b'pieces')
-            new_md = utils.decode_dict(md_enc)
-            new_md['info']['pieces'] = pieces
+            if b'info' in md_enc and b'pieces' in md_enc[b'info']:
+                pieces = md_enc[b'info'].pop(b'pieces')
+                new_md = utils.decode_dict(md_enc)
+                new_md['info']['pieces'] = pieces
+            else:
+                new_md = utils.decode_dict(md_enc)
 
             torrent = cls()
             torrent._metainfo = new_md
