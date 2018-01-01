@@ -5,6 +5,7 @@ import io
 from datetime import datetime
 from bencoder import bencode, bdecode
 from hashlib import sha1
+from collections import OrderedDict
 
 
 def test_read_from_closed_file():
@@ -92,6 +93,46 @@ def test_read_include_md5_multifile(valid_multifile_metainfo):
     stream = io.BytesIO(bencode(valid_multifile_metainfo))
     t = torf.Torrent.read(stream)
     assert t.include_md5 is False
+
+
+def test_read_nonstandard_data_with_validation():
+    data = OrderedDict([
+        (b'foo', b'bar'),
+    ])
+    stream = io.BytesIO(bencode(data))
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t = torf.Torrent.read(stream)
+    assert excinfo.match("Invalid metainfo: Missing 'info'")
+
+    data[b'info'] = 1
+    stream = io.BytesIO(bencode(data))
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t = torf.Torrent.read(stream)
+    assert excinfo.match("Invalid metainfo: 'info' is not a dictionary")
+
+    data[b'info'] = {}
+    stream = io.BytesIO(bencode(data))
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t = torf.Torrent.read(stream)
+    assert excinfo.match("Invalid metainfo: Missing 'pieces' in \['info'\]")
+
+
+def test_read_nonstandard_data_without_validation():
+    data = OrderedDict([
+        (b'foo', b'bar'),
+        (b'number', 17),
+        (b'list', [1, b'two']),
+        (b'dict', OrderedDict([
+            (b'yes', 1),
+            (b'no', 0),
+        ]))
+    ])
+    stream = io.BytesIO(bencode(data))
+    t = torf.Torrent.read(stream, validate=False)
+    assert t.metainfo['foo'] == 'bar'
+    assert t.metainfo['number'] == 17
+    assert t.metainfo['list'] == [1, 'two']
+    assert t.metainfo['dict'] == {'yes': 1, 'no': 0}
 
 
 # This doesn't work currently because all bencoders I know of sort the data
