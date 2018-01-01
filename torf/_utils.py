@@ -131,8 +131,8 @@ def assert_type(lst_or_dct, keys, exp_types, must_exist=True, check=None):
                instance of
     must_exist: Whether to raise MetainfoError if `keys` does not resolve to a
                 value
-    must_exist: Callable that gets the value specified by `keys` and returns
-                True if it OK, False otherwise
+    check: Callable that gets the value specified by `keys` and returns True if
+           it OK, False otherwise
     """
     keys = list(keys)
     keychain = []
