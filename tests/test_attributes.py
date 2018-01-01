@@ -246,7 +246,7 @@ def test_repr_string(singlefile_content, generate_random_Torrent_args):
 
     for name in ('comment', 'created_by', 'source'):
         setattr(t, name, 'foo')
-    assert repr(t) == f"Torrent(comment='foo', created_by='foo', source='foo', piece_size={2**20})"
+    assert repr(t) == f"Torrent(comment='foo', source='foo', created_by='foo', piece_size={2**20})"
 
 
 def check_hash(content, hashname):
