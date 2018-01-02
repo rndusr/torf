@@ -29,6 +29,7 @@ import inspect
 from collections import abc, OrderedDict
 import io
 import random
+import errno
 
 from . import _utils as utils
 from . import _errors as error
@@ -711,21 +712,36 @@ class Torrent():
             self.validate()
         return bencode(self.convert())
 
-    def write(self, stream, validate=True):
+    def write(self, filepath, validate=True, overwrite=False, mode=0o666):
         """
-        Write :attr:`metainfo` to file object (run :meth:`generate` first)
+        Write current :attr:`metainfo` to torrent file (run :meth:`generate` first)
 
-        :param stream: A stream or file object (must be opened in ``'wb'`` mode)
+        :param filepath: Path of the new torrent file
         :param bool validate: Whether to run :meth:`validate` first
+        :param bool overwrite: Whether to silently overwrite `filepath` (only
+            if all pieces were hashed successfully)
+        :param mode: File permissions of `filepath`
+
+        :raises WriteError: if writing to `filepath` fails
+        :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
+            contains invalid data
         """
-        if stream.closed:
-            raise RuntimeError(f'{stream!r} is closed')
-        elif not stream.writable():
-            raise RuntimeError(f'{stream!r} is opened in read-only mode')
-        elif not isinstance(stream, (io.RawIOBase, io.BufferedIOBase)):
-            raise RuntimeError(f'{stream!r} is not opened in binary mode')
+        if not overwrite and os.path.exists(filepath):
+            raise error.WriteError(filepath, errno.EEXIST)
+
+        fh = None
+        try:
+            # Open file for writing without truncating, so if it already exists,
+            # dump() can fail without destroying its contents
+            fd = os.open(filepath, os.O_RDWR | os.O_CREAT, mode=mode)
+            fh = os.fdopen(fd, 'rb+')
+        except OSError as e:
+            raise error.WriteError(filepath, e.errno)
         else:
-            stream.write(self.dump(validate=validate))
+            fh.write(self.dump(validate=validate))
+        finally:
+            if fh is not None:
+                fh.close()
 
     def magnet(self, name=True, size=True, trackers=True, tracker=False, validate=True):
         """
@@ -758,50 +774,52 @@ class Torrent():
         return 'magnet:?' + '&'.join(parts)
 
     @classmethod
-    def read(cls, stream, validate=True):
+    def read(cls, filepath, validate=True):
         """
-        Read torrent metainfo from file object
+        Read torrent metainfo from file
 
-        :param stream: Stream or file object (must be opened in ``'rb'`` mode)
+        :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
             object
 
-        :raises MetainfoParseError: if `stream` does not contain a valid
-            bencoded byte string
+        :raises ReadError: if reading from `filepath` fails
+        :raises ParseError: if `filepath` does not contain a valid bencoded byte
+            string
+        :raises MetainfoError: if `validate` is `True` and the read metainfo is
+            invalid
 
         :return: New Torrent object
         """
-        if stream.closed:
-            raise RuntimeError(f'{stream!r} is closed')
-        elif not stream.readable():
-            raise RuntimeError(f'{stream!r} is opened in write-only mode')
-        elif not isinstance(stream, (io.RawIOBase, io.BufferedIOBase)):
-            raise RuntimeError(f'{stream!r} is not opened in binary mode')
+        try:
+            with open(filepath, 'rb') as fh:
+                file_content = fh.read()
+        except OSError as e:
+            raise error.ReadError(filepath, e.errno)
         else:
             try:
-                md_enc = bdecode(stream.read())
+                metainfo_enc = bdecode(file_content)
             except BTFailure as e:
-                raise error.MetainfoParseError()
+                raise error.ParseError(filepath)
 
             if validate:
-                if b'info' not in md_enc:
+                if b'info' not in metainfo_enc:
                     raise error.MetainfoError("Missing 'info'")
-                elif not isinstance(md_enc[b'info'], abc.Mapping):
+                elif not isinstance(metainfo_enc[b'info'], abc.Mapping):
                     raise error.MetainfoError("'info' is not a dictionary")
-                elif b'pieces' not in md_enc[b'info']:
+                elif b'pieces' not in metainfo_enc[b'info']:
                     raise error.MetainfoError("Missing 'pieces' in ['info']")
 
             # Extract 'pieces' from metainfo because it's the only byte string
             # that isn't supposed to be decoded to unicode.
-            if b'info' in md_enc and b'pieces' in md_enc[b'info']:
-                pieces = md_enc[b'info'].pop(b'pieces')
-                new_md = utils.decode_dict(md_enc)
-                new_md['info']['pieces'] = pieces
+            if b'info' in metainfo_enc and b'pieces' in metainfo_enc[b'info']:
+                pieces = metainfo_enc[b'info'].pop(b'pieces')
+                metainfo = utils.decode_dict(metainfo_enc)
+                metainfo['info']['pieces'] = pieces
             else:
-                new_md = utils.decode_dict(md_enc)
+                metainfo = utils.decode_dict(metainfo_enc)
 
             torrent = cls()
-            torrent._metainfo = new_md
+            torrent._metainfo = metainfo
 
             # Convert some values from official types to something nicer
             # (e.g. int -> datetime)

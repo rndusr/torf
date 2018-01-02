@@ -57,8 +57,8 @@ def read_chunks(filepath, chunk_size):
                     yield chunk
                 else:
                     break  # EOF
-    except OSError:
-        raise error.PathReadError(filepath)
+    except OSError as e:
+        raise error.ReadError(filepath, e.errno)
 
 
 def calc_piece_size(total_size, min_piece_size, max_piece_size):
