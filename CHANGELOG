@@ -1,5 +1,7 @@
 2017-??-?? 1.0?
-  - Torrent.write() takes a file path instead of an opened file object
+  - Torrent.write() and Torrent.read() take a file path instead of an opened
+    file object
+  - Some exception names have changed
   - Allow reading arbitrary bencoded data with validation turned off
   - Default 'created_by' value is now 'torf/<version>'
 
