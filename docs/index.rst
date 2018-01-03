@@ -5,10 +5,7 @@
    :members:
    :member-order: bysource
 
-.. autoexception:: torf.URLError
-   :members:
-
-.. autoexception:: torf.PieceSizeError
+.. autoexception:: torf.TorfError
    :members:
 
 .. autoexception:: torf.MetainfoError
@@ -27,4 +24,10 @@
    :members:
 
 .. autoexception:: torf.WriteError
+   :members:
+
+.. autoexception:: torf.URLError
+   :members:
+
+.. autoexception:: torf.PieceSizeError
    :members:
