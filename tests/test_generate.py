@@ -5,25 +5,30 @@ from unittest import mock
 import math
 from hashlib import md5
 import os
+import shutil
 
 
-def test_generate_with_nonexisting_path():
-    path = '/foo/bar/baz/'
+def test_generate_with_nonexisting_path(singlefile_content):
+    content_path = singlefile_content.path + '.deletable'
+    shutil.copyfile(singlefile_content.path, content_path)
+    t = torf.Torrent(content_path)
+    os.remove(content_path)
+
     with pytest.raises(torf.PathNotFoundError) as excinfo:
-        t = torf.Torrent(path)
-    assert excinfo.match(f'No such file or directory: {path!r}')
+        t.generate()
+    assert excinfo.match(f'No such file or directory: {content_path!r}')
 
 
-def assert_raises_PathEmptyError(content):
-    with pytest.raises(torf.PathEmptyError) as excinfo:
-        t = torf.Torrent(content.path)
-    assert excinfo.match(f'Empty (file|directory): {content.path!r}')
+def test_generate_with_one_unreadable(multifile_content):
+    t = torf.Torrent(multifile_content.path)
 
-def test_generate_with_empty_file(singlefile_content_empty):
-    assert_raises_PathEmptyError(singlefile_content_empty)
+    old_mode = os.stat(multifile_content.path).st_mode
+    os.chmod(multifile_content.path, mode=0o222)
 
-def test_generate_with_empty_file_in_dir(multifile_content_empty):
-    assert_raises_PathEmptyError(multifile_content_empty)
+    with pytest.raises(torf.ReadError) as excinfo:
+        t.generate()
+    assert excinfo.match(f"Permission denied: '{multifile_content.path}.*'")
+    os.chmod(multifile_content.path, mode=old_mode)
 
 
 def check_metainfo(content):
