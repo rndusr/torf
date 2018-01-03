@@ -63,7 +63,7 @@
 <span class="gp">... </span>                                  <span class="s1">&#39;bar&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">)}</span>
 </pre></div>
 </div>
-<p>Start hashing and update progress once per second:</p>
+<p>Hash pieces and update progress once per second:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">pieces_done</span><span class="p">,</span> <span class="n">pieces_total</span><span class="p">):</span>
 <span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;{pieces_done/pieces_total*100:3.0f} </span><span class="si">% d</span><span class="s1">one&#39;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">success</span> <span class="o">=</span> <span class="n">torrent</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -173,7 +173,7 @@ values encoded to <code class="xref py py-class docutils literal"><span class="p
 <dt id="torf.Torrent.files">
 <code class="descname">files</code><a class="headerlink" href="#torf.Torrent.files" title="Permalink to this definition">¶</a></dt>
 <dd><p>Yield relative paths to files specified in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a></p>
-<p>Paths are prefixed with <a class="reference internal" href="#torf.Torrent.name" title="torf.Torrent.name"><code class="xref py py-attr docutils literal"><span class="pre">name</span></code></a>.</p>
+<p>Each paths starts with <a class="reference internal" href="#torf.Torrent.name" title="torf.Torrent.name"><code class="xref py py-attr docutils literal"><span class="pre">name</span></code></a>.</p>
 <p>Note that the paths may not exist. See <a class="reference internal" href="#torf.Torrent.filepaths" title="torf.Torrent.filepaths"><code class="xref py py-attr docutils literal"><span class="pre">filepaths</span></code></a> for existing
 files.</p>
 </dd></dl>
@@ -181,7 +181,7 @@ files.</p>
 <dl class="method">
 <dt id="torf.Torrent.generate">
 <code class="descname">generate</code><span class="sig-paren">(</span><em>callback=None</em>, <em>interval=0</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.Torrent.generate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set <code class="docutils literal"><span class="pre">pieces</span></code> in <code class="docutils literal"><span class="pre">info</span></code> dictionary of <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a></p>
+<dd><p>Set <code class="docutils literal"><span class="pre">pieces</span></code> in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code></p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -202,8 +202,8 @@ files/directories</li>
 </ul>
 </td>
 </tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">True if <code class="docutils literal"><span class="pre">pieces</span></code> was successfully added to <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>,
-<code class="docutils literal"><span class="pre">False</span></code> otherwise</p>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">True if <code class="docutils literal"><span class="pre">pieces</span></code> was successfully added to
+<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>, <code class="docutils literal"><span class="pre">False</span></code> otherwise</p>
 </td>
 </tr>
 </tbody>
@@ -275,26 +275,26 @@ and <a class="reference internal" href="#torf.Torrent.validate" title="torf.Torr
 <dd><p>Name of the torrent</p>
 <p>Default to last item in <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> or <code class="docutils literal"><span class="pre">None</span></code> if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> is
 <code class="docutils literal"><span class="pre">None</span></code>.</p>
-<p>Setting this property sets or removes <code class="docutils literal"><span class="pre">name</span></code> in the <code class="docutils literal"><span class="pre">info</span></code>
-dictionary of <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>.</p>
+<p>Setting this property sets or removes <code class="docutils literal"><span class="pre">name</span></code> in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>        <code class="docutils literal"><span class="pre">['info']</span></code>.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="torf.Torrent.path">
 <code class="descname">path</code><a class="headerlink" href="#torf.Torrent.path" title="Permalink to this definition">¶</a></dt>
 <dd><p>Path to torrent content</p>
-<p>Setting this property to a file path sets <code class="docutils literal"><span class="pre">name</span></code> and <code class="docutils literal"><span class="pre">length</span></code> in the
-<code class="docutils literal"><span class="pre">info</span></code> dictionary in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>.</p>
+<p>Setting this property to a file path sets <code class="docutils literal"><span class="pre">name</span></code> and <code class="docutils literal"><span class="pre">length</span></code> in
+<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>.</p>
 <p>Setting this property to a directory path sets <code class="docutils literal"><span class="pre">name</span></code> and <code class="docutils literal"><span class="pre">files</span></code> in
-the <code class="docutils literal"><span class="pre">info</span></code> dictionary in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>.</p>
-<p>Setting this property to <code class="docutils literal"><span class="pre">None</span></code> removes the following keys from the
-<code class="docutils literal"><span class="pre">info</span></code> dictionary in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>: <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code>, <code class="docutils literal"><span class="pre">pieces</span></code>,
-<code class="docutils literal"><span class="pre">name</span></code>, <code class="docutils literal"><span class="pre">length</span></code>, <code class="docutils literal"><span class="pre">md5sum</span></code>, <code class="docutils literal"><span class="pre">files</span></code></p>
+<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>.</p>
+<p>Setting this property to <code class="docutils literal"><span class="pre">None</span></code> removes the following keys from
+<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>: <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code>, <code class="docutils literal"><span class="pre">pieces</span></code>, <code class="docutils literal"><span class="pre">name</span></code>,
+<code class="docutils literal"><span class="pre">length</span></code>, <code class="docutils literal"><span class="pre">md5sum</span></code>, <code class="docutils literal"><span class="pre">files</span></code></p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#torf.PathEmptyError" title="torf.PathEmptyError"><strong>PathEmptyError</strong></a> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> contains no data</td>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#torf.PathEmptyError" title="torf.PathEmptyError"><strong>PathEmptyError</strong></a> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> contains no data (i.e. empty
+file, empty directory or directory containing only empty files)</td>
 </tr>
 </tbody>
 </table>
@@ -304,20 +304,18 @@ the <code class="docutils literal"><span class="pre">info</span></code> dictiona
 <dt id="torf.Torrent.piece_size">
 <code class="descname">piece_size</code><a class="headerlink" href="#torf.Torrent.piece_size" title="Permalink to this definition">¶</a></dt>
 <dd><p>Piece size/length or <code class="docutils literal"><span class="pre">None</span></code> to pick one automatically</p>
-<p>Setting this property sets or removes <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code> in the <code class="docutils literal"><span class="pre">info</span></code>
-dictionary in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>.</p>
+<p>Setting this property sets or removes <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code> in
+<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>.</p>
 <p>Getting this property if it hasn’t been set calculates <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code>
 so that there are approximately 1500 pieces in total. The result is
-stored as the <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code> value in the <code class="docutils literal"><span class="pre">info</span></code> dictionary in
-<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>.</p>
+stored as <code class="docutils literal"><span class="pre">piece</span> <span class="pre">length</span></code> in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>.</p>
 </dd></dl>
 
 <dl class="attribute">
 <dt id="torf.Torrent.private">
 <code class="descname">private</code><a class="headerlink" href="#torf.Torrent.private" title="Permalink to this definition">¶</a></dt>
 <dd><p>Whether torrent should use trackers exclusively for peer discovery</p>
-<p>Setting this property sets or removes <code class="docutils literal"><span class="pre">private</span></code> in the <code class="docutils literal"><span class="pre">info</span></code>
-dictionary of <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>.</p>
+<p>Setting this property sets or removes <code class="docutils literal"><span class="pre">private</span></code> in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>.</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -325,8 +323,8 @@ dictionary of <a class="reference internal" href="#torf.Torrent.metainfo" title=
 <code class="descname">randomize_infohash</code><a class="headerlink" href="#torf.Torrent.randomize_infohash" title="Permalink to this definition">¶</a></dt>
 <dd><p>Whether to ensure that <a class="reference internal" href="#torf.Torrent.infohash" title="torf.Torrent.infohash"><code class="xref py py-attr docutils literal"><span class="pre">infohash</span></code></a> is always different</p>
 <p>This allows cross-seeding without changing <a class="reference internal" href="#torf.Torrent.piece_size" title="torf.Torrent.piece_size"><code class="xref py py-attr docutils literal"><span class="pre">piece_size</span></code></a> manually.</p>
-<p>Setting this property to <code class="docutils literal"><span class="pre">True</span></code> sets <code class="docutils literal"><span class="pre">entropy</span></code> in the <code class="docutils literal"><span class="pre">info</span></code>
-dictionary of <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a> to a random integer. Setting it to
+<p>Setting this property to <code class="docutils literal"><span class="pre">True</span></code> sets <code class="docutils literal"><span class="pre">entropy</span></code> in
+<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code> to a random integer. Setting it to
 <code class="docutils literal"><span class="pre">False</span></code> removes that value.</p>
 </dd></dl>
 
@@ -364,8 +362,8 @@ invalid</li>
 <dl class="attribute">
 <dt id="torf.Torrent.size">
 <code class="descname">size</code><a class="headerlink" href="#torf.Torrent.size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Total size of content in bytes or <code class="docutils literal"><span class="pre">None</span></code> if the <code class="docutils literal"><span class="pre">info</span></code> dictionary in
-<a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a> doesn’t have <code class="docutils literal"><span class="pre">length</span></code> or <code class="docutils literal"><span class="pre">files</span></code> set</p>
+<dd><p>Total size of content in bytes or <code class="docutils literal"><span class="pre">None</span></code> if <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a><code class="docutils literal"><span class="pre">['info']</span></code>
+doesn’t have <code class="docutils literal"><span class="pre">length</span></code> or <code class="docutils literal"><span class="pre">files</span></code> set</p>
 </dd></dl>
 
 <dl class="attribute">
@@ -380,7 +378,7 @@ invalid</li>
 <code class="descname">trackers</code><a class="headerlink" href="#torf.Torrent.trackers" title="Permalink to this definition">¶</a></dt>
 <dd><p>List of tiers of announce URLs or <code class="docutils literal"><span class="pre">None</span></code> for no trackers</p>
 <p>A tier is either a single announce URL (<code class="xref py py-class docutils literal"><span class="pre">str</span></code>) or an
-<code class="xref py py-class docutils literal"><span class="pre">Iterable</span></code> (e.g. a <code class="xref py py-class docutils literal"><span class="pre">list</span></code>) of announce
+<code class="xref py py-class docutils literal"><span class="pre">Iterable</span></code> (e.g. <code class="xref py py-class docutils literal"><span class="pre">list</span></code>) of announce
 URLs.</p>
 <p>Setting this property sets or removes <code class="docutils literal"><span class="pre">announce</span></code> and <code class="docutils literal"><span class="pre">announce-list</span></code>
 in <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>. <code class="docutils literal"><span class="pre">announce</span></code> is set to the first tracker of the
@@ -459,15 +457,9 @@ contains invalid data</li>
 </dd></dl>
 
 <dl class="exception">
-<dt id="torf.URLError">
-<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">URLError</code><span class="sig-paren">(</span><em>url</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.URLError" title="Permalink to this definition">¶</a></dt>
-<dd><p>Invalid URL</p>
-</dd></dl>
-
-<dl class="exception">
-<dt id="torf.PieceSizeError">
-<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">PieceSizeError</code><span class="sig-paren">(</span><em>min</em>, <em>max</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.PieceSizeError" title="Permalink to this definition">¶</a></dt>
-<dd><p>Invalid piece size</p>
+<dt id="torf.TorfError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">TorfError</code><a class="headerlink" href="#torf.TorfError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base exception for all exceptions raised by torf</p>
 </dd></dl>
 
 <dl class="exception">
@@ -528,6 +520,18 @@ contains invalid data</li>
 <dd><p>File path that caused the error</p>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.URLError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">URLError</code><span class="sig-paren">(</span><em>url</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.URLError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalid URL</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.PieceSizeError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">PieceSizeError</code><span class="sig-paren">(</span><em>min</em>, <em>max</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.PieceSizeError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalid piece size</p>
 </dd></dl>
 
 </div>
