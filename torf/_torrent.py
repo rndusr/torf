@@ -61,7 +61,7 @@ class Torrent():
     >>> torrent.metainfo['more stuff'] = {'foo': 12,
     ...                                   'bar': ('x', 'y', 'z')}
 
-    Start hashing and update progress once per second:
+    Hash pieces and update progress once per second:
 
     >>> def callback(filepath, pieces_done, pieces_total):
     ...     print(f'{pieces_done/pieces_total*100:3.0f} % done')
@@ -133,17 +133,18 @@ class Torrent():
         """
         Path to torrent content
 
-        Setting this property to a file path sets ``name`` and ``length`` in the
-        ``info`` dictionary in :attr:`metainfo`.
+        Setting this property to a file path sets ``name`` and ``length`` in
+        :attr:`metainfo`\ ``['info']``.
 
         Setting this property to a directory path sets ``name`` and ``files`` in
-        the ``info`` dictionary in :attr:`metainfo`.
+        :attr:`metainfo`\ ``['info']``.
 
-        Setting this property to ``None`` removes the following keys from the
-        ``info`` dictionary in :attr:`metainfo`: ``piece length``, ``pieces``,
-        ``name``, ``length``, ``md5sum``, ``files``
+        Setting this property to ``None`` removes the following keys from
+        :attr:`metainfo`\ ``['info']``: ``piece length``, ``pieces``, ``name``,
+        ``length``, ``md5sum``, ``files``
 
-        :raises PathEmptyError: if :attr:`path` contains no data
+        :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
+            file, empty directory or directory containing only empty files)
         """
         return getattr(self, '_path', None)
     @path.setter
@@ -183,7 +184,7 @@ class Torrent():
         """
         Yield relative paths to files specified in :attr:`metainfo`
 
-        Paths are prefixed with :attr:`name`.
+        Each paths starts with :attr:`name`.
 
         Note that the paths may not exist. See :attr:`filepaths` for existing
         files.
@@ -206,8 +207,8 @@ class Torrent():
     @property
     def size(self):
         """
-        Total size of content in bytes or ``None`` if the ``info`` dictionary in
-        :attr:`metainfo` doesn't have ``length`` or ``files`` set
+        Total size of content in bytes or ``None`` if :attr:`metainfo`\ ``['info']``
+        doesn't have ``length`` or ``files`` set
         """
         if 'length' in self.metainfo['info']:   # Singlefile
             return self.metainfo['info']['length']
@@ -222,13 +223,12 @@ class Torrent():
         """
         Piece size/length or ``None`` to pick one automatically
 
-        Setting this property sets or removes ``piece length`` in the ``info``
-        dictionary in :attr:`metainfo`.
+        Setting this property sets or removes ``piece length`` in
+        :attr:`metainfo`\ ``['info']``.
 
         Getting this property if it hasn't been set calculates ``piece length``
         so that there are approximately 1500 pieces in total. The result is
-        stored as the ``piece length`` value in the ``info`` dictionary in
-        :attr:`metainfo`.
+        stored as ``piece length`` in :attr:`metainfo`\ ``['info']``.
         """
         if 'piece length' not in self.metainfo['info']:
             if self.size is None:
@@ -261,8 +261,8 @@ class Torrent():
         Default to last item in :attr:`path` or ``None`` if :attr:`path` is
         ``None``.
 
-        Setting this property sets or removes ``name`` in the ``info``
-        dictionary of :attr:`metainfo`.
+        Setting this property sets or removes ``name`` in :attr:`metainfo`\
+        ``['info']``.
         """
         if 'name' not in self.metainfo['info'] and self.path is not None:
             self.metainfo['info']['name'] = os.path.basename(self.path)
@@ -281,7 +281,7 @@ class Torrent():
         List of tiers of announce URLs or ``None`` for no trackers
 
         A tier is either a single announce URL (:class:`str`) or an
-        :class:`~collections.abc.Iterable` (e.g. a :class:`list`) of announce
+        :class:`~collections.abc.Iterable` (e.g. :class:`list`) of announce
         URLs.
 
         Setting this property sets or removes ``announce`` and ``announce-list``
@@ -351,8 +351,7 @@ class Torrent():
         """
         Whether torrent should use trackers exclusively for peer discovery
 
-        Setting this property sets or removes ``private`` in the ``info``
-        dictionary of :attr:`metainfo`.
+        Setting this property sets or removes ``private`` in :attr:`metainfo`\ ``['info']``.
         """
         return bool(self.metainfo['info'].get('private', False))
     @private.setter
@@ -489,8 +488,8 @@ class Torrent():
 
         This allows cross-seeding without changing :attr:`piece_size` manually.
 
-        Setting this property to ``True`` sets ``entropy`` in the ``info``
-        dictionary of :attr:`metainfo` to a random integer. Setting it to
+        Setting this property to ``True`` sets ``entropy`` in
+        :attr:`metainfo`\ ``['info']`` to a random integer. Setting it to
         ``False`` removes that value.
         """
         return bool(self.metainfo['info'].get('entropy', False))
@@ -505,7 +504,7 @@ class Torrent():
 
     def generate(self, callback=None, interval=0):
         """
-        Set ``pieces`` in ``info`` dictionary of :attr:`metainfo`
+        Set ``pieces`` in :attr:`metainfo`\ ``['info']``
 
         :param callable callback: Callable with signature ``(filepath,
             pieces_completed, pieces_total)``; if *callback* returns anything
@@ -517,8 +516,8 @@ class Torrent():
         :raises PathNotFoundError: if :attr:`path` does not exist
         :raises ReadError: if :attr:`path` or any file beneath it is not readable
 
-        :return: True if ``pieces`` was successfully added to :attr:`metainfo`,
-                 ``False`` otherwise
+        :return: True if ``pieces`` was successfully added to
+            :attr:`metainfo`\ ``['info']``, ``False`` otherwise
         """
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
