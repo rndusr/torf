@@ -515,6 +515,7 @@ class Torrent():
         :param int interval: Number of seconds between calls to *callback*
 
         :raises PathEmptyError: if :attr:`path` contains no data
+        :raises PathNotFoundError: if :attr:`path` does not exist
 
         :return: True if ``pieces`` was successfully added to :attr:`metainfo`,
                  ``False`` otherwise
@@ -523,6 +524,8 @@ class Torrent():
             raise RuntimeError('generate() called with no path specified')
         elif self.size <= 0:
             raise error.PathEmptyError(self.path)
+        elif not os.path.exists(self.path):
+            raise error.PathNotFoundError(self.path)
 
         if callback is not None:
             cancel = lambda *status: callback(*status) is not None

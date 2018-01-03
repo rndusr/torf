@@ -7,6 +7,13 @@ from hashlib import md5
 import os
 
 
+def test_generate_with_nonexisting_path():
+    path = '/foo/bar/baz/'
+    with pytest.raises(torf.PathNotFoundError) as excinfo:
+        t = torf.Torrent(path)
+    assert excinfo.match(f'No such file or directory: {path!r}')
+
+
 def assert_raises_PathEmptyError(content):
     with pytest.raises(torf.PathEmptyError) as excinfo:
         t = torf.Torrent(content.path)
