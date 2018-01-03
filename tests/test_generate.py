@@ -17,7 +17,7 @@ def test_generate_with_nonexisting_path():
 def assert_raises_PathEmptyError(content):
     with pytest.raises(torf.PathEmptyError) as excinfo:
         t = torf.Torrent(content.path)
-    assert excinfo.match(content.path)
+    assert excinfo.match(f'Empty (file|directory): {content.path!r}')
 
 def test_generate_with_empty_file(singlefile_content_empty):
     assert_raises_PathEmptyError(singlefile_content_empty)
