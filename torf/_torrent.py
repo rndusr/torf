@@ -73,8 +73,7 @@ class Torrent():
 
     Write torrent file:
 
-    >>> with open('my_torrent.torrent', 'wb') as f:
-    ...    torrent.write(f)
+    >>> torrent.write('my_torrent.torrent')
 
     Generate magnet link:
 
@@ -83,8 +82,7 @@ class Torrent():
 
     Read torrent:
 
-    >>> with open('my_torrent.torrent', 'rb') as f:
-    ...    t = Torrent.read(f)
+    >>> t = Torrent.read('my_torrent.torrent')
     >>> t.comment
     'This is my first torrent. Be gentle.'
     """

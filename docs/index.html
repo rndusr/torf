@@ -37,9 +37,8 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="module-torf">
-<span id="torf-reference"></span><h1><a class="reference external" href="https://github.com/rndusr/torf">torf</a> Reference<a class="headerlink" href="#module-torf" title="Permalink to this headline">¶</a></h1>
-<p>High-level, flexible torrent file and magnet link handling</p>
+  <div class="section" id="torf-reference">
+<h1><a class="reference external" href="https://github.com/rndusr/torf">torf</a> Reference<a class="headerlink" href="#torf-reference" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="torf.Torrent">
 <em class="property">class </em><code class="descclassname">torf.</code><code class="descname">Torrent</code><span class="sig-paren">(</span><em>path=None</em>, <em>name=None</em>, <em>exclude=()</em>, <em>trackers=()</em>, <em>webseeds=()</em>, <em>httpseeds=()</em>, <em>private=False</em>, <em>comment=None</em>, <em>source=None</em>, <em>creation_date=None</em>, <em>created_by='torf/1.0rc3'</em>, <em>piece_size=None</em>, <em>include_md5=False</em>, <em>randomize_infohash=False</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.Torrent" title="Permalink to this definition">¶</a></dt>
@@ -75,8 +74,7 @@
 </pre></div>
 </div>
 <p>Write torrent file:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;my_torrent.torrent&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<span class="gp">... </span>   <span class="n">torrent</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">torrent</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;my_torrent.torrent&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Generate magnet link:</p>
@@ -85,8 +83,7 @@
 </pre></div>
 </div>
 <p>Read torrent:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;my_torrent.torrent&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<span class="gp">... </span>   <span class="n">t</span> <span class="o">=</span> <span class="n">Torrent</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">t</span> <span class="o">=</span> <span class="n">Torrent</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;my_torrent.torrent&#39;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">t</span><span class="o">.</span><span class="n">comment</span>
 <span class="go">&#39;This is my first torrent. Be gentle.&#39;</span>
 </pre></div>
@@ -108,7 +105,7 @@ values encoded to <code class="xref py py-class docutils literal"><span class="p
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><strong>MetainfoError</strong> – on values that cannot be converted properly</td>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#torf.MetainfoError" title="torf.MetainfoError"><strong>MetainfoError</strong></a> – on values that cannot be converted properly</td>
 </tr>
 </tbody>
 </table>
@@ -197,7 +194,12 @@ that is not None, hashing is canceled</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first"><strong>PathEmptyError</strong> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> contains no data</p>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first simple">
+<li><a class="reference internal" href="#torf.PathEmptyError" title="torf.PathEmptyError"><strong>PathEmptyError</strong></a> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> contains only empty
+files/directories</li>
+<li><a class="reference internal" href="#torf.PathNotFoundError" title="torf.PathNotFoundError"><strong>PathNotFoundError</strong></a> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> does not exist</li>
+<li><a class="reference internal" href="#torf.ReadError" title="torf.ReadError"><strong>ReadError</strong></a> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> or any file beneath it is not readable</li>
+</ul>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">True if <code class="docutils literal"><span class="pre">pieces</span></code> was successfully added to <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>,
@@ -292,7 +294,7 @@ the <code class="docutils literal"><span class="pre">info</span></code> dictiona
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><strong>PathEmptyError</strong> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> contains no data</td>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#torf.PathEmptyError" title="torf.PathEmptyError"><strong>PathEmptyError</strong></a> – if <a class="reference internal" href="#torf.Torrent.path" title="torf.Torrent.path"><code class="xref py py-attr docutils literal"><span class="pre">path</span></code></a> contains no data</td>
 </tr>
 </tbody>
 </table>
@@ -330,21 +332,26 @@ dictionary of <a class="reference internal" href="#torf.Torrent.metainfo" title=
 
 <dl class="classmethod">
 <dt id="torf.Torrent.read">
-<em class="property">classmethod </em><code class="descname">read</code><span class="sig-paren">(</span><em>stream</em>, <em>validate=True</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.Torrent.read" title="Permalink to this definition">¶</a></dt>
-<dd><p>Read torrent metainfo from file object</p>
+<em class="property">classmethod </em><code class="descname">read</code><span class="sig-paren">(</span><em>filepath</em>, <em>validate=True</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.Torrent.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read torrent metainfo from file</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>stream</strong> – Stream or file object (must be opened in <code class="docutils literal"><span class="pre">'rb'</span></code> mode)</li>
+<li><strong>filepath</strong> – Path of the torrent file</li>
 <li><strong>validate</strong> (<em>bool</em>) – Whether to run <a class="reference internal" href="#torf.Torrent.validate" title="torf.Torrent.validate"><code class="xref py py-meth docutils literal"><span class="pre">validate()</span></code></a> on the new Torrent
 object</li>
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first"><strong>MetainfoParseError</strong> – if <cite>stream</cite> does not contain a valid
-bencoded byte string</p>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first simple">
+<li><a class="reference internal" href="#torf.ReadError" title="torf.ReadError"><strong>ReadError</strong></a> – if reading from <cite>filepath</cite> fails</li>
+<li><a class="reference internal" href="#torf.ParseError" title="torf.ParseError"><strong>ParseError</strong></a> – if <cite>filepath</cite> does not contain a valid bencoded byte
+string</li>
+<li><a class="reference internal" href="#torf.MetainfoError" title="torf.MetainfoError"><strong>MetainfoError</strong></a> – if <cite>validate</cite> is <cite>True</cite> and the read metainfo is
+invalid</li>
+</ul>
 </td>
 </tr>
 <tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">New Torrent object</p>
@@ -382,7 +389,7 @@ first tier.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><strong>URLError</strong> – if any of the announce URLs is invalid</td>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#torf.URLError" title="torf.URLError"><strong>URLError</strong></a> – if any of the announce URLs is invalid</td>
 </tr>
 </tbody>
 </table>
@@ -407,7 +414,7 @@ find peers via DHT.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><strong>MetainfoError</strong> – if <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a> would not generate a valid
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference internal" href="#torf.MetainfoError" title="torf.MetainfoError"><strong>MetainfoError</strong></a> – if <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a> would not generate a valid
 torrent file or magnet link</td>
 </tr>
 </tbody>
@@ -423,20 +430,102 @@ torrent file or magnet link</td>
 
 <dl class="method">
 <dt id="torf.Torrent.write">
-<code class="descname">write</code><span class="sig-paren">(</span><em>stream</em>, <em>validate=True</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.Torrent.write" title="Permalink to this definition">¶</a></dt>
-<dd><p>Write <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a> to file object (run <a class="reference internal" href="#torf.Torrent.generate" title="torf.Torrent.generate"><code class="xref py py-meth docutils literal"><span class="pre">generate()</span></code></a> first)</p>
+<code class="descname">write</code><span class="sig-paren">(</span><em>filepath</em>, <em>validate=True</em>, <em>overwrite=False</em>, <em>mode=438</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.Torrent.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write current <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a> to torrent file (run <a class="reference internal" href="#torf.Torrent.generate" title="torf.Torrent.generate"><code class="xref py py-meth docutils literal"><span class="pre">generate()</span></code></a> first)</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>stream</strong> – A stream or file object (must be opened in <code class="docutils literal"><span class="pre">'wb'</span></code> mode)</li>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filepath</strong> – Path of the new torrent file</li>
 <li><strong>validate</strong> (<em>bool</em>) – Whether to run <a class="reference internal" href="#torf.Torrent.validate" title="torf.Torrent.validate"><code class="xref py py-meth docutils literal"><span class="pre">validate()</span></code></a> first</li>
+<li><strong>overwrite</strong> (<em>bool</em>) – Whether to silently overwrite <cite>filepath</cite> (only
+if all pieces were hashed successfully)</li>
+<li><strong>mode</strong> – File permissions of <cite>filepath</cite></li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference internal" href="#torf.WriteError" title="torf.WriteError"><strong>WriteError</strong></a> – if writing to <cite>filepath</cite> fails</li>
+<li><a class="reference internal" href="#torf.MetainfoError" title="torf.MetainfoError"><strong>MetainfoError</strong></a> – if <cite>validate</cite> is <cite>True</cite> and <a class="reference internal" href="#torf.Torrent.metainfo" title="torf.Torrent.metainfo"><code class="xref py py-attr docutils literal"><span class="pre">metainfo</span></code></a>
+contains invalid data</li>
 </ul>
 </td>
 </tr>
 </tbody>
 </table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.URLError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">URLError</code><span class="sig-paren">(</span><em>url</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.URLError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalid URL</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.PieceSizeError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">PieceSizeError</code><span class="sig-paren">(</span><em>min</em>, <em>max</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.PieceSizeError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalid piece size</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.MetainfoError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">MetainfoError</code><span class="sig-paren">(</span><em>msg</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.MetainfoError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalid torrent metainfo</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.ParseError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">ParseError</code><span class="sig-paren">(</span><em>filepath=None</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.ParseError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invalid bencoded metainfo</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.PathNotFoundError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">PathNotFoundError</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.PathNotFoundError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path does not exist</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.PathEmptyError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">PathEmptyError</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.PathEmptyError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Empty file or directory or directory that contains only empty files</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.ReadError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">ReadError</code><span class="sig-paren">(</span><em>path</em>, <em>error_code</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.ReadError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unreadable file</p>
+<dl class="attribute">
+<dt id="torf.ReadError.errno">
+<code class="descname">errno</code><a class="headerlink" href="#torf.ReadError.errno" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error code (see <code class="xref py py-mod docutils literal"><span class="pre">errno</span></code>)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="torf.ReadError.path">
+<code class="descname">path</code><a class="headerlink" href="#torf.ReadError.path" title="Permalink to this definition">¶</a></dt>
+<dd><p>File path that caused the error</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="torf.WriteError">
+<em class="property">exception </em><code class="descclassname">torf.</code><code class="descname">WriteError</code><span class="sig-paren">(</span><em>path</em>, <em>error_code</em><span class="sig-paren">)</span><a class="headerlink" href="#torf.WriteError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unwritable file</p>
+<dl class="attribute">
+<dt id="torf.WriteError.errno">
+<code class="descname">errno</code><a class="headerlink" href="#torf.WriteError.errno" title="Permalink to this definition">¶</a></dt>
+<dd><p>Error code (see <code class="xref py py-mod docutils literal"><span class="pre">errno</span></code>)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="torf.WriteError.path">
+<code class="descname">path</code><a class="headerlink" href="#torf.WriteError.path" title="Permalink to this definition">¶</a></dt>
+<dd><p>File path that caused the error</p>
 </dd></dl>
 
 </dd></dl>

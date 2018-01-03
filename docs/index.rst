@@ -14,7 +14,7 @@
 .. autoexception:: torf.MetainfoError
    :members:
 
-.. autoexception:: torf.MetainfoParseError
+.. autoexception:: torf.ParseError
    :members:
 
 .. autoexception:: torf.PathNotFoundError
@@ -23,8 +23,8 @@
 .. autoexception:: torf.PathEmptyError
    :members:
 
-.. autoexception:: torf.PathReadError
+.. autoexception:: torf.ReadError
    :members:
 
-.. autoexception:: torf.PathWriteError
+.. autoexception:: torf.WriteError
    :members:
