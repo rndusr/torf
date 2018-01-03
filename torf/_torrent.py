@@ -514,8 +514,10 @@ class Torrent():
             that is not None, hashing is canceled
         :param int interval: Number of seconds between calls to *callback*
 
-        :raises PathEmptyError: if :attr:`path` contains no data
+        :raises PathEmptyError: if :attr:`path` contains only empty
+            files/directories
         :raises PathNotFoundError: if :attr:`path` does not exist
+        :raises ReadError: if :attr:`path` or any file beneath it is not readable
 
         :return: True if ``pieces`` was successfully added to :attr:`metainfo`,
                  ``False`` otherwise
