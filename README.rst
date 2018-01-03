@@ -21,8 +21,12 @@ Example
                                'https://tracker1.example.org:1234/announce'],
                      comment='This is a comment')
     t.private = True
-    with open('my.torrent', 'wb') as f:
+    try:
         t.write(f)
+    except torf.WriteError as e:
+        print(f'Cannot write file: {e}')
+    except torf.MetainfoError as e:
+        print(f'Invalid torrent metainfo: {e}')
 
 Documentation
 -------------
