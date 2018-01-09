@@ -97,7 +97,6 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
         for dirpath, dirnames, filenames in os.walk(path):
             if not hidden and is_hidden(dirpath):
                 continue  # Ignore hidden directory
-            # for filename in sorted(filenames, key=lambda fname: fname.casefold()):
             for filename in filenames:
                 if not hidden and is_hidden(filename):
                     continue  # Ignore hidden file
