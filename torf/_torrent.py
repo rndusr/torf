@@ -740,6 +740,7 @@ class Torrent():
         except OSError as e:
             raise error.WriteError(filepath, e.errno)
         else:
+            fh.truncate()
             fh.write(self.dump(validate=validate))
         finally:
             if fh is not None:
