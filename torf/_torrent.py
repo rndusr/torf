@@ -502,6 +502,16 @@ class Torrent():
         else:
             self.metainfo['info'].pop('entropy', None)
 
+    @property
+    def is_ready(self):
+        """Whether this torrent is ready to be exported to a file or magnet link"""
+        try:
+            self.validate()
+        except error.MetainfoError:
+            return False
+        else:
+            return True
+
     def generate(self, callback=None, interval=0):
         """
         Set ``pieces`` in :attr:`metainfo`\ ``['info']``
