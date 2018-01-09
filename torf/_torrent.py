@@ -469,14 +469,14 @@ class Torrent():
 
     @property
     def infohash(self):
-        """SHA1 info hash (run :meth:`generate` first)"""
+        """SHA1 info hash"""
         self.validate()
         info = self.convert()[b'info']
         return sha1(bencode(info)).hexdigest()
 
     @property
     def infohash_base32(self):
-        """Base32 encoded SHA1 info hash (run :meth:`generate` first)"""
+        """Base32 encoded SHA1 info hash"""
         self.validate()
         info = self.convert()[b'info']
         return b32encode(sha1(bencode(info)).digest())
@@ -716,7 +716,7 @@ class Torrent():
 
     def write(self, filepath, validate=True, overwrite=False, mode=0o666):
         """
-        Write current :attr:`metainfo` to torrent file (run :meth:`generate` first)
+        Write current :attr:`metainfo` to torrent file
 
         :param filepath: Path of the new torrent file
         :param bool validate: Whether to run :meth:`validate` first
@@ -748,7 +748,7 @@ class Torrent():
 
     def magnet(self, name=True, size=True, trackers=True, tracker=False, validate=True):
         """
-        BTIH Magnet URI (run :meth:`generate` first)
+        BTIH Magnet URI
 
         :param bool name: Whether to include the name
         :param bool size: Whether to include the size
