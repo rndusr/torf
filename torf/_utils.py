@@ -26,6 +26,7 @@ from urllib.parse import urlparse
 from urllib.parse import quote_plus as urlquote
 from collections import abc, OrderedDict
 import re
+import errno
 
 from . import _errors as error
 
@@ -89,6 +90,9 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
     """
     if not os.path.exists(path):
         raise error.PathNotFoundError(path)
+    elif not os.access(path, os.R_OK,
+                       effective_ids=os.access in os.supports_effective_ids):
+        raise error.ReadError(path, errno.EACCES)
 
     if os.path.isfile(path):
         return [path]
