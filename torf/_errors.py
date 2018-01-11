@@ -51,7 +51,7 @@ class ParseError(TorfError):
 class PathNotFoundError(TorfError):
     """Path does not exist"""
     def __init__(self, path):
-        super().__init__(f'{os.strerror(errno.ENOENT)}: {path!r}')
+        super().__init__(f'{path!r}: {os.strerror(errno.ENOENT)}')
 
 class PathEmptyError(TorfError):
     """Empty file or directory or directory that contains only empty files"""
@@ -66,7 +66,7 @@ class ReadError(TorfError):
     def __init__(self, path, error_code):
         self._errno = error_code
         self._path = path
-        super().__init__(f'{os.strerror(error_code)}: {path!r}')
+        super().__init__(f'{path!r}: {os.strerror(error_code)}')
 
     @property
     def errno(self):
@@ -83,7 +83,7 @@ class WriteError(TorfError):
     def __init__(self, path, error_code):
         self._errno = error_code
         self._path = path
-        super().__init__(f'{os.strerror(error_code)}: {path!r}')
+        super().__init__(f'{path!r}: {os.strerror(error_code)}')
 
     @property
     def errno(self):
