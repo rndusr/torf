@@ -786,6 +786,9 @@ class Torrent():
 
         return 'magnet:?' + '&'.join(parts)
 
+    # Maximum number of bytes that read() reads from torrent files
+    MAX_TORRENT_FILE_SIZE = int(10e6)  # 10MB
+
     @classmethod
     def read(cls, filepath, validate=True):
         """
@@ -805,7 +808,7 @@ class Torrent():
         """
         try:
             with open(filepath, 'rb') as fh:
-                file_content = fh.read()
+                file_content = fh.read(cls.MAX_TORRENT_FILE_SIZE)
         except OSError as e:
             raise error.ReadError(filepath, e.errno)
         else:
