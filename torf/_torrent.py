@@ -197,6 +197,30 @@ class Torrent():
                 yield os.path.join(self.name, os.path.join(*fileinfo['path']))
 
     @property
+    def filetree(self):
+        """
+        :attr:`files` as a dictionary tree
+
+        Each node is a ``dict`` that maps directory/file names to child nodes,
+        which are ``dict``s for directories and ``None`` for files.
+
+        If :attr:`path` is ``None``, this is also ``None``.
+        """
+        tree = {}   # Complete directory tree
+        prefix = []
+        paths = (f.split(os.sep) for f in self.files)
+        for path in paths:
+            dirpath = path[:-1]  # Path without filename
+            filename = path[-1]
+            subtree = tree
+            for item in dirpath:
+                if item not in subtree:
+                    subtree[item] = {}
+                subtree = subtree[item]
+            subtree[filename] = None
+        return tree
+
+    @property
     def filepaths(self):
         """Yield absolute paths to local files in :attr:`path`"""
         if self.path is None:
