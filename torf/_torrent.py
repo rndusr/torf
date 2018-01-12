@@ -268,7 +268,7 @@ class Torrent():
         else:
             try:
                 piece_length = int(value)
-            except TypeError:
+            except (TypeError, ValueError):
                 raise RuntimeError(f'piece_size must be int, not {value!r}')
             else:
                 if self.MIN_PIECE_SIZE <= value <= self.MAX_PIECE_SIZE:
