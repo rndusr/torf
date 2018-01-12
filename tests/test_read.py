@@ -15,7 +15,7 @@ def test_read_from_unreadable_file(valid_singlefile_metainfo, tmpdir):
 
     with pytest.raises(torf.ReadError) as excinfo:
         torf.Torrent.read(str(f))
-    assert excinfo.match(f'Permission denied: {str(f)!r}')
+    assert excinfo.match(f'^{str(f)}: Permission denied$')
 
 
 def test_read_non_bencoded_file(tmpdir):
@@ -24,7 +24,7 @@ def test_read_non_bencoded_file(tmpdir):
 
     with pytest.raises(torf.ParseError) as excinfo:
         torf.Torrent.read(str(f))
-    assert excinfo.match(f'Invalid file format: {str(f)!r}')
+    assert excinfo.match(f'^{str(f)}: Invalid file format$')
 
 
 def test_validate_after_read(valid_singlefile_metainfo, tmpdir):
@@ -34,7 +34,7 @@ def test_validate_after_read(valid_singlefile_metainfo, tmpdir):
 
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read(str(f))
-    assert excinfo.match(f"Invalid metainfo: Missing 'info'")
+    assert excinfo.match(f"^Invalid metainfo: Missing 'info'$")
 
 
 def test_successful_read(valid_singlefile_metainfo, tmpdir):
@@ -111,19 +111,19 @@ def test_read_nonstandard_data_with_validation(tmpdir):
     f.write_binary(bencode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         t = torf.Torrent.read(str(f))
-    assert excinfo.match("Invalid metainfo: Missing 'info'")
+    assert excinfo.match("^Invalid metainfo: Missing 'info'$")
 
     data[b'info'] = 1
     f.write_binary(bencode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         t = torf.Torrent.read(str(f))
-    assert excinfo.match("Invalid metainfo: 'info' is not a dictionary")
+    assert excinfo.match("^Invalid metainfo: 'info' is not a dictionary$")
 
     data[b'info'] = {}
     f.write_binary(bencode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         t = torf.Torrent.read(str(f))
-    assert excinfo.match("Invalid metainfo: Missing 'pieces' in \['info'\]")
+    assert excinfo.match("^Invalid metainfo: Missing 'pieces' in \['info'\]$")
 
 
 def test_read_nonstandard_data_without_validation(tmpdir):

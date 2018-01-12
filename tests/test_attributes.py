@@ -8,13 +8,13 @@ from hashlib import md5
 def test_path_doesnt_exist(torrent, tmpdir):
     with pytest.raises(torf.PathNotFoundError) as excinfo:
         torrent.path = '/this/path/does/not/exist'
-    assert excinfo.match('/this/path/does/not/exist')
+    assert excinfo.match('^/this/path/does/not/exist: No such file or directory$')
 
 def test_path_empty(torrent, tmpdir):
     empty_dir = tmpdir.mkdir('empty')
     with pytest.raises(torf.PathEmptyError) as excinfo:
         torrent.path = empty_dir
-    assert excinfo.match(str(empty_dir))
+    assert excinfo.match(f'^{str(empty_dir)}: Empty directory$')
 
 def test_path_reset(torrent, singlefile_content, multifile_content):
     torrent.path = singlefile_content.path
@@ -128,9 +128,11 @@ def test_piece_size(torrent, multifile_content):
     assert torrent.piece_size == torf.Torrent.MIN_PIECE_SIZE
     assert torrent.metainfo['info']['piece length'] == torf.Torrent.MIN_PIECE_SIZE
 
+    exp_exc = f'^Piece size must be between {torf.Torrent.MIN_PIECE_SIZE} and {torf.Torrent.MAX_PIECE_SIZE}$'
+
     with pytest.raises(torf.PieceSizeError) as excinfo:
         torrent.piece_size = torf.Torrent.MIN_PIECE_SIZE - 1
-    assert excinfo.match(str(torf.Torrent.MIN_PIECE_SIZE))
+    assert excinfo.match(exp_exc)
 
     torrent.piece_size = torf.Torrent.MAX_PIECE_SIZE
     assert torrent.piece_size == torf.Torrent.MAX_PIECE_SIZE
@@ -138,11 +140,11 @@ def test_piece_size(torrent, multifile_content):
 
     with pytest.raises(torf.PieceSizeError) as excinfo:
         torrent.piece_size = torf.Torrent.MAX_PIECE_SIZE + 1
-    assert excinfo.match(str(torf.Torrent.MAX_PIECE_SIZE))
+    assert excinfo.match(exp_exc)
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(RuntimeError) as excinfo:
         torrent.piece_size = 'hello'
-    assert excinfo.match('hello')
+    assert excinfo.match("^piece_size must be int, not 'hello'$")
 
 
 def test_trackers(torrent):
@@ -162,7 +164,7 @@ def test_trackers(torrent):
     for invalid_url in ('foo', 'http://localhost:70000/announce'):
         with pytest.raises(torf.URLError) as excinfo:
             torrent.trackers = [invalid_url]
-        assert excinfo.match(repr(invalid_url))
+        assert excinfo.match(f'^{invalid_url}: Invalid URL$')
 
 
 def test_private(torrent):

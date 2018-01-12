@@ -14,7 +14,7 @@ def test_write_without_permission(generated_singlefile_torrent, tmpdir):
 
     with pytest.raises(torf.WriteError) as excinfo:
         generated_singlefile_torrent.write(str(f))
-    assert excinfo.match(f'Permission denied: {str(f)!r}')
+    assert excinfo.match(f'^{str(f)}: Permission denied$')
 
 
 def test_write_to_existing_file(generated_singlefile_torrent, tmpdir):
@@ -23,7 +23,7 @@ def test_write_to_existing_file(generated_singlefile_torrent, tmpdir):
 
     with pytest.raises(torf.WriteError) as excinfo:
         generated_singlefile_torrent.write(str(f))
-    assert excinfo.match(f'File exists: {str(f)!r}')
+    assert excinfo.match(f'^{str(f)}: File exists$')
 
     generated_singlefile_torrent.write(str(f), overwrite=True)
     bytes_written = open(str(f), 'rb').read()
@@ -53,7 +53,7 @@ def test_existing_file_is_unharmed_if_dump_fails(generated_singlefile_torrent, t
     f = tmpdir.join('a.torrent')
     f.write('something')
 
-    now = int(time.time())
+    # Provocate error during generate()
     del generated_singlefile_torrent.metainfo['info']['length']
     with pytest.raises(torf.MetainfoError):
         generated_singlefile_torrent.write(str(f), overwrite=True)

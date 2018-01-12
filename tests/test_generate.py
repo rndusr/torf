@@ -16,7 +16,7 @@ def test_generate_with_nonexisting_path(singlefile_content):
 
     with pytest.raises(torf.PathNotFoundError) as excinfo:
         t.generate()
-    assert excinfo.match(f'No such file or directory: {content_path!r}')
+    assert excinfo.match(f'^{content_path}: No such file or directory$')
 
 
 def test_generate_with_one_unreadable(multifile_content):
@@ -27,7 +27,7 @@ def test_generate_with_one_unreadable(multifile_content):
 
     with pytest.raises(torf.ReadError) as excinfo:
         t.generate()
-    assert excinfo.match(f"Permission denied: '{multifile_content.path}.*'")
+    assert excinfo.match(f'^{multifile_content.path}.*: Permission denied$')
     os.chmod(multifile_content.path, mode=old_mode)
 
 
