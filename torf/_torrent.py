@@ -87,6 +87,7 @@ class Torrent():
     'This is my first torrent. Be gentle.'
     """
 
+    MAX_PIECES     = 1500
     MIN_PIECE_SIZE = 2 ** 14  # 16 KiB
     MAX_PIECE_SIZE = 2 ** 26  # 64 MiB
 
@@ -250,16 +251,19 @@ class Torrent():
         Setting this property sets or removes ``piece length`` in
         :attr:`metainfo`\ ``['info']``.
 
-        Getting this property if it hasn't been set calculates ``piece length``
-        so that there are approximately 1500 pieces in total. The result is
-        stored as ``piece length`` in :attr:`metainfo`\ ``['info']``.
+        Getting this property if set to ``None`` (the default) calculates it
+        automatically so that there are no more than :attr:`MAX_PIECES` pieces
+        in total.  The result is stored as ``piece length`` in :attr:`metainfo`\
+        ``['info']``.
+
+        If :attr:`size` returns ``None``, this also returns ``None``.
         """
         if 'piece length' not in self.metainfo['info']:
             if self.size is None:
                 return None
             else:
                 self.metainfo['info']['piece length'] = utils.calc_piece_size(
-                    self.size, self.MIN_PIECE_SIZE, self.MAX_PIECE_SIZE)
+                    self.size, self.MAX_PIECES, self.MIN_PIECE_SIZE, self.MAX_PIECE_SIZE)
         return self.metainfo['info']['piece length']
     @piece_size.setter
     def piece_size(self, value):

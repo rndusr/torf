@@ -62,9 +62,9 @@ def read_chunks(filepath, chunk_size):
         raise error.ReadError(filepath, e.errno)
 
 
-def calc_piece_size(total_size, min_piece_size, max_piece_size):
+def calc_piece_size(total_size, max_pieces, min_piece_size, max_piece_size):
     """Calculate piece size"""
-    ps = 1 << max(0, math.ceil(math.log(total_size / 1500, 2)))
+    ps = 1 << max(0, math.ceil(math.log(total_size / max_pieces, 2)))
     if ps < min_piece_size:
         ps = min_piece_size
     if ps > max_piece_size:
