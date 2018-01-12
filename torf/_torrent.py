@@ -278,6 +278,17 @@ class Torrent():
                                                max=self.MAX_PIECE_SIZE)
 
     @property
+    def pieces(self):
+        """
+        Number of pieces the content is split into or ``None`` if :attr:`piece_size`
+        returns ``None``
+        """
+        if self.piece_size is None:
+            return None
+        else:
+            return math.ceil(self.size / self.piece_size)
+
+    @property
     def name(self):
         """
         Name of the torrent
@@ -587,7 +598,7 @@ class Torrent():
     def _set_pieces_singlefile(self):
         filepath = self.path
         piece_size = self.piece_size
-        pieces_total = math.ceil(self.size / piece_size)
+        pieces_total = self.pieces
         pieces_completed = 0
         pieces = bytearray()
         md5_hasher = md5() if self.include_md5 else None
