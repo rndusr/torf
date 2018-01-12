@@ -475,9 +475,12 @@ class Torrent():
     @exclude.setter
     def exclude(self, value):
         if isinstance(value, str):
-            self._exclude = [value]
+            value = [value]
         else:
-            self._exclude = list(value)
+            value = list(value)
+        if value != getattr(self, '_exclude', None):
+            self._exclude = value
+            self.path = self.path  # Re-filter file paths
 
     @property
     def include_md5(self):
