@@ -774,8 +774,13 @@ class Torrent():
         except OSError as e:
             raise error.WriteError(filepath, e.errno)
         else:
+            file_content = self.dump(validate=validate)
+            # Truncate file *after* dump() didn't raise anything.  It's
+            # important to truncate or else only the first `len(file_content)`
+            # bytes of the existing file are overwritten and the rest is
+            # preserved.
             fh.truncate()
-            fh.write(self.dump(validate=validate))
+            fh.write(file_content)
         finally:
             if fh is not None:
                 fh.close()
