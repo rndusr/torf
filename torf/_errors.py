@@ -23,55 +23,66 @@ import errno
 
 class TorfError(Exception):
     """Base exception for all exceptions raised by torf"""
-    pass
+
+    @property
+    def errno(self):
+        """Error code (see :mod:`errno`)"""
+        return self._errno
+
 
 class URLError(TorfError):
     """Invalid URL"""
     def __init__(self, url):
-        super().__init__(f'URL is not valid: {url!r}')
+        self._errno = errno.EINVAL
+        super().__init__(f'{url}: Invalid URL')
+
 
 class PieceSizeError(TorfError):
     """Invalid piece size"""
     def __init__(self, min, max):
+        self._errno = errno.EINVAL
         super().__init__(f'Piece size must be between {min} and {max}')
+
 
 class MetainfoError(TorfError):
     """Invalid torrent metainfo"""
     def __init__(self, msg):
+        self._errno = errno.EINVAL
         super().__init__(f'Invalid metainfo: {msg}')
+
 
 class ParseError(TorfError):
     """Invalid bencoded metainfo"""
     def __init__(self, filepath=None):
+        self._errno = errno.EINVAL
         if filepath is None:
             super().__init__('Invalid metainfo format')
         else:
-            super().__init__(f'Invalid file format: {filepath!r}')
+            super().__init__(f'{filepath}: Invalid file format')
+
 
 class PathNotFoundError(TorfError):
     """Path does not exist"""
     def __init__(self, path):
-        super().__init__(f'{path!r}: {os.strerror(errno.ENOENT)}')
+        self._errno = errno.ENOENT
+        super().__init__(f'{path}: {os.strerror(self._errno)}')
+
 
 class PathEmptyError(TorfError):
     """Empty file or directory or directory that contains only empty files"""
     def __init__(self, path):
+        self._errno = errno.ENODATA
         if os.path.isfile(path):
-            super().__init__(f'Empty file: {path!r}')
+            super().__init__(f'{path}: Empty file')
         else:
-            super().__init__(f'Empty directory: {path!r}')
+            super().__init__(f'{path}: Empty directory')
 
 class ReadError(TorfError):
     """Unreadable file"""
     def __init__(self, path, error_code):
         self._errno = error_code
         self._path = path
-        super().__init__(f'{path!r}: {os.strerror(error_code)}')
-
-    @property
-    def errno(self):
-        """Error code (see :mod:`errno`)"""
-        return self._errno
+        super().__init__(f'{path}: {os.strerror(error_code)}')
 
     @property
     def path(self):
@@ -83,12 +94,7 @@ class WriteError(TorfError):
     def __init__(self, path, error_code):
         self._errno = error_code
         self._path = path
-        super().__init__(f'{path!r}: {os.strerror(error_code)}')
-
-    @property
-    def errno(self):
-        """Error code (see :mod:`errno`)"""
-        return self._errno
+        super().__init__(f'{path}: {os.strerror(error_code)}')
 
     @property
     def path(self):
