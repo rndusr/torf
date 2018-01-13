@@ -203,7 +203,7 @@ class Torrent():
         :attr:`files` as a dictionary tree
 
         Each node is a ``dict`` that maps directory/file names to child nodes,
-        which are ``dict``s for directories and ``None`` for files.
+        which are ``dict``\ s for directories and ``None`` for files.
 
         If :attr:`path` is ``None``, this is also ``None``.
         """
