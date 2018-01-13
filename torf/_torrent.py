@@ -558,9 +558,9 @@ class Torrent():
         """
         Set ``pieces`` in :attr:`metainfo`\ ``['info']``
 
-        :param callable callback: Callable with signature ``(filepath,
-            pieces_completed, pieces_total)``; if *callback* returns anything
-            that is not None, hashing is canceled
+        :param callable callback: Callable with signature ``(torrent, filepath,
+            pieces_done, pieces_total)``; if *callback* returns anything that is
+            not None, hashing is canceled
         :param int interval: Number of seconds between calls to *callback*
 
         :raises PathEmptyError: if :attr:`path` contains only empty
@@ -590,12 +590,12 @@ class Torrent():
 
         # Iterate over hashed pieces and send status information
         last_cb_call = 0
-        for filepath,pieces_completed,pieces_total in set_pieces:
+        for filepath,pieces_done,pieces_total in set_pieces:
             now = time.time()
             if now - last_cb_call >= interval or \
-               pieces_completed >= pieces_total:
+               pieces_done >= pieces_total:
                 last_cb_call = now
-                if cancel(filepath, pieces_completed, pieces_total):
+                if cancel(self, filepath, pieces_done, pieces_total):
                     return False
         return True
 
@@ -603,7 +603,7 @@ class Torrent():
         filepath = self.path
         piece_size = self.piece_size
         pieces_total = self.pieces
-        pieces_completed = 0
+        pieces_done = 0
         pieces = bytearray()
         md5_hasher = md5() if self.include_md5 else None
 
@@ -611,8 +611,8 @@ class Torrent():
             pieces.extend(sha1(piece).digest())
             if md5_hasher:
                 md5_hasher.update(piece)
-            pieces_completed += 1
-            yield (filepath, pieces_completed, pieces_total)
+            pieces_done += 1
+            yield (filepath, pieces_done, pieces_total)
 
         self.metainfo['info']['pieces'] = pieces
         if md5_hasher:
@@ -624,7 +624,7 @@ class Torrent():
     def _set_pieces_multifile(self):
         piece_size = self.piece_size
         pieces_total = math.ceil(self.size / piece_size)
-        pieces_completed = 0
+        pieces_done = 0
         piece_buffer = bytearray()
         pieces = bytearray()
         md5sums = []
@@ -640,8 +640,8 @@ class Torrent():
                     piece = piece_buffer[:piece_size]
                     pieces.extend(sha1(piece).digest())
                     del piece_buffer[:piece_size]
-                    pieces_completed += 1
-                    yield (filepath, pieces_completed, pieces_total)
+                    pieces_done += 1
+                    yield (filepath, pieces_done, pieces_total)
 
                 if md5_hasher:
                     md5_hasher.update(chunk)
