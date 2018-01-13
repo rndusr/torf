@@ -459,15 +459,15 @@ class Torrent():
         """
         Source string or ``None`` for no source
 
-        Setting this property sets or removes ``source`` in :attr:`metainfo`.
+        Setting this property sets or removes ``source`` in :attr:`metainfo`\ ``['info']``.
         """
-        return self.metainfo.get('source', None)
+        return self.metainfo['info'].get('source', None)
     @source.setter
     def source(self, value):
         if value is not None:
-            self.metainfo['source'] = str(value)
+            self.metainfo['info']['source'] = str(value)
         else:
-            self.metainfo.pop('source', None)
+            self.metainfo['info'].pop('source', None)
 
     @property
     def exclude(self):
