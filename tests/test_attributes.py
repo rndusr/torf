@@ -190,11 +190,11 @@ def test_comment(torrent):
 def test_source(torrent):
     torrent.source = ''
     assert torrent.source == ''
-    assert torrent.metainfo['source'] == ''
+    assert torrent.metainfo['info']['source'] == ''
 
     torrent.source = None
     assert torrent.source is None
-    assert 'source' not in torrent.metainfo
+    assert 'source' not in torrent.metainfo['info']
 
 
 def test_creation_date(torrent):

@@ -18,12 +18,13 @@ def test_validated_url():
 
 def test_calc_piece_size():
     minps = torf.Torrent.MIN_PIECE_SIZE
-    maxps = torf.Torrent.MIN_PIECE_SIZE
+    maxps = torf.Torrent.MAX_PIECE_SIZE
+    maxp = torf.Torrent.MAX_PIECES
 
-    piece_size = utils.calc_piece_size(minps*2, min_piece_size=minps, max_piece_size=maxps)
+    piece_size = utils.calc_piece_size(minps*2, maxp, minps, maxps)
     assert piece_size == minps
 
-    piece_size = utils.calc_piece_size(maxps*3000, min_piece_size=minps, max_piece_size=maxps)
+    piece_size = utils.calc_piece_size(maxps*3000, maxp, minps, maxps)
     assert piece_size == maxps
 
 

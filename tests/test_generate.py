@@ -92,9 +92,9 @@ def assert_callback_called(torrent):
     assert cb.call_count == exp_call_count
 
     # Compare arguments without filepaths (too complex for me)
-    stripped_call_args_list = [mock.call(args[0][1], args[0][2])
+    stripped_call_args_list = [mock.call(args[0][0], args[0][2], args[0][3])
                                for args in cb.call_args_list]
-    exp_call_args_list = [mock.call(i, number_of_pieces)
+    exp_call_args_list = [mock.call(t, i, number_of_pieces)
                           for i in range(1, number_of_pieces+1)]
     # There can be slightly more actual calls than expected calls or vice versa
     call_num = min(len(stripped_call_args_list), len(exp_call_args_list))
@@ -105,7 +105,7 @@ def assert_callback_called(torrent):
     # Make sure that the expected filepaths were reported to callback
     processed_filepaths = []
     for args in cb.call_args_list:
-        filepath = args[0][0]
+        filepath = args[0][1]
         if filepath not in processed_filepaths:
             processed_filepaths.append(filepath)
     exp_filepaths = list(t.filepaths)
