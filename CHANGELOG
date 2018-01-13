@@ -1,6 +1,4 @@
-2018-01-03 1.0rc4
-  - Torrent.write() and Torrent.read() take a file path instead of an opened
-    file object
+2018-01-13 1.0rc5
   - Fixed a bug where overwriting a torrent file resulted in corrupt torrent
   - Added property 'pieces' that returns the number of pieces
   - Added property 'filetree' that can be used to create a beautiful tree of a
@@ -8,8 +6,13 @@
   - Added property 'is_ready' that is True when torrent can be exported
   - When reading torrent files, don't read large files all the way to EOF before
     failing
-  - Some exception names have changed
   - All exceptions now have an 'errno' attribute (see 'errno' module)
+
+
+2018-01-03 1.0rc4
+  - Torrent.write() and Torrent.read() take a file path instead of an opened
+    file object
+  - Some exception names have changed
   - Allow reading arbitrary bencoded data with validation turned off
   - Default 'created_by' value is now 'torf/<version>'
 
