@@ -33,7 +33,7 @@ Documentation
 
 Documentation is in the docstrings. Read it locally by running ``pydoc3
 torf.Torrent`` after the installation. It's also available `online
-<https://rndusr.github.io/torf/>`_.
+<https://torf.readthedocs.io/>`_.
 
 Installation
 ------------
