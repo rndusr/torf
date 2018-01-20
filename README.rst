@@ -43,6 +43,12 @@ torf is available on `PyPI <https://pypi.org/project/torf>`_.
 The latest development version is in the master branch on `GitHub
 <https://github.com/rndusr/torf>`_.
 
+Contributing
+------------
+
+I consider this project feature complete, but feel free to request new features
+or improvements. Bug reports are of course always welcome.
+
 License
 -------
 
