@@ -1,3 +1,7 @@
+2018-02-01 1.0
+  - Nothing changed except that this is now the final 1.0 version
+
+
 2018-01-13 1.0rc5
   - Fixed a bug where overwriting a torrent file resulted in corrupt torrent
   - Added property 'pieces' that returns the number of pieces
