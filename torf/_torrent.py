@@ -783,6 +783,7 @@ class Torrent():
         if not overwrite and os.path.exists(filepath):
             raise error.WriteError(filepath, errno.EEXIST)
 
+        data = self.dump(validate=validate)
         fh = None
         try:
             # Open file for writing without truncating, so if it already exists,
@@ -792,13 +793,12 @@ class Torrent():
         except OSError as e:
             raise error.WriteError(filepath, e.errno)
         else:
-            file_content = self.dump(validate=validate)
             # Truncate file *after* dump() didn't raise anything.  It's
-            # important to truncate or else only the first `len(file_content)`
+            # important to truncate or else only the first `len(data)`
             # bytes of the existing file are overwritten and the rest is
             # preserved.
             fh.truncate()
-            fh.write(file_content)
+            fh.write(data)
         finally:
             if fh is not None:
                 fh.close()
