@@ -16,17 +16,14 @@ Example
 
 .. code:: python
 
-    t = torf.Torrent(path='path/to/content',
-                     trackers=['https://tracker1.example.org:1234/announce',
-                               'https://tracker1.example.org:1234/announce'],
-                     comment='This is a comment')
+    from torf import Torrent
+    t = Torrent(path='path/to/content',
+                trackers=['https://tracker1.example.org:1234/announce',
+                          'https://tracker2.example.org:1234/announce'],
+                comment='This is a comment')
     t.private = True
-    try:
-        t.write(f)
-    except torf.WriteError as e:
-        print(f'Cannot write file: {e}')
-    except torf.MetainfoError as e:
-        print(f'Invalid torrent metainfo: {e}')
+    t.generate()
+    t.write('my.torrent')
 
 Documentation
 -------------
