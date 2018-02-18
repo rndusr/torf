@@ -1,5 +1,6 @@
 2018-02-18 1.1
-  - 'announce' in metainfo is now a single URL instead of the first tier
+  - 'announce' in metainfo is now a single URL instead of the first tier (Marcin
+    Kurczewski)
 
 
 2018-02-01 1.0
