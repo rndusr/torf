@@ -148,13 +148,15 @@ def test_piece_size(torrent, multifile_content):
 
 
 def test_trackers(torrent):
-    torrent.trackers = ['http://foo:123/announce',
-                        ('http://bar:456/', 'http://baz:789')]
-    exp = [['http://foo:123/announce'],
-           ['http://bar:456/', 'http://baz:789']]
+    first_tracker = 'http://foo:123/announce'
+    other_trackers = ['http://bar:456/', 'http://baz:789']
+    torrent.trackers = [first_tracker,
+                        (other_trackers[0], other_trackers[1])]
+    exp = [[first_tracker],
+           [other_trackers[0], other_trackers[1]]]
     assert torrent.trackers == exp
     assert torrent.metainfo['announce-list'] == exp
-    assert torrent.metainfo['announce'] == exp[0]
+    assert torrent.metainfo['announce'] == first_tracker
 
     torrent.trackers = []
     assert torrent.trackers == None

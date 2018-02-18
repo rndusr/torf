@@ -354,7 +354,7 @@ class Torrent():
 
             # First tracker is also available via 'announce'
             if self.metainfo['announce-list']:
-                self.metainfo['announce'] = self.metainfo['announce-list'][0]
+                self.metainfo['announce'] = self.metainfo['announce-list'][0][0]
 
     @property
     def webseeds(self):
