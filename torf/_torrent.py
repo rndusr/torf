@@ -46,12 +46,13 @@ class Torrent():
     >>> from torf import Torrent
     >>> torrent = Torrent('path/to/My Torrent',
     ...                   trackers=['https://localhost:123/announce'],
-    ...                   comment='This is my first torrent')
+    ...                   comment='This is my first torrent. Be gentle.')
 
     Convenient access to metainfo via properties:
 
     >>> torrent.comment
     'This is my first torrent. Be gentle.'
+    >>> torrent.comment = "This is my first torrent. Let's rock!"
     >>> torrent.private = True
 
     Full control over unencoded metainfo:
@@ -84,7 +85,7 @@ class Torrent():
 
     >>> t = Torrent.read('my_torrent.torrent')
     >>> t.comment
-    'This is my first torrent. Be gentle.'
+    "This is my first torrent. Let's rock!"
     """
 
     MAX_PIECES     = 1500
