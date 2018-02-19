@@ -5,6 +5,7 @@ import io
 from bencoder import bdecode
 import time
 import os
+from unittest.mock import MagicMock
 
 
 def test_write_without_permission(generated_singlefile_torrent, tmpdir):
@@ -59,3 +60,23 @@ def test_existing_file_is_unharmed_if_dump_fails(generated_singlefile_torrent, t
         generated_singlefile_torrent.write(str(f), overwrite=True)
     old_content = open(str(f), 'r').read()
     assert old_content == 'something'
+
+
+def test_new_file_is_not_created_if_dump_fails(generated_singlefile_torrent, tmpdir):
+    f = tmpdir.join('a.torrent')
+
+    # Provocate error during generate()
+    del generated_singlefile_torrent.metainfo['info']['length']
+    with pytest.raises(torf.MetainfoError):
+        generated_singlefile_torrent.write(str(f))
+    assert not os.path.exists(f)
+
+
+def test_dump_is_called_after_file_handle_is_opened(generated_singlefile_torrent, tmpdir):
+    f = tmpdir.join('/path/to/nonexisting/file.torrent')
+
+    generated_singlefile_torrent.dump = MagicMock()
+    with pytest.raises(torf.WriteError):
+        generated_singlefile_torrent.write(str(f))
+
+    assert not generated_singlefile_torrent.dump.called
