@@ -1,3 +1,7 @@
+2018-02-19 1.2
+  - Don't leave an empty file when calling write() on an invalid torrent
+
+
 2018-02-18 1.1
   - 'announce' in metainfo is now a single URL instead of the first tier (Marcin
     Kurczewski)
