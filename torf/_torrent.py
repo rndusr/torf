@@ -783,22 +783,31 @@ class Torrent():
         if not overwrite and os.path.exists(filepath):
             raise error.WriteError(filepath, errno.EEXIST)
 
-        data = self.dump(validate=validate)
         fh = None
+        def remove_empty_file():
+            if os.path.exists(filepath) and os.path.getsize(filepath) <= 0:
+                os.remove(filepath)
         try:
             # Open file for writing without truncating, so if it already exists,
             # dump() can fail without destroying its contents
             fd = os.open(filepath, os.O_RDWR | os.O_CREAT, mode=mode)
-            fh = os.fdopen(fd, 'rb+')
         except OSError as e:
+            remove_empty_file()
             raise error.WriteError(filepath, e.errno)
         else:
             # Truncate file *after* dump() didn't raise anything.  It's
             # important to truncate or else only the first `len(data)`
             # bytes of the existing file are overwritten and the rest is
             # preserved.
-            fh.truncate()
-            fh.write(data)
+            try:
+                data = self.dump(validate=validate)
+            except:
+                remove_empty_file()
+                raise
+            else:
+                fh = os.fdopen(fd, 'rb+')
+                fh.truncate()
+                fh.write(data)
         finally:
             if fh is not None:
                 fh.close()
