@@ -756,7 +756,7 @@ class Torrent():
 
     def dump(self, validate=True):
         """
-        Create bencoded :attr:`metainfo`
+        Create bencoded :attr:`metainfo` (i.e. the content of a torrent file)
 
         :param bool validate: Whether to run :meth:`validate` first
 
@@ -770,7 +770,14 @@ class Torrent():
         """
         Write current :attr:`metainfo` to torrent file
 
-        :param filepath: Path of the new torrent file
+        This method opens the file before calling :meth:`generate` (which can
+        take a long time), in case it's not writable. If you don't care about
+        that, you can also do something like this:
+
+        >>> with open('my.torrent', 'wb') as f:
+        ...     f.write(torrent.dump())
+
+        :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` first
         :param bool overwrite: Whether to silently overwrite `filepath` (only
             if all pieces were hashed successfully)
