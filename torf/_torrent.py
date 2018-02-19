@@ -812,12 +812,9 @@ class Torrent():
                 remove_empty_file()
                 raise
             else:
-                fh = os.fdopen(fd, 'rb+')
-                fh.truncate()
-                fh.write(data)
-        finally:
-            if fh is not None:
-                fh.close()
+                with os.fdopen(fd, 'rb+') as fh:
+                    fh.truncate()
+                    fh.write(data)
 
     def magnet(self, name=True, size=True, trackers=True, tracker=False, validate=True):
         """
