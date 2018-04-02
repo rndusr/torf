@@ -192,11 +192,23 @@ class Torrent():
         files.
         """
         info = self.metainfo['info']
+
+        def get_name():
+            if self.path is None:
+                # Torrent contents don't exist in the local file system
+                return info['name']
+            else:
+                # Torrent contents exist, and 'name' may have changed to
+                # something different ('name' is purely advisory), so we rely on
+                # guaranteed-to-exist 'path'
+                return os.path.basename(self.path)
+
         if 'length' in info:    # Singlefile
-            yield info['name']
+            yield get_name()
         elif 'files' in info:   # Multifile torrent
+            rootdir = get_name()
             for fileinfo in info['files']:
-                yield os.path.join(self.name, os.path.join(*fileinfo['path']))
+                yield os.path.join(rootdir, os.path.join(*fileinfo['path']))
 
     @property
     def filetree(self):

@@ -97,16 +97,34 @@ def test_filepaths_with_no_path(torrent):
 
 def test_name(torrent, singlefile_content, multifile_content):
     for content in (singlefile_content, multifile_content):
+        if content is singlefile_content:
+            exp_files = (os.path.basename(content.path),)
+        else:
+            import glob
+            filewalker = (f for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
+                          if os.path.isfile(f))
+            basedir_len = len(os.path.dirname(content.path)) + 1  # Include final '/'
+            exp_files = tuple(sorted(path[basedir_len:] for path in filewalker))
+
         torrent.path = content.path
         assert torrent.name == os.path.basename(torrent.path)
+        assert tuple(torrent.files) == exp_files
+
         torrent.name = 'Any name should be allowed'
         assert torrent.name == 'Any name should be allowed'
+        assert tuple(torrent.files) == exp_files
+
         torrent.path = None
         assert torrent.name == None
+        assert tuple(torrent.files) == ()
+
         torrent.name = 'foo'
         assert torrent.name == 'foo'
+        assert tuple(torrent.files) == ()
+
         torrent.path = content.path
         assert torrent.name == os.path.basename(torrent.path)
+        assert tuple(torrent.files) == exp_files
 
 
 def test_size(torrent, singlefile_content, multifile_content):
