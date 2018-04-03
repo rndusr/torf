@@ -200,6 +200,13 @@ class Torrent():
                 yield os.path.join(rootdir, os.path.join(*fileinfo['path']))
 
     @property
+    def filepaths(self):
+        """Yield absolute paths to local files in :attr:`path`"""
+        if self.path is not None:
+            yield from utils.filepaths(self.path, exclude=self.exclude,
+                                       hidden=False, empty=False)
+
+    @property
     def filetree(self):
         """
         :attr:`files` as a dictionary tree
@@ -222,14 +229,6 @@ class Torrent():
                 subtree = subtree[item]
             subtree[filename] = None
         return tree
-
-    @property
-    def filepaths(self):
-        """Yield absolute paths to local files in :attr:`path`"""
-        if self.path is None:
-            return
-        for filepath_rel in self.files:
-            yield os.path.join(os.path.dirname(self.path), filepath_rel)
 
     @property
     def size(self):
