@@ -95,6 +95,10 @@ def test_filepaths_with_no_path(torrent):
     assert tuple(torrent.filepaths) == ()
 
 
+def test_filetree_with_no_path(torrent):
+    assert torrent.filetree == {}
+
+
 def test_name(torrent, singlefile_content, multifile_content):
     def generate_exp_files(content, torrent_name):
         if content is singlefile_content:
