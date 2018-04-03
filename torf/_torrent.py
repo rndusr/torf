@@ -201,7 +201,12 @@ class Torrent():
 
     @property
     def filepaths(self):
-        """Yield absolute paths to local files in :attr:`path`"""
+        """
+        Yield absolute paths to existing files in :attr:`path`
+
+        Any files that match patterns in :attr:`exclude` as well as hidden and
+        empty files are not included.
+        """
         if self.path is not None:
             yield from utils.filepaths(self.path, exclude=self.exclude,
                                        hidden=False, empty=False)
