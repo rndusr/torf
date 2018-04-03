@@ -184,7 +184,7 @@ class Torrent():
     @property
     def files(self):
         """
-        Yield relative paths to files specified in :attr:`metainfo`
+        Yield relative file paths specified in :attr:`metainfo`
 
         Each paths starts with :attr:`name`.
 
@@ -211,10 +211,10 @@ class Torrent():
         """
         :attr:`files` as a dictionary tree
 
-        Each node is a ``dict`` that maps directory/file names to child nodes,
-        which are ``dict``\ s for directories and ``None`` for files.
+        Each node is a ``dict`` that maps directory/file names to child nodes.
+        Each child node is a ``dict`` for directories and ``None`` for files.
 
-        If :attr:`path` is ``None``, this is also ``None``.
+        If :attr:`path` is ``None``, this is an empty ``dict``.
         """
         tree = {}   # Complete directory tree
         prefix = []
