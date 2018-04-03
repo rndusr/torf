@@ -1,3 +1,7 @@
+2018-??-?? 1.3
+  - Fix 'filepaths' attribute when setting a custom name
+
+
 2018-02-19 1.2
   - Don't leave an empty file when calling write() on an invalid torrent
 
