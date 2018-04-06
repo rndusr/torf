@@ -76,7 +76,7 @@ class Torrent():
 
     >>> torrent.write('my_torrent.torrent')
 
-    Generate magnet link:
+    Create magnet link:
 
     >>> torrent.magnet()
     'magnet:?xt=urn:btih:e167b1fbb42ea72f051f4f50432703308efb8fd1&dn=My+Torrent&xl=142631&tr=https%3A%2F%2Flocalhost%3A123%2Fannounce'
@@ -491,6 +491,8 @@ class Torrent():
 
         [!seq]
           matches any char not in seq
+
+        :raises PathEmptyError: if all files are excluded
         """
         return self._exclude
     @exclude.setter
@@ -776,9 +778,7 @@ class Torrent():
         """
         Write current :attr:`metainfo` to torrent file
 
-        This method opens the file before calling :meth:`generate` (which can
-        take a long time), in case it's not writable. If you don't care about
-        that, you can also do something like this:
+        This is mostly a convenience method.  It's essentially equivalent to:
 
         >>> with open('my.torrent', 'wb') as f:
         ...     f.write(torrent.dump())
