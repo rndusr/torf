@@ -80,3 +80,14 @@ def test_dump_is_called_after_file_handle_is_opened(generated_singlefile_torrent
         generated_singlefile_torrent.write(str(f))
 
     assert not generated_singlefile_torrent.dump.called
+
+
+def test_overwriting_larger_torrent_file_truncates(generated_singlefile_torrent, tmpdir):
+    f = tmpdir.join('large.file')
+    f.write('x' * 1000000)
+    assert os.path.getsize(f) == 1e6
+
+    generated_singlefile_torrent.write(str(f), overwrite=True)
+    assert os.path.exists(f)
+    assert os.path.getsize(f) < 1e6
+    assert torf.Torrent.read(str(f)).name == os.path.basename(generated_singlefile_torrent.path)
