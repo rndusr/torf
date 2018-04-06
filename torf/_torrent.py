@@ -796,7 +796,6 @@ class Torrent():
         if not overwrite and os.path.exists(filepath):
             raise error.WriteError(filepath, errno.EEXIST)
 
-        fh = None
         def remove_empty_file():
             if os.path.exists(filepath) and os.path.getsize(filepath) <= 0:
                 os.remove(filepath)
