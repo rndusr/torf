@@ -99,6 +99,26 @@ def test_filetree_with_no_path(torrent):
     assert torrent.filetree == {}
 
 
+def test_exclude(torrent, multifile_content, tmpdir):
+    root = tmpdir.mkdir('content')
+    subdir1 = root.mkdir('subdir1')
+    file1 = subdir1.join('file1.jpg')
+    file1.write('data1')
+    file2 = subdir1.join('file2.jpg')
+    file2.write('data2')
+    subdir2 = root.mkdir('subdir2')
+    file3 = subdir2.join('file3.txt')
+    file3.write('data3')
+    file4 = subdir2.join('file4.txt')
+    file4.write('data4')
+
+    torrent.path = str(root)
+    assert tuple(torrent.filepaths) == (file1, file2, file3, file4)
+
+    torrent.exclude = ['*.txt']
+    assert tuple(torrent.filepaths) == (file1, file2)
+
+
 def test_name(torrent, singlefile_content, multifile_content):
     def generate_exp_files(content, torrent_name):
         if content is singlefile_content:
