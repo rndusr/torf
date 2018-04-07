@@ -11,6 +11,9 @@ turned into a rewrite with more features like full control over the torrent's
 metainfo, validation, randomization of the info hash to help with cross-seeding
 and more.
 
+`torf-cli <https://github.com/rndusr/torf-cli>`_ is a powerful command line tool
+that makes use of torf.
+
 Example
 -------
 
@@ -19,7 +22,7 @@ Example
     from torf import Torrent
     t = Torrent(path='path/to/content',
                 trackers=['https://tracker1.example.org:1234/announce',
-                          'https://tracker2.example.org:1234/announce'],
+                          'https://tracker2.example.org:5678/announce'],
                 comment='This is a comment')
     t.private = True
     t.generate()
@@ -44,7 +47,7 @@ Contributing
 ------------
 
 I consider this project feature complete, but feel free to request new features
-or improvements. Bug reports are of course always welcome.
+or improvements. Bug reports are always welcome, of course.
 
 License
 -------
