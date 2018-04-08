@@ -11,8 +11,8 @@ turned into a rewrite with more features like full control over the torrent's
 metainfo, validation, randomization of the info hash to help with cross-seeding
 and more.
 
-`torf-cli <https://github.com/rndusr/torf-cli>`_ is a powerful command line tool
-that makes use of torf.
+`torf-cli <https://github.com/rndusr/torf-cli>`_ is a command line tool that
+makes use of torf.
 
 Example
 -------
