@@ -934,3 +934,5 @@ class Torrent():
         return isinstance(other, type(self)) and \
             self._metainfo == other._metainfo
 
+    def __hash__(self, other):
+        return hash(tuple(sorted(self._metainfo.items())))

@@ -336,6 +336,13 @@ def test_equality(singlefile_content):
     assert t1 == t2
 
 
+def test_hashability(singlefile_content):
+    d = {'t1': torf.Torrent(singlefile_content.path, comment='One'),
+         't2': torf.Torrent(singlefile_content.path, comment='Two')}
+    assert d['t1'].comment == 'One'
+    assert d['t2'].comment == 'Two'
+
+
 def check_hash(content, hashname):
     t = torf.Torrent(content.path, trackers=['http://localhost/'],
                      piece_size=content.exp_metainfo['info']['piece length'])
