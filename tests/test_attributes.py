@@ -318,6 +318,24 @@ def test_repr_string(singlefile_content, generate_random_Torrent_args):
     assert repr(t) == f"Torrent(comment='foo', source='foo', created_by='foo', piece_size={2**20})"
 
 
+def test_equality(singlefile_content):
+    t1 = torf.Torrent(singlefile_content.path)
+    t2 = torf.Torrent(singlefile_content.path)
+    assert t1 == t2
+
+    t1.metainfo['foo'] = 'bar'
+    assert t1 != t2
+
+    del t1.metainfo['foo']
+    assert t1 == t2
+
+    t2.comment = 'asdf'
+    assert t1 != t2
+
+    t2.comment = t1.comment
+    assert t1 == t2
+
+
 def check_hash(content, hashname):
     t = torf.Torrent(content.path, trackers=['http://localhost/'],
                      piece_size=content.exp_metainfo['info']['piece length'])

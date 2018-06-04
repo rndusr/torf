@@ -929,3 +929,8 @@ class Torrent():
             elif value and default != value:
                 args.append(f'{param.name}={value!r}')
         return type(self).__name__ + '(' + ', '.join(args) + ')'
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and \
+            self._metainfo == other._metainfo
+
