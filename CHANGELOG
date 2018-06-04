@@ -1,3 +1,7 @@
+2018-06-?? 1.4
+  - Torrent instances are equal (==) if their metainfo is equal
+
+
 2018-04-07 1.3
   - Fix 'filepaths' attribute when setting a custom name
 
