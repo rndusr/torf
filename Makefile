@@ -6,7 +6,7 @@ clean:
 	rm -rf docs/_build
 
 test:
-	python3 -m pytest --exitfirst tests
+	python3 -m pytest --tb no tests
 
 doc:
 	@rm -rf ./build
