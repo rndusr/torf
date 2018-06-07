@@ -58,7 +58,7 @@ class ParseError(TorfError):
         if filepath is None:
             super().__init__('Invalid metainfo format')
         else:
-            super().__init__(f'{filepath}: Invalid file format')
+            super().__init__(f'{filepath}: Invalid torrent file format')
 
 
 class PathNotFoundError(TorfError):

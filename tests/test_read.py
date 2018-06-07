@@ -24,7 +24,7 @@ def test_read_non_bencoded_file(tmpdir):
 
     with pytest.raises(torf.ParseError) as excinfo:
         torf.Torrent.read(str(f))
-    assert excinfo.match(f'^{str(f)}: Invalid file format$')
+    assert excinfo.match(f'^{str(f)}: Invalid torrent file format$')
 
 
 def test_validate_after_read(valid_singlefile_metainfo, tmpdir):
