@@ -318,20 +318,23 @@ def test_repr_string(singlefile_content, generate_random_Torrent_args):
 
 
 def test_equality(singlefile_content):
-    t1 = torf.Torrent(singlefile_content.path)
-    t2 = torf.Torrent(singlefile_content.path)
+    kwargs = {'trackers': ['https://localhost/'],
+              'comment': 'Foo',
+              'created_by': 'Bar'}
+    t1 = torf.Torrent(singlefile_content.path, **kwargs)
+    t2 = torf.Torrent(singlefile_content.path, **kwargs)
     assert t1 == t2
-
     t1.metainfo['foo'] = 'bar'
     assert t1 != t2
-
     del t1.metainfo['foo']
     assert t1 == t2
-
     t2.comment = 'asdf'
     assert t1 != t2
-
     t2.comment = t1.comment
+    assert t1 == t2
+    t1.trackers += ['https://remotehost']
+    assert t1 != t2
+    del t1.trackers[-1]
     assert t1 == t2
 
 
