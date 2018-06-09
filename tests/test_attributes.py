@@ -207,7 +207,7 @@ def test_piece_size(torrent, multifile_content):
         torrent.piece_size = torf.Torrent.MAX_PIECE_SIZE + 1
     assert excinfo.match(exp_exc)
 
-    with pytest.raises(RuntimeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         torrent.piece_size = 'hello'
     assert excinfo.match("^piece_size must be int, not 'hello'$")
 
