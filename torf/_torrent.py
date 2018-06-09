@@ -246,8 +246,6 @@ class Torrent():
         elif 'files' in self.metainfo['info']:  # Multifile torrent
             return sum(fileinfo['length']
                        for fileinfo in self.metainfo['info']['files'])
-        else:
-            return None
 
     @property
     def piece_size(self):
