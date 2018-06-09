@@ -241,8 +241,7 @@ class Torrent():
     @property
     def size(self):
         """
-        Total size of content in bytes or ``None`` if :attr:`metainfo`\ ``['info']``
-        doesn't have ``length`` or ``files`` set
+        Total size of content in bytes or ``None`` if :attr:`path` is ``None``
         """
         if 'length' in self.metainfo['info']:   # Singlefile
             return self.metainfo['info']['length']
