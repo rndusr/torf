@@ -111,7 +111,8 @@ class Torrent():
         self.exclude = exclude
         self.path = path
         # Values that are implicitly changed by setting self.path
-        self.piece_size = piece_size
+        if piece_size is not None:
+            self.piece_size = piece_size
         self.name = name
 
     @property
@@ -135,13 +136,14 @@ class Torrent():
         """
         Path to torrent content
 
-        Setting this property to a file path sets ``name`` and ``length`` in
-        :attr:`metainfo`\ ``['info']``.
+        The properties :attr:`name`` and :attr:`piece_size` are changed
+        implicitly when this property is set.
 
-        Setting this property to a directory path sets ``name`` and ``files`` in
-        :attr:`metainfo`\ ``['info']``.
+        Setting this property sets ``name`` and ``piece length`` in
+        :attr:`metainfo`\ ``['info']`` as well as ``length`` if path is a file
+        or ``files`` if path is a directory.
 
-        Setting this property to ``None`` removes the following keys from
+        If set to ``None``, the following keys are removed (if present) from
         :attr:`metainfo`\ ``['info']``: ``piece length``, ``pieces``, ``name``,
         ``length``, ``md5sum``, ``files``
 
@@ -180,6 +182,7 @@ class Torrent():
             else:
                 self._path = path
                 self.name  # Set default name in metainfo dict
+                self.calculate_piece_size()
 
     @property
     def files(self):
@@ -250,29 +253,25 @@ class Torrent():
     @property
     def piece_size(self):
         """
-        Piece size/length or ``None`` to pick one automatically
+        Piece size/length or ``None``
 
-        Setting this property sets or removes ``piece length`` in
-        :attr:`metainfo`\ ``['info']``.
-
-        Getting this property if set to ``None`` (the default) calculates it
-        automatically so that there are no more than :attr:`MAX_PIECES` pieces
-        in total.  The result is stored as ``piece length`` in :attr:`metainfo`\
-        ``['info']``.
+        If set to ``None``, :attr:`calculate_piece_size` is called.
 
         If :attr:`size` returns ``None``, this also returns ``None``.
+
+        Setting this property sets ``piece length`` in :attr:`metainfo`\
+        ``['info']``.
         """
         if 'piece length' not in self.metainfo['info']:
             if self.size is None:
                 return None
             else:
-                self.metainfo['info']['piece length'] = utils.calc_piece_size(
-                    self.size, self.MAX_PIECES, self.MIN_PIECE_SIZE, self.MAX_PIECE_SIZE)
+                self.calculate_piece_size()
         return self.metainfo['info']['piece length']
     @piece_size.setter
     def piece_size(self, value):
         if value is None:
-            self.metainfo['info'].pop('piece length', None)
+            self.calculate_piece_size()
         else:
             try:
                 piece_length = int(value)
@@ -284,6 +283,24 @@ class Torrent():
                 else:
                     raise error.PieceSizeError(min=self.MIN_PIECE_SIZE,
                                                max=self.MAX_PIECE_SIZE)
+
+    def calculate_piece_size(self):
+        """
+        Calculate and add ``piece length`` to ``info`` in :attr:`metainfo`
+
+        The piece size is calculated so that there are no more than
+        :attr:`MAX_PIECES` pieces unless it is larger than
+        :attr:`MAX_PIECE_SIZE`, in which case there is no limit on the number of
+        pieces.
+
+        :raises RuntimeError: if :attr:`size` returns ``None``
+        """
+        size = self.size
+        if not size:
+            raise RuntimeError(f'Cannot calculate piece size with no "path" specified')
+        else:
+            self.metainfo['info']['piece length'] = utils.calc_piece_size(
+                size, self.MAX_PIECES, self.MIN_PIECE_SIZE, self.MAX_PIECE_SIZE)
 
     @property
     def pieces(self):

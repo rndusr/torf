@@ -185,9 +185,8 @@ def test_piece_size(torrent, multifile_content):
     torrent.path = multifile_content.path
 
     torrent.piece_size = None
-    assert 'piece length' not in torrent.metainfo['info']
-    torrent.piece_size
     assert 'piece length' in torrent.metainfo['info']
+    assert torf.Torrent.MIN_PIECE_SIZE <= torrent.metainfo['info']['piece length'] <= torf.Torrent.MAX_PIECE_SIZE
 
     torrent.piece_size = torf.Torrent.MIN_PIECE_SIZE
     assert torrent.piece_size == torf.Torrent.MIN_PIECE_SIZE
