@@ -948,8 +948,10 @@ class Torrent():
         return type(self).__name__ + '(' + ', '.join(args) + ')'
 
     def __eq__(self, other):
-        return isinstance(other, type(self)) and \
-            self._metainfo == other._metainfo
+        if isinstance(other, type(self)):
+            return self._metainfo == other._metainfo
+        else:
+            return NotImplemented
 
     def __hash__(self, other):
         return hash(tuple(sorted(self._metainfo.items())))
