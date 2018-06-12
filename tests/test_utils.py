@@ -33,7 +33,8 @@ def testdir(tmpdir):
     base = tmpdir.mkdir('base')
     foo = base.mkdir('foo')
     bar = base.mkdir('.bar')
-    for path in (foo, bar):
+    baz = bar.mkdir('baz')
+    for path in (foo, bar, baz):
         path.join('empty').write('')
         path.join('.empty').write('')
         path.join('not_empty').write('dummy content')
@@ -43,10 +44,9 @@ def testdir(tmpdir):
 def test_filepaths(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir)]
-    exp = sorted(['/base/.bar/.empty', '/base/.bar/.not_empty',
-                  '/base/.bar/empty', '/base/.bar/not_empty',
-                  '/base/foo/.empty', '/base/foo/.not_empty',
-                  '/base/foo/empty', '/base/foo/not_empty'])
+    exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty', '/base/foo/not_empty',
+                  '/base/.bar/.empty', '/base/.bar/.not_empty', '/base/.bar/empty', '/base/.bar/not_empty',
+                  '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty', '/base/.bar/baz/not_empty'])
     assert files == exp
 
 def test_for_each_filepath__without_hidden(testdir):
@@ -58,22 +58,41 @@ def test_for_each_filepath__without_hidden(testdir):
 def test_for_each_filepath__without_empty(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir, empty=False)]
-    exp = sorted(['/base/.bar/.not_empty',
-                  '/base/.bar/not_empty',
-                  '/base/foo/.not_empty',
-                  '/base/foo/not_empty'])
+    exp = sorted(['/base/foo/.not_empty', '/base/foo/not_empty',
+                  '/base/.bar/.not_empty', '/base/.bar/not_empty',
+                  '/base/.bar/baz/.not_empty', '/base/.bar/baz/not_empty'])
     assert files == exp
 
 def test_for_each_filepath__exclude(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir, exclude=('.*',))]
-    exp = sorted(['/base/.bar/empty', '/base/.bar/not_empty',
-                  '/base/foo/empty', '/base/foo/not_empty'])
+    exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
+    assert files == exp
+
+    for pattern in ('foo', 'fo?', 'f*', '?oo', '*o', 'f?o'):
+        files = [filepath[len(os.path.dirname(str(testdir))):]
+                 for filepath in utils.filepaths(testdir, exclude=(pattern,))]
+        exp = sorted(['/base/.bar/.empty', '/base/.bar/.not_empty', '/base/.bar/empty', '/base/.bar/not_empty',
+                      '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty', '/base/.bar/baz/not_empty'])
+        assert files == exp
+
+    files = [filepath[len(os.path.dirname(str(testdir))):]
+             for filepath in utils.filepaths(testdir, exclude=('*ba?',))]
+    exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty', '/base/foo/not_empty'])
+    assert files == exp
 
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir, exclude=('not_*',))]
-    exp = sorted(['/base/.bar/.not_empty', '/base/.bar/.empty', '/base/.bar/empty',
-                  '/base/foo/.not_empty', '/base/foo/.empty', '/base/foo/empty', ])
+    exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty',
+                  '/base/.bar/.empty', '/base/.bar/.not_empty', '/base/.bar/empty',
+                  '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty'])
+    assert files == exp
+
+    files = [filepath[len(os.path.dirname(str(testdir))):]
+             for filepath in utils.filepaths(testdir, exclude=('*not_*',))]
+    exp = sorted(['/base/foo/.empty', '/base/foo/empty',
+                  '/base/.bar/.empty', '/base/.bar/empty',
+                  '/base/.bar/baz/.empty', '/base/.bar/baz/empty'])
     assert files == exp
 
 
