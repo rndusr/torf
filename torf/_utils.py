@@ -80,6 +80,13 @@ def is_hidden(path):
     return False
 
 
+def is_match(path, pattern):
+    for name in path.split(os.sep):
+        if fnmatch(name, pattern):
+            return True
+    return False
+
+
 def filepaths(path, exclude=(), hidden=True, empty=True):
     """
     Return list of absolute, sorted file paths
@@ -102,17 +109,24 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
     else:
         filepaths = []
         for dirpath, dirnames, filenames in os.walk(path):
+            # Ignore hidden directory
             if not hidden and is_hidden(dirpath):
-                continue  # Ignore hidden directory
+                continue
+
             for filename in filenames:
+                # Ignore hidden file
                 if not hidden and is_hidden(filename):
-                    continue  # Ignore hidden file
-                elif any(fnmatch(filename, pattern) for pattern in exclude):
-                    continue  # Ignore excluded file
+                    continue
+
+                filepath = os.path.join(dirpath, filename)
+                # Ignore excluded file
+                if any(is_match(filepath, pattern) for pattern in exclude):
+                    continue
                 else:
-                    filepath = os.path.join(dirpath, filename)
+                    # Ignore empty file
                     if empty or os.path.getsize(os.path.realpath(filepath)) > 0:
                         filepaths.append(filepath)
+
         return sorted(filepaths, key=lambda fp: fp.casefold())
 
 
