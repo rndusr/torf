@@ -4,6 +4,8 @@
     calculating it on demand when requested
   - Setting piece size to a non-number now raises ValueError instead of
     RuntimeError
+  - Exclude patterns are now matched against every part of a file's path, not
+    just the last part (i.e. the file name)
   - Torrent instances are equal (==) if their metainfo is equal
   - Torrent instances are hashable
 
