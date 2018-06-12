@@ -74,7 +74,10 @@ def calc_piece_size(total_size, max_pieces, min_piece_size, max_piece_size):
 
 def is_hidden(path):
     """Whether file or directory is hidden"""
-    return os.path.basename(path)[0] == '.'
+    for name in path.split(os.sep):
+        if name and name[0] == '.':
+            return True
+    return False
 
 
 def filepaths(path, exclude=(), hidden=True, empty=True):
