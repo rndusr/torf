@@ -492,7 +492,13 @@ class Torrent():
     @property
     def exclude(self):
         """
-        List of filename patterns to exclude
+        List of file/directory name patterns to exclude
+
+        Every file path is split at the directory separator and each part, from
+        base directory to file, is matched against each pattern.
+
+        Matching is done with :func:`fnmatch.fnmatch`, which uses these special
+        characters:
 
         \*
           matches everything
