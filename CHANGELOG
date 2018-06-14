@@ -6,6 +6,7 @@
     RuntimeError
   - Exclude patterns are now matched against every part of a file's path, not
     just the last part (i.e. the file name)
+  - Setting torrent.path to '.' or '..' now sets the correct name
   - Torrent instances are equal (==) if their metainfo is equal
   - Torrent instances are hashable
 
