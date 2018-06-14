@@ -113,7 +113,8 @@ class Torrent():
         # Values that are implicitly changed by setting self.path
         if piece_size is not None:
             self.piece_size = piece_size
-        self.name = name
+        if name is not None:
+            self.name = name
 
     @property
     def metainfo(self):
@@ -181,7 +182,12 @@ class Torrent():
                 raise error.PathEmptyError(path)
             else:
                 self._path = path
-                self.name  # Set default name in metainfo dict
+                if path == '.':
+                    self.name = os.path.basename(os.path.abspath('.'))
+                elif path == '..':
+                    self.name = os.path.basename(os.path.abspath('..'))
+                else:
+                    self.name  # Set default name in metainfo dict
                 self.calculate_piece_size()
 
     @property
