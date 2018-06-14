@@ -20,7 +20,6 @@ def test_path_reset(torrent, singlefile_content, multifile_content):
     torrent.path = singlefile_content.path
     torrent.private = True
     torrent.path = multifile_content.path
-    torrent.generate()
     assert torrent.metainfo['info']['private'] == True
     torrent.path = None
     assert torrent.metainfo['info']['private'] == True
@@ -29,27 +28,23 @@ def test_path_reset(torrent, singlefile_content, multifile_content):
 
 def test_path_switch_from_singlefile_to_multifile(torrent, singlefile_content, multifile_content):
     torrent.path = singlefile_content.path
-    torrent.generate()
-    for key in ('piece length', 'pieces', 'name', 'length'):
+    for key in ('piece length', 'name', 'length'):
         assert key in torrent.metainfo['info']
     assert 'files' not in torrent.metainfo['info']
 
     torrent.path = multifile_content.path
-    torrent.generate()
-    for key in ('piece length', 'pieces', 'name', 'files'):
+    for key in ('piece length', 'name', 'files'):
         assert key in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
 
 def test_path_switch_from_multifile_to_singlefile(torrent, singlefile_content, multifile_content):
     torrent.path = multifile_content.path
-    torrent.generate()
-    for key in ('piece length', 'pieces', 'name', 'files'):
+    for key in ('piece length', 'name', 'files'):
         assert key in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
 
     torrent.path = singlefile_content.path
-    torrent.generate()
-    for key in ('piece length', 'pieces', 'name', 'length'):
+    for key in ('piece length', 'name', 'length'):
         assert key in torrent.metainfo['info']
     assert 'files' not in torrent.metainfo['info']
 
