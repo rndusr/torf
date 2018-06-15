@@ -1,4 +1,4 @@
-2018-06-?? 1.4
+2018-06-15 1.4
   - New method: calculate_piece_size()
   - Piece size is now automatically calculated when path is set instead of
     calculating it on demand when requested
