@@ -389,3 +389,35 @@ def test_randomize_infohash(singlefile_content):
     t1.randomize_infohash = True
     t2.randomize_infohash = True
     assert t1.infohash != t2.infohash
+
+
+def test_copy_before_ready(singlefile_content):
+    t1 = torf.Torrent(singlefile_content.path, comment='Asdf.',
+                      randomize_infohash=True, webseeds=['http://foo'])
+    assert not t1.is_ready
+    t2 = t1.copy()
+    assert t1 == t2
+    assert t1 is not t2
+
+def test_copy_when_ready(singlefile_content):
+    t1 = torf.Torrent(singlefile_content.path, comment='Asdf.',
+                      randomize_infohash=True, webseeds=['http://foo'])
+    t1.generate()
+    assert t1.is_ready
+    t2 = t1.copy()
+    assert t1 == t2
+    assert t1 is not t2
+
+def test_copy_with_copy_module(singlefile_content):
+    import copy
+    t1 = torf.Torrent(singlefile_content.path, comment='Asdf.',
+                      randomize_infohash=True, webseeds=['http://foo'])
+    t1.generate()
+
+    t2 = copy.copy(t1)
+    assert t1 == t2
+    assert t1 is not t2
+
+    t2 = copy.deepcopy(t1)
+    assert t1 == t2
+    assert t1 is not t2
