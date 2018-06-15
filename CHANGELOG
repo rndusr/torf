@@ -9,6 +9,8 @@
   - Setting torrent.path to '.' or '..' now sets the correct name
   - Torrent instances are equal (==) if their metainfo is equal
   - Torrent instances are hashable
+  - Torrent instances can be copied with the copy() method or the copy module
+    from the standard library
 
 
 2018-04-07 1.3
