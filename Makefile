@@ -8,4 +8,4 @@ test:
 	python3 -m pytest --tb no tests
 
 release:
-	pyrelease CHANGELOG ./torfcli/_version.py
+	pyrelease CHANGELOG ./torf/_version.py
