@@ -25,11 +25,9 @@ from datetime import datetime
 import os
 import math
 import time
-import inspect
-from collections import abc, OrderedDict
-import io
-import random
+from collections import abc
 import errno
+import inspect
 
 from . import _utils as utils
 from . import _errors as error
@@ -574,6 +572,7 @@ class Torrent():
         if value:
             # According to BEP0003 "Integers have no size limitation", but some
             # parsers seem to have problems with large numbers.
+            import random
             self.metainfo['info']['entropy'] = random.randint(-2e9, 2e9)
         else:
             self.metainfo['info'].pop('entropy', None)
