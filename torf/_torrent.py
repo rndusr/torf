@@ -351,7 +351,7 @@ class Torrent():
         in :attr:`metainfo`. ``announce`` is set to the first tracker of the
         first tier.
 
-        :raise URLError: if any of the announce URLs is invalid
+        :raises URLError: if any of the announce URLs is invalid
         """
         announce_list = self.metainfo.get('announce-list', None)
         if not announce_list:
