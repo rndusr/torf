@@ -886,7 +886,7 @@ class Torrent():
         """
         Read torrent metainfo from file-like object
 
-        :param stream: File-like object (e.g. :class:`io.BytesIO`)
+        :param stream: Readable file-like object (e.g. :class:`io.BytesIO`)
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
             object
 
