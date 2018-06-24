@@ -81,8 +81,7 @@ def test_include_md5_multifile(valid_multifile_metainfo):
     assert t.include_md5 is False
 
 
-def test_validate_missing_info(tmpdir):
-    f = tmpdir.join('a.torrent')
+def test_validate_missing_info():
     data = OrderedDict([
         (b'foo', b'bar'),
     ])
@@ -92,7 +91,7 @@ def test_validate_missing_info(tmpdir):
     assert excinfo.match("^Invalid metainfo: Missing 'info'$")
 
 
-def test_validate_info_not_a_dictionary(tmpdir):
+def test_validate_info_not_a_dictionary():
     data = OrderedDict([(b'info', 1)])
     fo = io.BytesIO(bencode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
@@ -100,7 +99,7 @@ def test_validate_info_not_a_dictionary(tmpdir):
     assert excinfo.match("^Invalid metainfo: 'info' is not a dictionary$")
 
 
-def test_validate_missing_pieces(tmpdir):
+def test_validate_missing_pieces():
     data = OrderedDict([(b'info', {})])
     fo = io.BytesIO(bencode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
@@ -108,7 +107,7 @@ def test_validate_missing_pieces(tmpdir):
     assert excinfo.match("^Invalid metainfo: Missing 'pieces' in \['info'\]$")
 
 
-def test_read_nonstandard_data_without_validation(tmpdir):
+def test_read_nonstandard_data_without_validation():
     data = OrderedDict([
         (b'foo', b'bar'),
         (b'number', 17),
