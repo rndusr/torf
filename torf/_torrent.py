@@ -882,16 +882,16 @@ class Torrent():
     MAX_TORRENT_FILE_SIZE = int(10e6)  # 10MB
 
     @classmethod
-    def read(cls, filepath, validate=True):
+    def read_stream(cls, stream, validate=True):
         """
-        Read torrent metainfo from file
+        Read torrent metainfo from file-like object
 
-        :param filepath: Path of the torrent file
+        :param stream: File-like object (e.g. :class:`io.BytesIO`)
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
             object
 
-        :raises ReadError: if reading from `filepath` fails
-        :raises ParseError: if `filepath` does not contain a valid bencoded byte
+        :raises ReadError: if reading from `stream` fails
+        :raises ParseError: if `stream` does not produce a valid bencoded byte
             string
         :raises MetainfoError: if `validate` is `True` and the read metainfo is
             invalid
@@ -899,15 +899,14 @@ class Torrent():
         :return: New Torrent object
         """
         try:
-            with open(filepath, 'rb') as fh:
-                file_content = fh.read(cls.MAX_TORRENT_FILE_SIZE)
+            content = stream.read(cls.MAX_TORRENT_FILE_SIZE)
         except OSError as e:
-            raise error.ReadError(filepath, e.errno)
+            raise error.ReadError(e.errno)
         else:
             try:
-                metainfo_enc = bdecode(file_content)
+                metainfo_enc = bdecode(content)
             except BTFailure as e:
-                raise error.ParseError(filepath)
+                raise error.ParseError()
 
             if validate:
                 if b'info' not in metainfo_enc:
@@ -944,6 +943,31 @@ class Torrent():
                 torrent.validate()
 
             return torrent
+
+    @classmethod
+    def read(cls, filepath, validate=True):
+        """
+        Read torrent metainfo from file
+
+        :param filepath: Path of the torrent file
+        :param bool validate: Whether to run :meth:`validate` on the new Torrent
+            object
+
+        :raises ReadError: if reading from `filepath` fails
+        :raises ParseError: if `filepath` does not contain a valid bencoded byte
+            string
+        :raises MetainfoError: if `validate` is `True` and the read metainfo is
+            invalid
+
+        :return: New Torrent object
+        """
+        try:
+            with open(filepath, 'rb') as fh:
+                return cls.read_stream(fh)
+        except (OSError, error.ReadError) as e:
+            raise error.ReadError(filepath, e.errno)
+        except error.ParseError:
+            raise error.ParseError(filepath)
 
     def copy(self):
         """
