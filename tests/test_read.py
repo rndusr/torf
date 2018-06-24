@@ -15,6 +15,16 @@ def test_non_bencoded_data():
     assert excinfo.match(f'^Invalid metainfo format$')
 
 
+def test_unreadable_stream(tmpdir):
+    class Unreadable(io.BytesIO):
+        def read(self, *args, **kwargs):
+            raise OSError('Refusing to read')
+    fo = Unreadable(b'foo')
+    with pytest.raises(torf.ReadError) as excinfo:
+        torf.Torrent.read_stream(fo)
+    assert excinfo.match(f'^Unable to read$')
+
+
 def test_validate_after_read(valid_singlefile_metainfo):
     del valid_singlefile_metainfo[b'info']
     fo = io.BytesIO(bencode(valid_singlefile_metainfo))
