@@ -793,7 +793,7 @@ class Torrent():
 
         :param bool validate: Whether to run :meth:`validate` first
 
-        :return: :attr:`metainfo` as validated, bencoded :class:`bytes`
+        :return: :attr:`metainfo` as bencoded :class:`bytes`
         """
         if validate:
             self.validate()
