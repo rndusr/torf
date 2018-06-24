@@ -59,7 +59,7 @@ def read_chunks(filepath, chunk_size):
                 else:
                     break  # EOF
     except OSError as e:
-        raise error.ReadError(filepath, e.errno)
+        raise error.ReadError(e.errno, filepath)
 
 
 def calc_piece_size(total_size, max_pieces, min_piece_size, max_piece_size):
@@ -102,7 +102,7 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
         raise error.PathNotFoundError(path)
     elif not os.access(path, os.R_OK,
                        effective_ids=os.access in os.supports_effective_ids):
-        raise error.ReadError(path, errno.EACCES)
+        raise error.ReadError(errno.EACCES, path)
 
     if os.path.isfile(path):
         return [path]

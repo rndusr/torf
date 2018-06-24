@@ -78,11 +78,15 @@ class PathEmptyError(TorfError):
             super().__init__(f'{path}: Empty directory')
 
 class ReadError(TorfError):
-    """Unreadable file"""
-    def __init__(self, path, error_code):
+    """Unreadable file or stream"""
+    def __init__(self, error_code, path=None):
         self._errno = error_code
         self._path = path
-        super().__init__(f'{path}: {os.strerror(error_code)}')
+        msg = os.strerror(error_code) if error_code else 'Unable to read'
+        if path is None:
+            super().__init__(f'{msg}')
+        else:
+            super().__init__(f'{path}: {msg}')
 
     @property
     def path(self):
@@ -90,11 +94,15 @@ class ReadError(TorfError):
         return self._path
 
 class WriteError(TorfError):
-    """Unwritable file"""
-    def __init__(self, path, error_code):
+    """Unwritable file or stream"""
+    def __init__(self, error_code, path=None):
         self._errno = error_code
         self._path = path
-        super().__init__(f'{path}: {os.strerror(error_code)}')
+        msg = os.strerror(error_code) if error_code else 'Unable to write'
+        if path is None:
+            super().__init__(f'{msg}')
+        else:
+            super().__init__(f'{path}: {msg}')
 
     @property
     def path(self):

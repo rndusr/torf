@@ -819,7 +819,7 @@ class Torrent():
             contains invalid data
         """
         if not overwrite and os.path.exists(filepath):
-            raise error.WriteError(filepath, errno.EEXIST)
+            raise error.WriteError(errno.EEXIST, filepath)
 
         def remove_empty_file():
             if os.path.exists(filepath) and os.path.getsize(filepath) <= 0:
@@ -830,7 +830,7 @@ class Torrent():
             fd = os.open(filepath, os.O_RDWR | os.O_CREAT, mode=mode)
         except OSError as e:
             remove_empty_file()
-            raise error.WriteError(filepath, e.errno)
+            raise error.WriteError(e.errno, filepath)
         else:
             # Truncate file *after* dump() didn't raise anything.  It's
             # important to truncate or else only the first `len(data)`
@@ -965,7 +965,7 @@ class Torrent():
             with open(filepath, 'rb') as fh:
                 return cls.read_stream(fh)
         except (OSError, error.ReadError) as e:
-            raise error.ReadError(filepath, e.errno)
+            raise error.ReadError(e.errno, filepath)
         except error.ParseError:
             raise error.ParseError(filepath)
 
