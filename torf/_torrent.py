@@ -80,7 +80,7 @@ class Torrent():
     >>> torrent.magnet()
     'magnet:?xt=urn:btih:e167b1fbb42ea72f051f4f50432703308efb8fd1&dn=My+Torrent&xl=142631&tr=https%3A%2F%2Flocalhost%3A123%2Fannounce'
 
-    Read torrent:
+    Read torrent from file:
 
     >>> t = Torrent.read('my_torrent.torrent')
     >>> t.comment
@@ -590,20 +590,28 @@ class Torrent():
 
     def generate(self, callback=None, interval=0):
         """
-        Set ``pieces`` in :attr:`metainfo`\ ``['info']``
+        Hash pieces and report progress to `callback`
+
+        This method sets ``pieces`` in :attr:`metainfo`\ ``['info']`` when all
+        pieces are hashed successfully.
 
         :param callable callback: Callable with signature ``(torrent, filepath,
-            pieces_done, pieces_total)``; if *callback* returns anything that is
-            not None, hashing is canceled
-        :param int interval: Minimum number of seconds between calls to *callback*
+            pieces_done, pieces_total)``; if `callback` returns anything else
+            than None, hashing is canceled
+
+        :param float interval: Minimum number of seconds between calls to
+            `callback` (if 0, `callback` is called once per piece)
+        :param float interval: Minimum number of seconds between calls to
+            `callback`
 
         :raises PathEmptyError: if :attr:`path` contains only empty
             files/directories
         :raises PathNotFoundError: if :attr:`path` does not exist
-        :raises ReadError: if :attr:`path` or any file beneath it is not readable
+        :raises ReadError: if :attr:`path` or any file beneath it is not
+            readable
 
-        :return: True if ``pieces`` was successfully added to
-            :attr:`metainfo`\ ``['info']``, ``False`` otherwise
+        :return: ``True`` if all pieces were successfully hashed, ``False``
+            otherwise
         """
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
@@ -826,9 +834,9 @@ class Torrent():
 
     def write(self, filepath, validate=True, overwrite=False, mode=0o666):
         """
-        Write current :attr:`metainfo` to torrent file
+        Write :attr:`metainfo` to torrent file
 
-        This is mostly a convenience method.  It's essentially equivalent to:
+        This method is essentially equivalent to:
 
         >>> with open('my.torrent', 'wb') as f:
         ...     f.write(torrent.dump())
