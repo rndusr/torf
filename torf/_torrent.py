@@ -28,6 +28,7 @@ import time
 from collections import abc
 import errno
 import inspect
+import io
 
 from . import _utils as utils
 from . import _errors as error
@@ -845,30 +846,16 @@ class Torrent():
         if not overwrite and os.path.exists(filepath):
             raise error.WriteError(errno.EEXIST, filepath)
 
-        def remove_empty_file():
-            if os.path.exists(filepath) and os.path.getsize(filepath) <= 0:
-                os.remove(filepath)
+        # Get file content before opening the file in case there are errors like
+        # incomplete metainfo
+        content = io.BytesIO()
+        self.write_stream(content, validate=validate)
+        content.seek(0)
         try:
-            # Open file for writing without truncating, so if it already exists,
-            # dump() can fail without destroying its contents
-            fd = os.open(filepath, os.O_RDWR | os.O_CREAT, mode=mode)
+            with open(filepath, 'wb') as f:
+                f.write(content.read())
         except OSError as e:
-            remove_empty_file()
             raise error.WriteError(e.errno, filepath)
-        else:
-            # Truncate file *after* dump() didn't raise anything.  It's
-            # important to truncate or else only the first `len(data)`
-            # bytes of the existing file are overwritten and the rest is
-            # preserved.
-            try:
-                data = self.dump(validate=validate)
-            except:
-                remove_empty_file()
-                raise
-            else:
-                with os.fdopen(fd, 'rb+') as fh:
-                    fh.truncate()
-                    fh.write(data)
 
     def magnet(self, name=True, size=True, trackers=True, tracker=False, validate=True):
         """
