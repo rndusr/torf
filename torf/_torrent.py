@@ -617,13 +617,13 @@ class Torrent():
             cancel = lambda *status: False
 
         if os.path.isfile(self.path):
-            set_pieces = self._set_pieces_singlefile()
+            pieces = self._set_pieces_singlefile()
         elif os.path.isdir(self.path):
-            set_pieces = self._set_pieces_multifile()
+            pieces = self._set_pieces_multifile()
 
         # Iterate over hashed pieces and send status information
         last_cb_call = 0
-        for filepath,pieces_done,pieces_total in set_pieces:
+        for filepath,pieces_done,pieces_total in pieces:
             now = time.time()
             if now - last_cb_call >= interval or \
                pieces_done >= pieces_total:
