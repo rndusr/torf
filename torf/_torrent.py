@@ -62,7 +62,7 @@ class Torrent():
 
     Hash pieces and update progress once per second:
 
-    >>> def callback(filepath, pieces_done, pieces_total):
+    >>> def callback(torrent, filepath, pieces_done, pieces_total):
     ...     print(f'{pieces_done/pieces_total*100:3.0f} % done')
     >>> success = torrent.generate(callback, interval=1)
       1 % done
