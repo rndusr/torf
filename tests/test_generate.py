@@ -116,3 +116,18 @@ def test_singlefile_generate_with_callback(singlefile_content):
 
 def test_multifile_generate_with_callback(multifile_content):
     assert_callback_called(multifile_content)
+
+
+def test_callback_cancels(multifile_content):
+    hashed_pieces = []
+    def callback(torrent, filepath, pieces_done, pieces_total):
+        hashed_pieces.append(pieces_done)
+        # Cancel after 50 % of the pieces are hashed
+        if pieces_done / pieces_total > 0.5:
+            return 'STOP THE PRESSES!'
+
+    t = torf.Torrent(multifile_content.path)
+    success = t.generate(callback=callback)
+    assert success is False
+    assert hashed_pieces[-1] > 0
+    assert hashed_pieces[-1] < t.pieces
