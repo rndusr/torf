@@ -1,4 +1,4 @@
-2018-06-?? 1.5
+2018-06-25 1.5
   - New methods read_stream() and write_stream() to import/export a torrent from
     any file-like object
 
