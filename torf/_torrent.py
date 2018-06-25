@@ -799,6 +799,30 @@ class Torrent():
             self.validate()
         return bencode(self.convert())
 
+    def write_stream(self, stream, validate=True):
+        """
+        Write :attr:`metainfo` to a file-like object
+
+        Before any data is written, `stream` is truncated if possible.
+
+        :param stream: Writable file-like object (e.g. :class:`io.BytesIO`)
+        :param bool validate: Whether to run :meth:`validate` first
+
+        :raises WriteError: if writing to `stream` fails
+        :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
+            contains invalid data
+        """
+        content = self.dump(validate=validate)
+        try:
+            # Remove existing data from stream *after* dump() didn't raise
+            # anything so we don't destroy it prematurely.
+            if stream.seekable():
+                stream.seek(0)
+                stream.truncate(0)
+            stream.write(content)
+        except OSError as e:
+            raise error.WriteError(e.errno)
+
     def write(self, filepath, validate=True, overwrite=False, mode=0o666):
         """
         Write current :attr:`metainfo` to torrent file
