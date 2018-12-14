@@ -601,9 +601,6 @@ class Torrent():
 
         :param float interval: Minimum number of seconds between calls to
             `callback` (if 0, `callback` is called once per piece)
-        :param float interval: Minimum number of seconds between calls to
-            `callback`
-
         :raises PathEmptyError: if :attr:`path` contains only empty
             files/directories
         :raises PathNotFoundError: if :attr:`path` does not exist
