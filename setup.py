@@ -12,7 +12,7 @@ setup(
     name               = 'torf',
     version            = __version__,
     packages           = find_packages(),
-    install_requires   = ['bencoder.pyx>=1.1.1,<2.0.0'],
+    install_requires   = ['bencoder.pyx>=1.1.1,<3.0.0'],
 
     author             = 'Random User',
     author_email       = 'rndusr@posteo.de',
