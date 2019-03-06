@@ -136,7 +136,7 @@ class Torrent():
         """
         Path to torrent content
 
-        The properties :attr:`name`` and :attr:`piece_size` are changed
+        The properties :attr:`name` and :attr:`piece_size` are changed
         implicitly when this property is set.
 
         Setting this property sets ``name`` and ``piece length`` in
