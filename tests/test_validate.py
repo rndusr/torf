@@ -114,7 +114,7 @@ def assert_missing_metainfo(torrent, *keys):
     del md[keys[-1]]
     with pytest.raises(torf.MetainfoError) as excinfo:
         torrent.dump()
-    assert excinfo.match(f"Invalid metainfo: Missing {keys[-1]!r} in \['info'\]")
+    assert excinfo.match(rf"Invalid metainfo: Missing {keys[-1]!r} in \['info'\]")
 
 def test_singlefile_missing_info_path(generated_singlefile_torrent):
     assert_missing_metainfo(generated_singlefile_torrent, 'info', 'name')
@@ -157,8 +157,8 @@ def assert_mismatching_filesizes(torrent, *args):
     md[keys[-1]] = value
     with pytest.raises(torf.MetainfoError) as excinfo:
         torrent.dump()
-    assert excinfo.match("Invalid metainfo: Mismatching file sizes in metainfo \(\d+\) "
-                         f"and local file system \(\d+\): '{torrent.path}")
+    assert excinfo.match(r"Invalid metainfo: Mismatching file sizes in metainfo \(\d+\) "
+                         rf"and local file system \(\d+\): '{torrent.path}")
 
 def test_singlefile_mismatching_filesize(generated_singlefile_torrent):
     assert_mismatching_filesizes(generated_singlefile_torrent,

@@ -114,7 +114,7 @@ def test_validate_missing_pieces():
     fo = io.BytesIO(bencode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
-    assert excinfo.match("^Invalid metainfo: Missing 'pieces' in \['info'\]$")
+    assert excinfo.match(r"^Invalid metainfo: Missing 'pieces' in \['info'\]$")
 
 
 def test_read_nonstandard_data_without_validation():
