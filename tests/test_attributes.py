@@ -215,6 +215,11 @@ def test_piece_size(torrent, multifile_content):
         torrent.piece_size = 'hello'
     assert excinfo.match("^piece_size must be int, not 'hello'$")
 
+    invalid_piece_size = 3**10
+    with pytest.raises(torf.PieceSizeError) as excinfo:
+        torrent.piece_size = invalid_piece_size
+    assert excinfo.match(f"^Piece size must be a power of two, {invalid_piece_size} is not$")
+
 
 def test_trackers(torrent):
     first_tracker = 'http://foo:123/announce'

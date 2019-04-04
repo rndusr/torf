@@ -283,6 +283,8 @@ class Torrent():
                 raise ValueError(f'piece_size must be int, not {value!r}')
             else:
                 if self.MIN_PIECE_SIZE <= value <= self.MAX_PIECE_SIZE:
+                    if not utils.is_power_of_2(piece_length):
+                        raise error.PieceSizeError(size=piece_length)
                     self.metainfo['info']['piece length'] = piece_length
                 else:
                     raise error.PieceSizeError(min=self.MIN_PIECE_SIZE,
