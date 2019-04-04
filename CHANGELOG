@@ -1,4 +1,4 @@
-????-??-?? 2.0.0
+2019-04-04 2.0.0
   - Use proper version number scheme
   - Raise PieceSizeError if 'piece_size' is set to a number that isn't a power
     of two
