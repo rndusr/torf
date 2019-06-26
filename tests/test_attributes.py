@@ -1,6 +1,7 @@
 import torf
 
 import pytest
+from unittest.mock import patch
 import os
 from hashlib import md5
 
@@ -189,36 +190,43 @@ def test_size(torrent, singlefile_content, multifile_content):
 def test_piece_size(torrent, multifile_content):
     torrent.path = multifile_content.path
 
-    torrent.piece_size = None
+    with pytest.raises(RuntimeError) as excinfo:
+        torf.Torrent().piece_size = None
+    assert excinfo.match('^Cannot calculate piece size with no "path" specified$')
+
+    assert torf.Torrent().piece_size is None
+
+    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 512 * 1024):
+        torrent.piece_size = None
     assert 'piece length' in torrent.metainfo['info']
-    assert torf.Torrent.MIN_PIECE_SIZE <= torrent.metainfo['info']['piece length'] <= torf.Torrent.MAX_PIECE_SIZE
+    assert torrent.metainfo['info']['piece length'] == 512 * 1024
 
-    torrent.piece_size = torf.Torrent.MIN_PIECE_SIZE
-    assert torrent.piece_size == torf.Torrent.MIN_PIECE_SIZE
-    assert torrent.metainfo['info']['piece length'] == torf.Torrent.MIN_PIECE_SIZE
-
-    exp_exc = f'^Piece size must be between {torf.Torrent.MIN_PIECE_SIZE} and {torf.Torrent.MAX_PIECE_SIZE}$'
+    torrent.piece_size = 32 * 1024
+    assert torrent.piece_size == 32 * 1024
+    assert torrent.metainfo['info']['piece length'] == 32 * 1024
 
     with pytest.raises(torf.PieceSizeError) as excinfo:
-        torrent.piece_size = torf.Torrent.MIN_PIECE_SIZE - 1
-    assert excinfo.match(exp_exc)
-
-    torrent.piece_size = torf.Torrent.MAX_PIECE_SIZE
-    assert torrent.piece_size == torf.Torrent.MAX_PIECE_SIZE
-    assert torrent.metainfo['info']['piece length'] == torf.Torrent.MAX_PIECE_SIZE
-
-    with pytest.raises(torf.PieceSizeError) as excinfo:
-        torrent.piece_size = torf.Torrent.MAX_PIECE_SIZE + 1
-    assert excinfo.match(exp_exc)
+        torrent.piece_size = 123 * 1000
+    assert excinfo.match('^Piece size must be a power of 2, 123000 is not$')
 
     with pytest.raises(ValueError) as excinfo:
         torrent.piece_size = 'hello'
     assert excinfo.match("^piece_size must be int, not 'hello'$")
 
-    invalid_piece_size = 3**10
-    with pytest.raises(torf.PieceSizeError) as excinfo:
-        torrent.piece_size = invalid_piece_size
-    assert excinfo.match(f"^Piece size must be a power of two, {invalid_piece_size} is not$")
+
+def test_calculate_piece_size():
+    assert torf.Torrent().calculate_piece_size(1) == 16 * 1024             # minimum is 16 KiB
+    assert torf.Torrent().calculate_piece_size(100 * 2**20) == 128 * 1024  # 100 MiB => 128 KiB
+    assert torf.Torrent().calculate_piece_size(500 * 2**20) == 512 * 1024  # 100 MiB => 512 KiB
+    assert torf.Torrent().calculate_piece_size(999 * 2**20) ==      2**20  # 999 MiB =>  1 MiB
+    assert torf.Torrent().calculate_piece_size(  2 * 2**30) ==      2**20  #   2 GiB =>  1 MiB
+    assert torf.Torrent().calculate_piece_size(  4 * 2**30) ==  2 * 2**20  #   4 GiB =>  2 MiB
+    assert torf.Torrent().calculate_piece_size(  8 * 2**30) ==  4 * 2**20  #   8 GiB =>  4 MiB
+    assert torf.Torrent().calculate_piece_size( 16 * 2**30) ==  8 * 2**20  #  16 GiB =>  8 MiB
+    assert torf.Torrent().calculate_piece_size( 32 * 2**30) ==  8 * 2**20  #  32 GiB =>  8 MiB
+    assert torf.Torrent().calculate_piece_size( 64 * 2**30) ==  8 * 2**20  #  64 GiB =>  8 MiB
+    assert torf.Torrent().calculate_piece_size( 80 * 2**30) == 16 * 2**20  #  80 GiB => 16 MiB
+    assert torf.Torrent().calculate_piece_size(2**1000)     == 16 * 2**20  #  16 MiB is max
 
 
 def test_trackers(torrent):

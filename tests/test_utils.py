@@ -16,18 +16,6 @@ def test_validated_url():
         utils.validated_url('http://foohost:-1')
 
 
-def test_calc_piece_size():
-    minps = torf.Torrent.MIN_PIECE_SIZE
-    maxps = torf.Torrent.MAX_PIECE_SIZE
-    maxp = torf.Torrent.MAX_PIECES
-
-    piece_size = utils.calc_piece_size(minps*2, maxp, minps, maxps)
-    assert piece_size == minps
-
-    piece_size = utils.calc_piece_size(maxps*3000, maxp, minps, maxps)
-    assert piece_size == maxps
-
-
 @pytest.fixture
 def testdir(tmpdir):
     base = tmpdir.mkdir('base')
