@@ -87,10 +87,6 @@ class Torrent():
     "This is my first torrent. Let's rock!"
     """
 
-    MAX_PIECES     = 1500
-    MIN_PIECE_SIZE = 2 ** 14  # 16 KiB
-    MAX_PIECE_SIZE = 2 ** 26  # 64 MiB
-
     def __init__(self, path=None, name=None,
                  exclude=(), trackers=(), webseeds=(), httpseeds=(),
                  private=False, comment=None, source=None,
@@ -187,7 +183,7 @@ class Torrent():
                     self.name = os.path.basename(os.path.abspath('..'))
                 else:
                     self.name  # Set default name in metainfo dict
-                self.calculate_piece_size()
+                self.piece_size = None
 
     @property
     def files(self):
@@ -259,9 +255,8 @@ class Torrent():
         """
         Piece size/length or ``None``
 
-        If set to ``None``, :attr:`calculate_piece_size` is called.
-
-        If :attr:`size` returns ``None``, this also returns ``None``.
+        If set to ``None`` and :attr:`size` is not ``None``, use the return
+        value of :attr:`calculate_piece_size`.
 
         Setting this property sets ``piece length`` in :attr:`metainfo`\
         ``['info']``.
@@ -270,43 +265,63 @@ class Torrent():
             if self.size is None:
                 return None
             else:
-                self.calculate_piece_size()
+                self.piece_size = None  # Calculate piece size
         return self.metainfo['info']['piece length']
     @piece_size.setter
     def piece_size(self, value):
         if value is None:
-            self.calculate_piece_size()
-        else:
-            try:
-                piece_length = int(value)
-            except (TypeError, ValueError):
-                raise ValueError(f'piece_size must be int, not {value!r}')
+            size = self.size
+            if not size:
+                raise RuntimeError(f'Cannot calculate piece size with no "path" specified')
             else:
-                if self.MIN_PIECE_SIZE <= value <= self.MAX_PIECE_SIZE:
-                    if not utils.is_power_of_2(piece_length):
-                        raise error.PieceSizeError(size=piece_length)
-                    self.metainfo['info']['piece length'] = piece_length
-                else:
-                    raise error.PieceSizeError(min=self.MIN_PIECE_SIZE,
-                                               max=self.MAX_PIECE_SIZE)
+                value = self.calculate_piece_size(size)
+        try:
+            piece_length = int(value)
+        except (TypeError, ValueError):
+            raise ValueError(f'piece_size must be int, not {value!r}')
+        else:
+            if not utils.is_power_of_2(piece_length):
+                raise error.PieceSizeError(size=piece_length)
+            self.metainfo['info']['piece length'] = piece_length
 
-    def calculate_piece_size(self):
+    def calculate_piece_size(self, size):
         """
-        Calculate and add ``piece length`` to ``info`` in :attr:`metainfo`
+        Return the piece size for a total torrent size of ``size`` bytes
 
-        The piece size is calculated so that there are no more than
-        :attr:`MAX_PIECES` pieces unless it is larger than
-        :attr:`MAX_PIECE_SIZE`, in which case there is no limit on the number of
-        pieces.
+        For torrents up to 1 GiB, the maximum number of pieces is 1000 which
+        means the maximum piece size is 1 MiB.  With increasing torrent size,
+        both the number of pieces and the maximum piece size are increased.  For
+        torrents between 32 and 80 GiB a maximum piece size of 8 MiB is
+        maintained by increasing the number of pieces up to 10,000.  For
+        torrents larger than 80 GiB the piece size is 16 MiB, using as many
+        pieces as necessary.
+
+        You may override this method if you need a different algorithm.
 
         :raises RuntimeError: if :attr:`size` returns ``None``
+        :return: calculated piece size
         """
-        size = self.size
-        if not size:
-            raise RuntimeError(f'Cannot calculate piece size with no "path" specified')
+        if size <= 2**30:          #  1 GiB /  1024 pieces = 1 MiB max
+            pieces = size / 1024
+        elif size <= 4 * 2**30:    #  4 GiB /  2048 pieces = 2 MiB max
+            pieces = size / 2048
+        elif size <= 6 * 2**30:    #  6 GiB /  3072 pieces = 2 MiB max
+            pieces = size / 3072
+        elif size <= 8 * 2**30:    #  8 GiB /  2048 pieces = 4 MiB max
+            pieces = size / 2048
+        elif size <= 16 * 2**30:   # 16 GiB /  2048 pieces = 8 MiB max
+            pieces = size / 2048
+        elif size <= 32 * 2**30:   # 32 GiB /  4096 pieces = 8 MiB max
+            pieces = size / 4096
+        elif size <= 64 * 2**30:   # 64 GiB /  8192 pieces = 8 MiB max
+            pieces = size / 8192
+        elif size <= 80 * 2**30:   # 80 GiB / 10000 pieces = 8 MiB max
+            pieces = size / 10000
         else:
-            self.metainfo['info']['piece length'] = utils.calc_piece_size(
-                size, self.MAX_PIECES, self.MIN_PIECE_SIZE, self.MAX_PIECE_SIZE)
+            return 16 * 2**20      # 16 MiB (absolute maximum)
+        # Math is magic!
+        return max(1 << max(0, math.ceil(math.log(pieces, 2))),
+                   16*1024)
 
     @property
     def pieces(self):

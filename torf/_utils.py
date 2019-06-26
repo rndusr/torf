@@ -62,16 +62,6 @@ def read_chunks(filepath, chunk_size):
         raise error.ReadError(e.errno, filepath)
 
 
-def calc_piece_size(total_size, max_pieces, min_piece_size, max_piece_size):
-    """Calculate piece size"""
-    ps = 1 << max(0, math.ceil(math.log(total_size / max_pieces, 2)))
-    if ps < min_piece_size:
-        ps = min_piece_size
-    if ps > max_piece_size:
-        ps = max_piece_size
-    return ps
-
-
 def is_power_of_2(num):
     """Return whether `num` is a power of two"""
     log = math.log2(num)
