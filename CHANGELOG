@@ -1,3 +1,10 @@
+2019-07-01 2.1.0
+  - Keep piece size smaller for large torrents and use more pieces to
+    compensate.
+  - Implement your own piece size calculation of arbitrary complexity by simply
+    overloading Torrent.calculate_piece_size().
+
+
 2019-04-04 2.0.0
   - Use proper version number scheme
   - Raise PieceSizeError if 'piece_size' is set to a number that isn't a power
