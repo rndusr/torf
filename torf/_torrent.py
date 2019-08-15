@@ -190,7 +190,7 @@ class Torrent():
         """
         Yield relative file paths specified in :attr:`metainfo`
 
-        Each paths starts with :attr:`name`.
+        Each path starts with :attr:`name`.
 
         Note that the paths may not exist. See :attr:`filepaths` for existing
         files.
