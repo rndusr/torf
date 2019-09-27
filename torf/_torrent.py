@@ -615,9 +615,9 @@ class Torrent():
         :param callable callback: Callable with signature ``(torrent, filepath,
             pieces_done, pieces_total)``; if `callback` returns anything else
             than None, hashing is canceled
-
         :param float interval: Minimum number of seconds between calls to
             `callback` (if 0, `callback` is called once per piece)
+
         :raises PathEmptyError: if :attr:`path` contains only empty
             files/directories
         :raises PathNotFoundError: if :attr:`path` does not exist
