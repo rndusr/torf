@@ -25,7 +25,7 @@ from datetime import datetime
 import os
 import math
 import time
-from collections import abc
+from collections import abc, namedtuple
 import errno
 import inspect
 import io
@@ -214,6 +214,8 @@ class Torrent():
         if self.path is not None:
             yield from utils.filepaths(self.path, exclude=self.exclude,
                                        hidden=False, empty=False)
+
+    File = namedtuple('File', ('name', 'path', 'dir', 'size'))
 
     @property
     def filetree(self):
