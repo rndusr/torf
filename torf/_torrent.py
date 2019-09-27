@@ -222,10 +222,26 @@ class Torrent():
         """
         :attr:`files` as a dictionary tree
 
-        Each node is a ``dict`` that maps directory/file names to child nodes.
-        Each child node is a ``dict`` for directories and ``None`` for files.
-
+        Parent nodes are dictionaries and leaf nodes are :attr:`File` instances.
+        The top node is always a dictionary with only one key: :attr:`name`
         If :attr:`path` is ``None``, this is an empty ``dict``.
+
+        Example:
+
+        .. code:: python
+
+            {'Torrent': {'foo.txt': File(name='foo.txt',
+                                         path='Torrent/foo.txt',
+                                         dir='Torrent',
+                                         size=123456),
+                         'bar': {'baz.pdf': File(name='baz.pdf',
+                                                 path='Torrent/bar/baz.pdf',
+                                                 dir='Torrent/bar',
+                                                 size=123456),
+                                 'baz.mp3': File(name='baz.mp3',
+                                                 path='Torrent/bar/baz.mp3',
+                                                 dir='Torrent/bar',
+                                                 size=123456)}}}
         """
         tree = {}   # Complete directory tree
         prefix = []
@@ -238,7 +254,10 @@ class Torrent():
                 if item not in subtree:
                     subtree[item] = {}
                 subtree = subtree[item]
-            subtree[filename] = None
+            subtree[filename] = self.File(filename,
+                                          os.path.join(*path),
+                                          os.path.join(*dirpath) if dirpath else '',
+                                          self.file_size(path[1:]))
         return tree
 
     def file_size(self, path):
