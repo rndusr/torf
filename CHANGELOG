@@ -1,3 +1,9 @@
+2019-??-?? 3.0.0
+  - Torrent.filetree now uses Torrent.File instances as leaf nodes instead of
+    None.  Torrent.File is a namedtuple that provides the file name, path,
+    directory and size.
+
+
 2019-07-01 2.1.0
   - Keep piece size smaller for large torrents and use more pieces to
     compensate.
