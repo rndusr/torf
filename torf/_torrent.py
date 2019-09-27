@@ -241,6 +241,25 @@ class Torrent():
             subtree[filename] = None
         return tree
 
+    def file_size(self, path):
+        """
+        Return file size as specified in :attr:`metainfo`
+
+        :param path: The relative path in the torrent file
+        :type path: str or list
+
+        :raises PathNotFoundError: if path is not specified in :attr:`metainfo`
+        """
+        if 'length' in self.metainfo['info']:   # Singlefile
+            return self.metainfo['info']['length']
+        elif 'files' in self.metainfo['info']:  # Multifile torrent
+            if isinstance(path, str):
+                path = path.split(os.sep)
+            for info in self.metainfo['info']['files']:
+                if path == info['path']:
+                    return info['length']
+        raise error.PathNotFoundError(os.path.join(*path))
+
     @property
     def size(self):
         """
