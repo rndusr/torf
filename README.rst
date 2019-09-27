@@ -1,11 +1,10 @@
 torf
 ====
 
-torf provides a high-level ``Torrent`` class that represents the metainfo of a
-torrent. ``Torrent`` instances can be created from scratch, from a file path or
-from a `file-like object
-<https://docs.python.org/3/glossary.html#term-file-object>`_. A ``Torrent``
-instance can create a ``.torrent`` file or a `BTIH magnet link
+torf provides a ``Torrent`` class that represents the metainfo of a
+torrent. ``Torrent`` instances can be created from a file system path or from an
+existing ``.torrent`` file. A ``Torrent`` instance can create a ``.torrent``
+file or a `BTIH magnet link
 <https://en.wikipedia.org/wiki/Magnet_link#BitTorrent_info_hash_(BTIH)>`_.
 
 This project started as a fork of `dottorrent
