@@ -6,6 +6,15 @@ import os
 from collections import OrderedDict
 
 
+def test_is_power_of_2():
+    assert utils.is_power_of_2(0) is False
+    for n in range(1, 30):
+        assert utils.is_power_of_2(2**n) is True
+        assert utils.is_power_of_2(-2**n) is True
+        assert utils.is_power_of_2(3**n) is False
+        assert utils.is_power_of_2(-5**n) is False
+
+
 def test_validated_url():
     utils.validated_url(f'http://foohost:{2**16-1}')
     with pytest.raises(torf.URLError):

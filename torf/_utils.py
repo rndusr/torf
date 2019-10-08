@@ -64,7 +64,9 @@ def read_chunks(filepath, chunk_size):
 
 def is_power_of_2(num):
     """Return whether `num` is a power of two"""
-    log = math.log2(num)
+    if num == 0:
+        return False
+    log = math.log2(abs(num))
     return int(log) == float(log)
 
 
