@@ -207,11 +207,24 @@ def test_piece_size(torrent, multifile_content):
 
     with pytest.raises(torf.PieceSizeError) as excinfo:
         torrent.piece_size = 123 * 1000
-    assert excinfo.match('^Piece size must be a power of 2, 123000 is not$')
+    assert excinfo.match('^Piece size must be a power of 2: 123000$')
+
+    with patch.multiple(torf.Torrent, piece_size_min=16, piece_size_max=128):
+        with pytest.raises(torf.PieceSizeError) as excinfo:
+            torrent.piece_size = 8
+        assert excinfo.match('^Piece size must be between 16 and 128: 8$')
+        with pytest.raises(torf.PieceSizeError) as excinfo:
+            torrent.piece_size = 256
+        assert excinfo.match('^Piece size must be between 16 and 128: 256$')
 
     with pytest.raises(ValueError) as excinfo:
         torrent.piece_size = 'hello'
     assert excinfo.match("^piece_size must be int, not 'hello'$")
+
+    # Anything goes if the metainfo is edited directly
+    torrent.metainfo['info']['piece length'] = 256
+    torrent.metainfo['info']['piece length'] = 123
+    torrent.metainfo['info']['piece length'] = -12
 
 
 def test_calculate_piece_size():

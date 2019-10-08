@@ -39,12 +39,12 @@ class URLError(TorfError):
 
 class PieceSizeError(TorfError):
     """Invalid piece size"""
-    def __init__(self, min=None, max=None, size=None):
+    def __init__(self, size, min=None, max=None):
         self._errno = errno.EINVAL
         if min is not None and max is not None:
-            super().__init__(f'Piece size must be between {min} and {max}')
+            super().__init__(f'Piece size must be between {min} and {max}: {size}')
         elif size is not None:
-            super().__init__(f'Piece size must be a power of 2, {size} is not')
+            super().__init__(f'Piece size must be a power of 2: {size}')
 
 
 class MetainfoError(TorfError):

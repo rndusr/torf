@@ -321,7 +321,11 @@ class Torrent():
             raise ValueError(f'piece_size must be int, not {value!r}')
         else:
             if not utils.is_power_of_2(piece_length):
-                raise error.PieceSizeError(size=piece_length)
+                raise error.PieceSizeError(piece_length)
+            elif not self.piece_size_min <= piece_length <= self.piece_size_max:
+                raise error.PieceSizeError(piece_length,
+                                           min=self.piece_size_min,
+                                           max=self.piece_size_max)
             self.metainfo['info']['piece length'] = piece_length
 
     def calculate_piece_size(self, size):
@@ -362,6 +366,22 @@ class Torrent():
         # Math is magic!
         return max(1 << max(0, math.ceil(math.log(pieces, 2))),
                    16*1024)
+
+    piece_size_min = 16 * 2**10  # 16 KiB
+    """
+    Smallest allowed piece size
+
+    Setting :attr:`piece_size` to a smaller value will raise
+    :exception:`PieceSizeError`.
+    """
+
+    piece_size_max = 16 * 2**20  # 16 MiB
+    """
+    Greatest allowed piece size
+
+    Setting :attr:`piece_size` to a greater value will raise
+    :exception:`PieceSizeError`.
+    """
 
     @property
     def pieces(self):
