@@ -208,9 +208,9 @@ class Torrent():
         files.
         """
         info = self.metainfo['info']
-        if 'length' in info:    # Singlefile
+        if self.mode == 'singlefile':
             yield info['name']
-        elif 'files' in info:   # Multifile torrent
+        elif self.mode == 'multifile':
             rootdir = self.name
             for fileinfo in info['files']:
                 yield os.path.join(rootdir, os.path.join(*fileinfo['path']))
@@ -281,9 +281,9 @@ class Torrent():
 
         :raises PathNotFoundError: if path is not specified in :attr:`metainfo`
         """
-        if 'length' in self.metainfo['info']:   # Singlefile
+        if self.mode == 'singlefile':
             return self.metainfo['info']['length']
-        elif 'files' in self.metainfo['info']:  # Multifile torrent
+        elif self.mode == 'multifile':
             if isinstance(path, str):
                 path = path.split(os.sep)
             for info in self.metainfo['info']['files']:
@@ -296,9 +296,9 @@ class Torrent():
         """
         Total size of content in bytes or ``None`` if :attr:`path` is ``None``
         """
-        if 'length' in self.metainfo['info']:   # Singlefile
+        if self.mode == 'singlefile':
             return self.metainfo['info']['length']
-        elif 'files' in self.metainfo['info']:  # Multifile torrent
+        elif self.mode == 'multifile':
             return sum(fileinfo['length']
                        for fileinfo in self.metainfo['info']['files'])
 
