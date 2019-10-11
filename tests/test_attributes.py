@@ -60,6 +60,17 @@ def test_path_is_double_period(torrent, multifile_content):
     assert torrent.name == os.path.basename(os.path.dirname(multifile_content.path))
 
 
+def test_mode(singlefile_content, multifile_content):
+    torrent = torf.Torrent()
+    assert torrent.mode is None
+    torrent.path = singlefile_content.path
+    assert torrent.mode == 'singlefile'
+    torrent.path = multifile_content.path
+    assert torrent.mode == 'multifile'
+    torrent.path = None
+    assert torrent.mode == None
+
+
 def test_files_singlefile(torrent, singlefile_content):
     torrent.path = singlefile_content.path
     exp_files1 = (singlefile_content.exp_metainfo['info']['name'],)

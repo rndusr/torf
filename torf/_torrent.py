@@ -186,6 +186,18 @@ class Torrent():
                 self.piece_size = None
 
     @property
+    def mode(self):
+        """
+        "singlefile" if this torrent contains one file that is not in a directory,
+        "multifile" if it contains one or more files in a directory, or ``None``
+        if no content is specified (i.e. :attr:`path` is None).
+        """
+        if 'length' in self.metainfo['info']:
+            return 'singlefile'
+        elif 'files' in self.metainfo['info']:
+            return 'multifile'
+
+    @property
     def files(self):
         """
         Yield relative file paths specified in :attr:`metainfo`
