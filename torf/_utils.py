@@ -70,6 +70,17 @@ def is_power_of_2(num):
     return int(log) == float(log)
 
 
+def iterable_startswith(a, b):
+    a_len = len(a)
+    for i, b_item in enumerate(b):
+        if i >= a_len:
+            # a can't start with b if b is longer than a
+            return False
+        if a[i] != b_item:
+            return False
+    return True
+
+
 def is_hidden(path):
     """Whether file or directory is hidden"""
     for name in path.split(os.sep):

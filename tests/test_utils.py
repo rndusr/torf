@@ -15,6 +15,25 @@ def test_is_power_of_2():
         assert utils.is_power_of_2(-5**n) is False
 
 
+def test_iterable_startswith():
+    a = ['a', 'b', 'c', 'd']
+    b = ['a', 'b', 'c']
+    assert utils.iterable_startswith(a, b)
+    assert not utils.iterable_startswith(b, a)
+    a = ['a', 'b', 'c']
+    b = ['a', 'b', 'c']
+    assert utils.iterable_startswith(a, b)
+    assert utils.iterable_startswith(b, a)
+    a = ['a', 'b', 'c']
+    b = []
+    assert utils.iterable_startswith(a, b)
+    assert not utils.iterable_startswith(b, a)
+    a = []
+    b = []
+    assert utils.iterable_startswith(a, b)
+    assert utils.iterable_startswith(b, a)
+
+
 def test_validated_url():
     utils.validated_url(f'http://foohost:{2**16-1}')
     with pytest.raises(torf.URLError):
