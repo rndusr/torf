@@ -269,26 +269,37 @@ class Torrent():
             subtree[filename] = self.File(filename,
                                           os.path.join(*path),
                                           os.path.join(*dirpath) if dirpath else '',
-                                          self.file_size(path[1:]))
+                                          self.partial_size(path))
         return tree
 
-    def file_size(self, path):
+    def partial_size(self, path):
         """
-        Return file size as specified in :attr:`metainfo`
+        Return size of one or more files as specified in :attr:`metainfo`
 
-        :param path: The relative path in the torrent file
-        :type path: str or list
+        :param path: Relative path within torrent, starting with :attr:`name`;
+                     may point to file or directory
+        :type path: str or iterable
 
         :raises PathNotFoundError: if path is not specified in :attr:`metainfo`
         """
-        if self.mode == 'singlefile':
+        if isinstance(path, str):
+            path = tuple(path.split(os.sep))
+        else:
+            path = tuple(path)
+        if self.mode == 'singlefile' and path == (self.name,):
             return self.metainfo['info']['length']
         elif self.mode == 'multifile':
-            if isinstance(path, str):
-                path = path.split(os.sep)
+            file_sizes = []
             for info in self.metainfo['info']['files']:
-                if path == info['path']:
+                this_path = (self.name,) + tuple(info['path'])
+                if this_path == path:
+                    # path points to file
                     return info['length']
+                elif utils.iterable_startswith(this_path, path):
+                    # path points to directory
+                    file_sizes.append(info['length'])
+            if file_sizes:
+                return sum(file_sizes)
         raise error.PathNotFoundError(os.path.join(*path))
 
     @property
