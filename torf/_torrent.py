@@ -740,13 +740,12 @@ class Torrent():
 
     def _set_pieces_singlefile(self):
         filepath = self.path
-        piece_size = self.piece_size
         pieces_total = self.pieces
         pieces_done = 0
         pieces = bytearray()
         md5_hasher = md5() if self.include_md5 else None
 
-        for piece in utils.read_chunks(filepath, piece_size):
+        for piece in utils.read_chunks(filepath, self.piece_size):
             pieces.extend(sha1(piece).digest())
             if md5_hasher:
                 md5_hasher.update(piece)
