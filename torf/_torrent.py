@@ -761,7 +761,7 @@ class Torrent():
 
     def _set_pieces_multifile(self):
         piece_size = self.piece_size
-        pieces_total = math.ceil(self.size / piece_size)
+        pieces_total = self.pieces
         pieces_done = 0
         piece_buffer = bytearray()
         pieces = bytearray()
