@@ -23,12 +23,14 @@ def test_generate_with_one_unreadable(multifile_content):
     t = torf.Torrent(multifile_content.path)
 
     old_mode = os.stat(multifile_content.path).st_mode
-    os.chmod(multifile_content.path, mode=0o222)
+    try:
+        os.chmod(multifile_content.path, mode=0o222)
 
-    with pytest.raises(torf.ReadError) as excinfo:
-        t.generate()
-    assert excinfo.match(f'^{multifile_content.path}.*: Permission denied$')
-    os.chmod(multifile_content.path, mode=old_mode)
+        with pytest.raises(torf.ReadError) as excinfo:
+            t.generate()
+            assert excinfo.match(f'^{multifile_content.path}.*: Permission denied$')
+    finally:
+        os.chmod(multifile_content.path, mode=old_mode)
 
 
 def check_metainfo(content):
@@ -45,7 +47,6 @@ def check_metainfo(content):
     elif 'files' in t.metainfo['info']:  # Multifile
         for fileinfo in t.metainfo['info']['files']:
             assert 'md5sum' not in fileinfo
-
 
     # With md5 included
     t = torf.Torrent(content.path,
