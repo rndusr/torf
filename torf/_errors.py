@@ -26,7 +26,7 @@ class TorfError(Exception):
 
     @property
     def errno(self):
-        """Error code (see :mod:`errno` module)"""
+        """Error code (see :mod:`errno` module and `errno -l`)"""
         return self._errno
 
 
