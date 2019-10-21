@@ -1082,8 +1082,8 @@ class Torrent():
         :return: New Torrent object
         """
         try:
-            with open(filepath, 'rb') as fh:
-                return cls.read_stream(fh)
+            with open(filepath, 'rb') as f:
+                return cls.read_stream(f)
         except (OSError, error.ReadError) as e:
             raise error.ReadError(e.errno, filepath)
         except error.ParseError:
