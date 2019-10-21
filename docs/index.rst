@@ -8,6 +8,12 @@
 .. autoexception:: torf.TorfError
    :members:
 
+.. autoexception:: torf.URLError
+   :members:
+
+.. autoexception:: torf.PieceSizeError
+   :members:
+
 .. autoexception:: torf.MetainfoError
    :members:
 
@@ -20,14 +26,17 @@
 .. autoexception:: torf.PathEmptyError
    :members:
 
+.. autoexception:: torf.IsDirectoryError
+   :members:
+
+.. autoexception:: torf.FileSizeError
+   :members:
+
+.. autoexception:: torf.ContentError
+   :members:
+
 .. autoexception:: torf.ReadError
    :members:
 
 .. autoexception:: torf.WriteError
-   :members:
-
-.. autoexception:: torf.URLError
-   :members:
-
-.. autoexception:: torf.PieceSizeError
    :members:
