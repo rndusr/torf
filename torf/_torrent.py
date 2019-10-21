@@ -1064,6 +1064,11 @@ class Torrent():
         """
         Read torrent metainfo from file
 
+        This method is essentially equivalent to:
+
+        >>> with open('my.torrent', 'rb') as f:
+        ...     torrent = Torrent.read_stream(f)
+
         :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
             object
