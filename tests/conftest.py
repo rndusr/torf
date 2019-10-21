@@ -7,6 +7,9 @@ import string
 from types import SimpleNamespace
 import time
 from collections import OrderedDict
+import contextlib
+import functools
+
 
 TESTDIR_BASE = 'test_files'
 
@@ -208,3 +211,20 @@ def generated_multifile_torrent(torrent, multifile_content):
     torrent.path = multifile_content.path
     torrent.generate()
     return torrent
+
+
+@contextlib.contextmanager
+def _create_torrent(tmpdir, **kwargs):
+    torrent_file = str(tmpdir.join('test.torrent'))
+    try:
+        t = torf.Torrent(**kwargs)
+        t.generate()
+        t.write(torrent_file)
+        yield torrent_file
+    finally:
+        if os.path.exists(torrent_file):
+            os.remove(torrent_file)
+
+@pytest.fixture
+def create_torrent(tmpdir):
+    return functools.partial(_create_torrent, tmpdir)
