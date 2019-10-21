@@ -88,6 +88,14 @@ class IsDirectoryError(TorfError):
         super().__init__(f'{path}: {os.strerror(self._errno)}')
 
 
+class FileSizeError(TorfError):
+    """Unexpected file size"""
+    def __init__(self, file_path, actual_size, expected_size):
+        self._errno = errno.EFBIG
+        super().__init__(f'{file_path}: Unexpected file size: '
+                         f'{actual_size} instead of {expected_size} bytes')
+
+
 class ReadError(TorfError):
     """Unreadable file or stream"""
     def __init__(self, error_code, path=None):
