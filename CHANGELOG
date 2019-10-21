@@ -2,6 +2,8 @@
   - Torrent.filetree now uses Torrent.File instances as leaf nodes instead of
     None.  Torrent.File is a namedtuple that provides the file name, path,
     directory and size.
+  - Torrent.read("path/to/some.torrent").verify("path/to/content") checks if
+    on-disk data is valid for a torrent file.
   - The class attributes Torrent.piece_size_min and Torrent.piece_size_max can
     now be used to quickly specify piece size limits.  Setting the piece_size
     property to an out-of-bounds piece size or returning one with
