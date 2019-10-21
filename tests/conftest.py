@@ -50,28 +50,6 @@ def _generate_empty_file(dirpath, filename=None, hidden=False):
     assert os.path.getsize(filepath) == 0
     return str(filepath)
 
-def _generate_test_torrent(content_path, torrent_file):
-    try:
-        os.remove(torrent_file)
-    except FileNotFoundError:
-        pass
-
-    import subprocess
-    from hashlib import sha1
-    from base64 import b32encode
-    from bencoder import bencode, bdecode
-    subprocess.run(f'mktorrent {content_path!r} -l 15 -o {torrent_file!r} -a http://localhost:123', shell=True)
-    with open(torrent_file, 'rb') as f:
-        torrent = bdecode(f.read())
-
-    # Display values so they can be copied as expected values
-    from torf import _utils as utils
-    print(f"pieces: {torrent[b'info'].pop(b'pieces')}")
-    print(f"torrent: {utils.decode_dict(torrent)}")
-    print(f"infohash: {sha1(bencode(torrent[b'info'])).hexdigest()}")
-    print(f"infohash_base32: {b32encode(sha1(bencode(torrent[b'info'])).digest())}")
-    assert 0
-
 
 
 @pytest.fixture
@@ -166,8 +144,6 @@ def singlefile_content(tmpdir_factory):
     filepath = _generate_random_file(content_path, filename='sinģle fíle')
     random.seed()  # Re-enable randomness
 
-    # _generate_test_torrent(str(filepath), 'singlefile.torrent')
-
     exp_pieces = b'BHG\xb7[\xdf\xaa\xf1\xf3<\xd3C\xeb\xab\xecjZ3\x06\x97\x0c*\xb7G3\xc5G\xe3\x0e\xdb\x96\xf1V-D@\xdd\t\xcf\x88GB\xa3\xdf\xdd\x1fxCQd=8\xc7\x81\x96\x0f\xaf(-\xe6FB\x10\xd1\xbf\xad\x88\x1d\x1d\xc3\x03\xb3\x08\xc0\xe0\x0b\x8a\\\x19\xdf\xed\x03\xdb\x7f\x17o3uI\xef(\n\x80\xdbbF\x91\xd90%\xe6\xfay\x16O\x06n-\xad\x1b\x06\x98SJ:\xf3d64=\xf2\xc8\t~\xbf\x08\xdd\x1am\xae\xbe\xed\xf1\x94\x8f\x08X5\x85\x0e\xa2wM\xa3\x14K,\x9dO\xd2n\xb6\x98\x16\xe6s\xa2\t\t0\xa4\x05\xd1\x95*\x02S\xf1y\x14\xf3G\xf8]eUD\x81`_m\xeaW\x0e\xb5\xc1r\n2\xf0Qo\r\xba\x07\xb3!Vr\xacn\x06\xeb\x1a\xce9\x0e\xa1j\xb1\xf9\xc9\xe0J\xda\xa2v\xe4d\'\x8cf5!Z\xd4g[\x9b\xf4fr\xc2\xee\xb3;\xe7\xe3\x9e\xe0\x06}\xe3\xe6\xc9\xa2\xf9t\x0c\xe1\xf5h\xfe\x13\xf5\xe4\xaa\xd6\x01\x91\xe3\xb7\xb2x\xe1\xd7\xb1o\x10\xe7\xd6\xd2b%d\xae\xe4\x8a\x910\x1b\xb6\x1b\xda\x944\xce\t\xd6\xdf%*n\x05\x16\xd9\x8ft\xed\xb7\xeb"\xfd\xb0Q+t\xbdy|\xed\x01<\xb9\xd2"@\xa2\x85\xa6\x8a\x1d|\x89Z\x13w\xdb\xe7\xdd\xe2\xcey\x00R\xa3[k\x8e\xde\x98""\xfd\xc0]{\xc2H\n%8 \xd3\x01\xd2i\x9f\xf0n\x05^\x90\xbc\xcb\xb5\x8a\xde$\xef\xbd\x02\x83\xe2m\x93:K\x10\xfc9\x8c*\xe5y.\\h\xf4$\xf9V\x07+\xbe\x8c\t\x8d\xa5\xfd'
 
     exp_metainfo = {'announce'      : 'http://localhost:123',
@@ -196,8 +172,6 @@ def multifile_content(tmpdir_factory):
     subdir_path = content_path.mkdir('subdir')
     _generate_random_file(subdir_path, filename='File in subdir')
     random.seed()  # Re-enable randomness
-
-    # _generate_test_torrent(str(content_path), 'multifile.torrent')
 
     exp_files=[{'length': 649406, 'path': ['File 0:JïYR WN93kœ']},
                {'length': 199019, 'path': ['File 1:aä¤ELYœPTófsdtœe©í']},
