@@ -904,6 +904,172 @@ class Torrent():
             self.validate()
         return bencode(self.convert())
 
+    def verify(self, path, allow_different_name=True, callback=None):
+        """
+        Check if `path` contains all the data in this torrent
+
+        Excess files in `path` are ignored. Only the files described in this
+        torrent are read.
+
+        Verification is done in two passes to fail as quickly as possible:
+
+            1. Walk through :attr:`files` and check if each one exists in
+               `path`, has the correct size and is readable. If this pass fails,
+               the next pass is skipped.
+
+            2. Walk through :attr:`files` again, generate SHA1 hashes from the
+               contents and compare each generated hash to the ones stored in
+               :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
+
+        :param str path: Directory or file to check
+        :param bool allow_different_name: Whether `path` must end with
+            :attr:`name`
+        :param callable callback: Callable with signature ``(torrent, filepath,
+            pieces_done, pieces_total, exception)``; if `callback` returns
+            anything else than ``None``, verification is stopped
+
+        If a callback is specified, exceptions are not raised but passed to
+        `callback` as an argument instead, which can then handle the error and
+        maybe either stop the verification by returning non-``None``.
+
+        :raises FileSizeError: if a file in `path` has an unexpected size
+        :raises IsDirectoryError: if `path` is a directory and this torrent
+            contains a single file
+        :raises ContentError: if a file in `path` contains unexpected data
+        :raises PathNotFoundError: if `path` doesn't exist
+        :raises ReadError: if `path` or any file beneath it is not readable
+        :raises MetainfoError: if :meth:`validate` raises one
+
+        :return: ``True`` if `path` is verified successfully, ``False``
+            otherwise
+        """
+        self.validate()
+
+        if callback is not None:
+            cancel = lambda *status: callback(*status) is not None
+        else:
+            # Without a callback, we want to stop on the first exception
+            cancel = lambda _, __, ___, ____, exception: exception is not None
+
+        # Combine `path` argument and relative path in torrent to file system
+        # (fs) path.  If we don't allow a different torrent name, replace the
+        # path's last component with the torrent's name.  This will raise a
+        # PathNotFoundError later if names differ.
+        fs_location = os.path.dirname(path)
+        fs_name = os.path.basename(path)
+        if allow_different_name:
+            fs_path = os.path.join(fs_location, fs_name)
+        else:
+            fs_path = os.path.join(fs_location, self.name)
+        fs_path = os.path.normpath(fs_path)
+
+        # Generate an ordered list of file system paths and their corresponding
+        # paths inside the torrent
+        fs_filepaths = []
+        for torrent_filepath in self.files:
+            torrent_subpath = torrent_filepath.split(os.sep)[1:]
+            fs_filepath = os.path.normpath(os.path.join(fs_path, *torrent_subpath))
+            fs_filepaths.append((fs_filepath, torrent_filepath))
+
+        pieces_total = self.pieces
+        pieces_done = 0
+        exception = None
+        torrent_mode = self.mode
+
+        # Do some quick checks before time-consuming hashing
+        for fs_filepath,torrent_filepath in fs_filepaths:
+            # Check if path exists
+            if not os.path.exists(fs_filepath):
+                exception = error.PathNotFoundError(fs_filepath)
+                if cancel(self, fs_filepath, 0, pieces_total, exception):
+                    break
+            else:
+                # If we expect a file, check if path is a file.  We don't need to check
+                # for a directory if we expect one because we are iterating over files
+                # (fs_filepaths), so the path "foo/bar/baz" will result in a
+                # PathNotFoundError when "foo" or "foo/bar" is a file.
+                if self.mode == 'singlefile' and os.path.isdir(path):
+                    exception = error.IsDirectoryError(fs_filepath)
+                    if cancel(self, fs_filepath, 0, pieces_total, exception):
+                        if callback:
+                            return False
+                        else:
+                            raise exception
+                else:
+                    # Check file size
+                    fs_filepath_size = os.path.getsize(os.path.realpath(fs_filepath))
+                    expected_size = self.partial_size(torrent_filepath)
+                    if fs_filepath_size != expected_size:
+                        exception = error.FileSizeError(fs_filepath, fs_filepath_size, expected_size)
+                        if cancel(self, fs_filepath, 0, pieces_total, exception):
+                            break
+
+        # If our quick checks yielded any issues, skip the hashing
+        if exception:
+            if callback:
+                return False
+            else:
+                raise exception
+
+        # We haven't found any errors yet, so we need to read the files's
+        # contents, hash them and compare with the hashes stored in
+        # metainfo['info']['pieces'].
+
+        # Split pieces into 20-byte chunks (the SHA1 hashes)
+        pieces = self.metainfo['info']['pieces']
+        exp_hashes = [pieces[pos:pos + 20]
+                      for pos in range(0, len(pieces), 20)]
+        piece_size = self.piece_size
+        piece_buffer = bytearray()
+        def check_piece(piece):
+            # Check hash of `piece`, set the local variable `exception` if the
+            # check fails and return whether the callback wants us to stop
+            # verifying.
+            nonlocal exception
+            if sha1(piece).digest() != exp_hashes.pop(0):
+                exception = error.ContentError(pieces_done-1, piece_size,
+                                               tuple(x[0] for x in fs_filepaths))
+                if cancel(self, fs_filepath, pieces_done, pieces_total, exception):
+                    return False
+            else:
+                if cancel(self, fs_filepath, pieces_done, pieces_total, None):
+                    return False
+            return True
+
+        # Hack to break out of nested loop
+        class _Break(Exception): pass
+        try:
+            for fs_filepath,torrent_filepath in fs_filepaths:
+                # Read piece_sized chunks across files until piece_buffer is big
+                # enough for a new piece
+                for chunk in utils.read_chunks(fs_filepath, piece_size):
+                    piece_buffer.extend(chunk)
+                    if len(piece_buffer) >= piece_size:
+                        piece = piece_buffer[:piece_size]
+                        del piece_buffer[:piece_size]
+                        pieces_done += 1
+                        # Report progress and maybe error
+                        if not check_piece(piece):
+                            raise _Break()
+        except _Break:
+            pass
+        else:
+            # Unless self.size is evenly divisible by self.piece_size, there is
+            # some data left in piece_buffer
+            if len(piece_buffer) > 0:
+                pieces_done += 1
+                check_piece(piece_buffer)
+
+        # Finally, raise exception unless the callback function already handled
+        # it
+        if exception:
+            if callback:
+                return False
+            else:
+                raise exception
+        else:
+            return True
+
     def write_stream(self, stream, validate=True):
         """
         Write :attr:`metainfo` to a file-like object
