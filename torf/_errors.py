@@ -80,6 +80,14 @@ class PathEmptyError(TorfError):
         else:
             super().__init__(f'{path}: Empty directory')
 
+
+class IsDirectoryError(TorfError):
+    """Expected file/link/etc, but found directory"""
+    def __init__(self, path):
+        self._errno = errno.EISDIR
+        super().__init__(f'{path}: {os.strerror(self._errno)}')
+
+
 class ReadError(TorfError):
     """Unreadable file or stream"""
     def __init__(self, error_code, path=None):
