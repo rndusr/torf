@@ -935,7 +935,7 @@ class Torrent():
         This method is essentially equivalent to:
 
         >>> with open('my.torrent', 'wb') as f:
-        ...     f.write(torrent.dump())
+        ...     f.write_stream(torrent.dump())
 
         :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` first
