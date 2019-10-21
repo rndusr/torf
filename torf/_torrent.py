@@ -770,7 +770,7 @@ class Torrent():
         for filepath in self.filepaths:
             md5_hasher = md5() if self.include_md5 else None
 
-            # Read piece_sized chunks from filepath until piece_buffer is big
+            # Read piece_sized chunks across files until piece_buffer is big
             # enough for a new piece
             for chunk in utils.read_chunks(filepath, piece_size):
                 piece_buffer.extend(chunk)
