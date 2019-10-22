@@ -118,8 +118,9 @@ class Torrent():
 
         You can put anything in here as long as keys are convertable to
         :class:`bytes` and values are convertable to :class:`bytes`,
-        :class:`int`, :class:`list` or :class:`dict`. See also :meth:`convert`
-        and :meth:`validate`.
+        :class:`int`, :class:`list` or :class:`dict`.
+
+        See also :meth:`convert` and :meth:`validate`.
 
         The ``info`` key is guaranteed to exist.
         """
