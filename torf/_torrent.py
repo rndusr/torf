@@ -836,6 +836,9 @@ class Torrent():
 
         if len(md['info']['pieces']) == 0:
             raise error.MetainfoError("['info']['pieces'] is empty")
+        elif len(md['info']['pieces']) % 20 != 0:
+            raise error.MetainfoError("length of ['info']['pieces'] is not divisible by 20")
+
 
         elif 'length' in info and 'files' in info:
             raise error.MetainfoError("['info'] includes both 'length' and 'files'")

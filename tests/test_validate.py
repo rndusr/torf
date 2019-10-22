@@ -1,6 +1,7 @@
 import torf
 
 import pytest
+import os
 
 
 def test_length_and_files_in_info(generated_multifile_torrent):
@@ -41,6 +42,19 @@ def test_pieces_is_empty(generated_singlefile_torrent):
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == "Invalid metainfo: ['info']['pieces'] is empty"
+
+def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    for i in range(1, 10):
+        t.metainfo['info']['pieces'] = bytes(os.urandom(i*20))
+        t.validate()
+
+        for j in ((i*20)+1, (i*20)-1):
+            t.metainfo['info']['pieces'] = bytes(os.urandom(j))
+            with pytest.raises(torf.MetainfoError) as excinfo:
+                t.validate()
+            assert str(excinfo.value) == ("Invalid metainfo: length of ['info']['pieces'] "
+                                          "is not divisible by 20")
 
 
 def test_singlefile_wrong_length_type(generated_singlefile_torrent):
