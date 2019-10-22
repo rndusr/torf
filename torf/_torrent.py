@@ -873,6 +873,7 @@ class Torrent():
             utils.assert_type(md, ('info', 'files'), (list,), must_exist=True)
 
             for i,fileinfo in enumerate(info['files']):
+                utils.assert_type(md, ('info', 'files', i), (dict,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'length'), (int, float), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False,
