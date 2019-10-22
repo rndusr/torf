@@ -35,7 +35,7 @@ def test_verify__file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent)
             assert str(exc) == 'nonexisting/path: No such file or directory'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify('nonexisting/path', callback=cb) == False
+        assert torrent.verify('nonexisting/path', callback=cb, interval=0) == False
         assert cb.call_count == 1
 
 def test_verify__file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
@@ -72,7 +72,7 @@ def test_verify__file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
                 assert str(exc) == f'{content_file3}: No such file or directory'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_path, callback=cb) == False
+        assert torrent.verify(content_path, callback=cb, interval=0) == False
         assert cb.call_count == 2
 
 def test_verify__file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torrent):
@@ -99,7 +99,7 @@ def test_verify__file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torren
             assert str(exc) == f'{content_path}: Unexpected file size: 14 instead of 9 bytes'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_path, callback=cb) == False
+        assert torrent.verify(content_path, callback=cb, interval=0) == False
         assert cb.call_count == 1
 
 def test_verify__file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent):
@@ -136,7 +136,7 @@ def test_verify__file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent
                 assert str(exc) == f'{content_file3}: Unexpected file size: 15 instead of 14 bytes'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_path, callback=cb) == False
+        assert torrent.verify(content_path, callback=cb, interval=0) == False
         assert cb.call_count == 2
 
 def test_verify__path_is_directory_and_torrent_contains_single_file(tmpdir, create_torrent):
@@ -166,7 +166,7 @@ def test_verify__path_is_directory_and_torrent_contains_single_file(tmpdir, crea
             assert str(exc) == f'{content_path}: Is a directory'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_path, callback=cb) == False
+        assert torrent.verify(content_path, callback=cb, interval=0) == False
         assert cb.call_count == 1
 
 def test_verify__parent_path_is_unreadable(tmpdir, create_torrent):
@@ -212,7 +212,7 @@ def test_verify__parent_path_is_unreadable(tmpdir, create_torrent):
                     assert str(exc) == f'{content_file2}: No such file or directory'
                 return None
             cb.side_effect = assert_call
-            assert torrent.verify(content_path, callback=cb) == False
+            assert torrent.verify(content_path, callback=cb, interval=0) == False
             assert cb.call_count == 2
         finally:
             os.chmod(unreadable_path1, mode=unreadable_path1_mode)
@@ -248,7 +248,7 @@ def test_verify__allow_different_name_argument_with_singlefile_torrent(tmpdir, c
             assert exc == None
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(new_content_file, callback=cb, allow_different_name=True) == True
+        assert torrent.verify(new_content_file, callback=cb, interval=0, allow_different_name=True) == True
         assert cb.call_count == 10
 
         # allow_different_name=False
@@ -261,7 +261,7 @@ def test_verify__allow_different_name_argument_with_singlefile_torrent(tmpdir, c
             assert str(exc) == f'{content_file}: No such file or directory'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(new_content_file, callback=cb, allow_different_name=False) == False
+        assert torrent.verify(new_content_file, callback=cb, interval=0, allow_different_name=False) == False
         assert cb.call_count == 1
 
 def test_verify__allow_different_name_argument_with_multifile_torrent(tmpdir, create_torrent):
@@ -301,7 +301,7 @@ def test_verify__allow_different_name_argument_with_multifile_torrent(tmpdir, cr
             assert exc == None
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(new_content_path, callback=cb, allow_different_name=True) == True
+        assert torrent.verify(new_content_path, callback=cb, interval=0, allow_different_name=True) == True
         assert cb.call_count == 7
 
         # allow_different_name=False
@@ -318,7 +318,7 @@ def test_verify__allow_different_name_argument_with_multifile_torrent(tmpdir, cr
                 assert str(exc) == f'{content_file2}: No such file or directory'
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(new_content_path, callback=cb, allow_different_name=False) == False
+        assert torrent.verify(new_content_path, callback=cb, interval=0, allow_different_name=False) == False
         assert cb.call_count == 2
 
 def test_verify__singlefile__hash_check(tmpdir, create_torrent):
@@ -363,7 +363,7 @@ def test_verify__singlefile__hash_check(tmpdir, create_torrent):
                         assert exc is None
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb) == False
+                assert torrent.verify(content_path, callback=cb, interval=0) == False
                 assert cb.call_count == 4
 
 def test_verify__multifile__hash_check__pieces_align_to_files(tmpdir, create_torrent):
@@ -431,7 +431,7 @@ def test_verify__multifile__hash_check__pieces_align_to_files(tmpdir, create_tor
 
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb) == False
+                assert torrent.verify(content_path, callback=cb, interval=0) == False
                 assert cb.call_count == 6
 
                 # Restore original data so it we don't get the same error in the
@@ -522,7 +522,7 @@ def test_verify__multifile__hash_check__pieces_dont_align_to_files(tmpdir, creat
 
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb) == False
+                assert torrent.verify(content_path, callback=cb, interval=0) == False
                 assert cb.call_count == 7
 
                 # Restore original data so it we don't get the same error in the
@@ -617,9 +617,70 @@ def test_verify__multifile__hash_check__one_piece_covers_multiple_files(tmpdir, 
 
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb) == False
+                assert torrent.verify(content_path, callback=cb, interval=0) == False
                 assert cb.call_count == 4
 
                 # Restore original data so it we don't get the same error in the
                 # next iteration
                 file.write_binary(data)
+
+def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeypatch):
+    mock_time = mock.MagicMock(side_effect=tuple(range(100)))
+    import time
+    monkeypatch.setattr(time, 'time', mock_time)
+
+    content_file = tmpdir.join('content.jpg')
+    content_file.write_binary(os.urandom(torf.Torrent.piece_size_min * 20))
+    with create_torrent(path=content_file) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+        cb = mock.MagicMock()
+        exp_pieces_done = list(range(1, 20, 2)) + [20]
+        exp_call_count = len(exp_pieces_done)
+        def assert_call(t, path, pieces_done, pieces_total, exc):
+            assert t == torrent
+            assert str(path) == str(content_file)
+            assert pieces_done == exp_pieces_done.pop(0)
+            assert pieces_total == torrent.pieces
+            assert exc is None
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_file, callback=cb, interval=2) == True
+        assert cb.call_count == exp_call_count
+        assert len(exp_pieces_done) == 0
+
+def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torrent, monkeypatch):
+    mock_time = mock.MagicMock(side_effect=tuple(range(100)))
+    import time
+    monkeypatch.setattr(time, 'time', mock_time)
+
+    piece_size = torf.Torrent.piece_size_min
+    content_file = tmpdir.join('content.jpg')
+    content_data = os.urandom(piece_size * 20)
+    content_file.write_binary(content_data)
+    with create_torrent(path=content_file) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        corrupt_data = bytearray(content_data)
+        corrupt_data[piece_size*7] = (content_data[piece_size*7] + 1) % 256
+        corrupt_data[piece_size*8] = (content_data[piece_size*8] + 1) % 256
+        assert len(corrupt_data) == len(content_data)
+        assert corrupt_data != content_data
+        content_file.write_binary(corrupt_data)
+
+        cb = mock.MagicMock()
+        exp_pieces_done = [1, 4, 7, 8, 9, 12, 15, 18, 20]
+        exp_call_count = len(exp_pieces_done)
+        def assert_call(t, path, pieces_done, pieces_total, exc):
+            assert t == torrent
+            assert str(path) == str(content_file)
+            assert pieces_done == exp_pieces_done.pop(0)
+            assert pieces_total == torrent.pieces
+            if pieces_done in (8, 9):
+                assert exc is not None
+            else:
+                assert exc is None
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_file, callback=cb, interval=3) == False
+        assert cb.call_count == exp_call_count
+        assert len(exp_pieces_done) == 0

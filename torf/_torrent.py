@@ -904,7 +904,7 @@ class Torrent():
             self.validate()
         return bencode(self.convert())
 
-    def verify(self, path, allow_different_name=True, callback=None):
+    def verify(self, path, allow_different_name=True, callback=None, interval=0):
         """
         Check if `path` contains all the data in this torrent
 
@@ -927,6 +927,8 @@ class Torrent():
         :param callable callback: Callable with signature ``(torrent, filepath,
             pieces_done, pieces_total, exception)``; if `callback` returns
             anything else than ``None``, verification is stopped
+        :param float interval: Minimum number of seconds between calls to
+            `callback` (if 0, `callback` is called once per piece)
 
         If a callback is specified, exceptions are not raised but passed to
         `callback` instead, which can then handle the error and maybe stop the
@@ -946,7 +948,16 @@ class Torrent():
         self.validate()
 
         if callback is not None:
-            cancel = lambda *status: callback(*status) is not None
+            last_cb_call = 0
+            def cancel(torrent, filepath, pieces_done, pieces_total, exception):
+                nonlocal last_cb_call
+                now = time.time()
+                if (exception is not None or
+                    pieces_done == pieces_total or
+                    now - last_cb_call >= interval):
+                    last_cb_call = now
+                    result = callback(torrent, filepath, pieces_done, pieces_total, exception)
+                    return result is not None
         else:
             # Without a callback, we want to stop on the first exception
             cancel = lambda _, __, ___, ____, exception: exception is not None
