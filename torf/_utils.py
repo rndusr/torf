@@ -157,26 +157,29 @@ def key_exists_in_list_or_dict(key, lst_or_dct):
             return True
     return False
 
-def assert_type(lst_or_dct, keys, exp_types, must_exist=True, check=None):
+def assert_type(obj, keys, exp_types, must_exist=True, check=None):
     """
     Raise MetainfoError is not of a particular type
 
-    lst_or_dct: list or dict instance
-    keys: Sequence of keys so that `lst_or_dct[key[0]][key[1]]...` resolves to a
-          value
-    exp_types: Sequence of types that the value specified by `keys` must be an
-               instance of
-    must_exist: Whether to raise MetainfoError if `keys` does not resolve to a
-                value
-    check: Callable that gets the value specified by `keys` and returns True if
-           it OK, False otherwise
+    :param obj: The object to check
+    :type obj: sequence or mapping
+    :param keys: Sequence of keys so that ``obj[key[0]][key[1]]...`` resolves to
+        a value
+    :type obj: sequence
+    :param exp_types: Sequence of types that the value specified by `keys` must
+        be an instance of
+    :type obj: sequence
+    :param bool must_exist: Whether to raise MetainfoError if `keys` does not
+         resolve to a value
+    :param callable check: Callable that gets the value specified by `keys` and
+        returns True if it is OK, False otherwise
     """
     keys = list(keys)
     keychain = []
     while len(keys[:-1]) > 0:
         key = keys.pop(0)
         try:
-            lst_or_dct = lst_or_dct[key]
+            obj = obj[key]
         except (KeyError, IndexError):
             break
         keychain.append(key)
@@ -184,19 +187,19 @@ def assert_type(lst_or_dct, keys, exp_types, must_exist=True, check=None):
     keychain_str = ''.join(f'[{key!r}]' for key in keychain)
     key = keys.pop(0)
 
-    if not key_exists_in_list_or_dict(key, lst_or_dct):
+    if not key_exists_in_list_or_dict(key, obj):
         if not must_exist:
             return
         raise error.MetainfoError(f"Missing {key!r} in {keychain_str}")
 
-    elif not isinstance(lst_or_dct[key], exp_types):
+    elif not isinstance(obj[key], exp_types):
         exp_types_str = ' or '.join(t.__name__ for t in exp_types)
-        type_str = type(lst_or_dct[key]).__name__
+        type_str = type(obj[key]).__name__
         raise error.MetainfoError(f"{keychain_str}[{key!r}] must be {exp_types_str}, "
-                                  f"not {type_str}: {lst_or_dct[key]!r}")
+                                  f"not {type_str}: {obj[key]!r}")
 
-    elif check is not None and not check(lst_or_dct[key]):
-        raise error.MetainfoError(f"{keychain_str}[{key!r}] is invalid: {lst_or_dct[key]!r}")
+    elif check is not None and not check(obj[key]):
+        raise error.MetainfoError(f"{keychain_str}[{key!r}] is invalid: {obj[key]!r}")
 
 
 def decode_value(value):
