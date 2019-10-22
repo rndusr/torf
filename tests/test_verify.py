@@ -3,7 +3,6 @@ import torf
 import pytest
 from unittest import mock
 import os
-import re
 import errno
 
 def test_verify__validate_is_called_first(monkeypatch):
@@ -33,7 +32,7 @@ def test_verify__file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent)
             assert str(path) == str('nonexisting/path')
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
-            assert re.search(str(exc), r'^nonexisting/path: No such file or directory$')
+            assert str(exc) == 'nonexisting/path: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify('nonexisting/path', callback=cb) == False
@@ -67,10 +66,10 @@ def test_verify__file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
             assert pieces_total == torrent.pieces
             if cb.call_count == 1:
                 assert str(path) == str(content_file1)
-                assert re.search(str(exc), rf'^{content_file1}: No such file or directory$')
+                assert str(exc) == f'{content_file1}: No such file or directory'
             elif cb.call_count == 2:
                 assert str(path) == str(content_file3)
-                assert re.search(str(exc), rf'^{content_file3}: No such file or directory$')
+                assert str(exc) == f'{content_file3}: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_path, callback=cb) == False
@@ -97,7 +96,7 @@ def test_verify__file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torren
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
             assert str(path) == str(content_path)
-            assert re.search(str(exc), rf'^{content_path}: Unexpected file size: 14 instead of 9 bytes$')
+            assert str(exc) == f'{content_path}: Unexpected file size: 14 instead of 9 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_path, callback=cb) == False
@@ -131,10 +130,10 @@ def test_verify__file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent
             assert pieces_total == torrent.pieces
             if cb.call_count == 1:
                 assert str(path) == str(content_file2)
-                assert re.search(str(exc), rf'^{content_file2}: Unexpected file size: 9 instead of 15 bytes$')
+                assert str(exc) == f'{content_file2}: Unexpected file size: 9 instead of 15 bytes'
             elif cb.call_count == 2:
                 assert str(path) == str(content_file3)
-                assert re.search(str(exc), rf'^{content_file3}: Unexpected file size: 15 instead of 14 bytes$')
+                assert str(exc) == f'{content_file3}: Unexpected file size: 15 instead of 14 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_path, callback=cb) == False
@@ -164,7 +163,7 @@ def test_verify__path_is_directory_and_torrent_contains_single_file(tmpdir, crea
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
             assert str(path) == str(content_path)
-            assert re.search(str(exc), rf'^{content_path}: Is a directory$')
+            assert str(exc) == f'{content_path}: Is a directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_path, callback=cb) == False
@@ -207,10 +206,10 @@ def test_verify__parent_path_is_unreadable(tmpdir, create_torrent):
                 assert pieces_total == torrent.pieces
                 if cb.call_count == 1:
                     assert str(path) == str(content_file1)
-                    assert re.search(str(exc), rf'^{content_file1}: No such file or directory$')
+                    assert str(exc) == f'{content_file1}: No such file or directory'
                 elif cb.call_count == 2:
                     assert str(path) == str(content_file2)
-                    assert re.search(str(exc), rf'^{content_file2}: No such file or directory$')
+                    assert str(exc) == f'{content_file2}: No such file or directory'
                 return None
             cb.side_effect = assert_call
             assert torrent.verify(content_path, callback=cb) == False
@@ -259,7 +258,7 @@ def test_verify__allow_different_name_argument_with_singlefile_torrent(tmpdir, c
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
             assert str(path) == str(content_file)
-            assert re.search(str(exc), rf'^{content_file}: No such file or directory$')
+            assert str(exc) == f'{content_file}: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify(new_content_file, callback=cb, allow_different_name=False) == False
@@ -313,10 +312,10 @@ def test_verify__allow_different_name_argument_with_multifile_torrent(tmpdir, cr
             assert pieces_total == torrent.pieces
             if cb.call_count == 1:
                 assert str(path) == str(content_file1)
-                assert re.search(str(exc), rf'^{content_file1}: No such file or directory$')
+                assert str(exc) == f'{content_file1}: No such file or directory'
             else:
                 assert str(path) == str(content_file2)
-                assert re.search(str(exc), rf'^{content_file2}: No such file or directory$')
+                assert str(exc) == f'{content_file2}: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify(new_content_path, callback=cb, allow_different_name=False) == False
@@ -353,13 +352,13 @@ def test_verify__singlefile__hash_check(tmpdir, create_torrent):
                     assert str(path) == str(content_path)
                     assert 1 <= pieces_done <= 4
                     if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
                     elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
                     elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
                     elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
                     else:
                         assert exc is None
                     return None
@@ -416,17 +415,17 @@ def test_verify__multifile__hash_check__pieces_align_to_files(tmpdir, create_tor
                         assert str(path) == str(content_file3)
 
                     if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done} in {content_file1}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file1}'
                     elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done} in {content_file2}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file2}'
                     elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done} in {content_file2}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file2}'
                     elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done} in {content_file3}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file3}'
                     elif pieces_done == 5 and corrupt_piece_index == 4:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done} in {content_file3}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file3}'
                     elif pieces_done == 6 and corrupt_piece_index == 5:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {pieces_done} in {content_file3}$')
+                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file3}'
                     else:
                         assert exc is None
 
@@ -504,20 +503,20 @@ def test_verify__multifile__hash_check__pieces_dont_align_to_files(tmpdir, creat
                         assert str(path) == str(content_file3)
 
                     if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file1}$')
+                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file1}'
                     elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert re.search(str(exc), (f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
-                                                    f'at least one of these files is corrupt: {content_file1}, {content_file2}$'))
+                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                                            f'at least one of these files is corrupt: {content_file1}, {content_file2}')
                     elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file2}$')
+                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file2}'
                     elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert re.search(str(exc), (f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
-                                                    f'at least one of these files is corrupt: {content_file2}, {content_file3}$'))
+                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                                            f'at least one of these files is corrupt: {content_file2}, {content_file3}')
                     # NOTE: Piece index 4 is never corrupted because file3.jpg is so big.
                     elif pieces_done == 6 and corrupt_piece_index == 5:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}$')
+                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}'
                     elif pieces_done == 7 and corrupt_piece_index == 6:
-                        assert re.search(str(exc), f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}$')
+                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}'
                     else:
                         assert exc is None
 
@@ -601,18 +600,20 @@ def test_verify__multifile__hash_check__one_piece_covers_multiple_files(tmpdir, 
                     else:
                         assert str(path) == str(content_file4)
 
-                    if corrupt_piece_index == 0:
-                        assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
-                                             'at least one of these files is corrupt: '
-                                             f'{content_file1}, {content_file2}$')
-                    elif corrupt_piece_index == 1:
-                        assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
-                                             'at least one of these files is corrupt: '
-                                             f'{content_file2}, {content_file3}, {content_file4}$')
-                    elif corrupt_piece_index == 2:
-                        assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}$')
+                    if pieces_done == 1 and corrupt_piece_index == 0:
+                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                                            'at least one of these files is corrupt: '
+                                            f'{content_file1}, {content_file2}')
+                    elif pieces_done == 2 and corrupt_piece_index == 1:
+                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                                            'at least one of these files is corrupt: '
+                                            f'{content_file2}, {content_file3}, {content_file4}')
+                    elif pieces_done == 3 and corrupt_piece_index == 2:
+                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}'
+                    elif pieces_done == 4 and corrupt_piece_index == 3:
+                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}'
                     else:
-                        assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}$')
+                        assert exc is None
 
                     return None
                 cb.side_effect = assert_call
