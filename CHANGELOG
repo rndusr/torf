@@ -8,6 +8,7 @@
     now be used to quickly specify piece size limits.  Setting the piece_size
     property to an out-of-bounds piece size or returning one with
     Torrent.calculate_piece_size() will raise PieceSizeError.
+  - Torrent.validate() is now better at finding invalid stuff in the metainfo.
 
 
 2019-07-01 2.1.0
