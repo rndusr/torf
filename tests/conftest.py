@@ -106,8 +106,6 @@ def generate_random_Torrent_args():
             'httpseeds' : random.choice(([],
                                          ['http://localhost:123/httpseed'],
                                          ['http://localhost:123/httpseed', 'http://localhost:456/httpseed'])),
-
-            'private'       : random.choice((True, False)),
             'comment'       : _randstr(),
             'creation_date' : random.randint(0, int(time.time())),
             'created_by'    : _randstr(),
