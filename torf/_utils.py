@@ -188,9 +188,8 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
     key = keys.pop(0)
 
     if not key_exists_in_list_or_dict(key, obj):
-        if not must_exist:
-            return
-        raise error.MetainfoError(f"Missing {key!r} in {keychain_str}")
+        if must_exist:
+            raise error.MetainfoError(f"Missing {key!r} in {keychain_str}")
 
     elif not isinstance(obj[key], exp_types):
         exp_types_str = ' or '.join(t.__name__ for t in exp_types)
