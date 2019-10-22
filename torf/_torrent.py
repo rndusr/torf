@@ -833,6 +833,7 @@ class Torrent():
         utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True)
         utils.assert_type(md, ('info', 'pieces'), (bytes, bytearray), must_exist=True)
+        utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)
 
         if len(md['info']['pieces']) == 0:
             raise error.MetainfoError("['info']['pieces'] is empty")

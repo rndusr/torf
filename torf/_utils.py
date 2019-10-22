@@ -35,17 +35,25 @@ def is_md5sum(value):
     return bool(_md5sum_regex.match(value))
 
 
-def validated_url(url):
-    """Return url if valid, raise URLError otherwise"""
+def is_url(url):
+    """Return whether `url` is a valid URL"""
     try:
         u = urlparse(url)
         u.port  # Trigger 'invalid port' exception
     except Exception:
-        raise error.URLError(url)
+        return False
     else:
         if not u.scheme or not u.netloc:
-            raise error.URLError(url)
+            return False
+        return True
+
+
+def validated_url(url):
+    """Return url if valid, raise URLError otherwise"""
+    if is_url(url):
         return url
+    else:
+        raise error.URLError(url)
 
 
 def read_chunks(filepath, chunk_size):

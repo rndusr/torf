@@ -56,6 +56,23 @@ def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
             assert str(excinfo.value) == ("Invalid metainfo: length of ['info']['pieces'] "
                                           "is not divisible by 20")
 
+def test_invalid_announce_type(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    for typ in (bytearray, list, tuple):
+        t.metainfo['announce'] = typ()
+        with pytest.raises(torf.MetainfoError) as excinfo:
+            t.validate()
+        assert str(excinfo.value) == (f"Invalid metainfo: ['announce'] "
+                                      f"must be str, not {typ.__qualname__}: {t.metainfo['announce']}")
+
+def test_invalid_announce_url(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    for url in ('123', 'http://123:xxx/announce'):
+        t.metainfo['announce'] = url
+        with pytest.raises(torf.MetainfoError) as excinfo:
+            t.validate()
+        assert str(excinfo.value) == f"Invalid metainfo: ['announce'] is invalid: {url!r}"
+
 
 def test_singlefile_wrong_length_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
