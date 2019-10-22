@@ -57,7 +57,7 @@ def test_single_tracker(valid_singlefile_metainfo):
     assert t.trackers == [[str(valid_singlefile_metainfo[b'announce'], encoding='utf-8')]]
 
 def test_multiple_trackers(valid_singlefile_metainfo, tmpdir):
-    valid_singlefile_metainfo[b'announce-list'] = [[b'http://localhost', b'http:/foohost'],
+    valid_singlefile_metainfo[b'announce-list'] = [[b'http://localhost', b'http://foohost'],
                                                    [b'http://bazhost']]
     valid_singlefile_metainfo.pop(b'announce', None)
     fo = io.BytesIO(bencode(valid_singlefile_metainfo))
