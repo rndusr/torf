@@ -130,7 +130,7 @@ class Torrent():
     @property
     def path(self):
         """
-        Path to torrent content
+        File system path to torrent content
 
         The properties :attr:`name` and :attr:`piece_size` are changed
         implicitly when this property is set.
