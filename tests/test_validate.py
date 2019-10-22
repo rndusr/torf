@@ -56,7 +56,14 @@ def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
             assert str(excinfo.value) == ("Invalid metainfo: length of ['info']['pieces'] "
                                           "is not divisible by 20")
 
-def test_invalid_announce_type(generated_singlefile_torrent):
+
+def test_no_announce_is_ok(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    if 'announce' in t.metainfo:
+        del t.metainfo['announce']
+    t.validate()
+
+def test_wrong_announce_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
     for typ in (bytearray, list, tuple):
         t.metainfo['announce'] = typ()
@@ -72,6 +79,75 @@ def test_invalid_announce_url(generated_singlefile_torrent):
         with pytest.raises(torf.MetainfoError) as excinfo:
             t.validate()
         assert str(excinfo.value) == f"Invalid metainfo: ['announce'] is invalid: {url!r}"
+
+def test_no_announce_list_is_ok(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    if 'announce-list' in t.metainfo:
+        del t.metainfo['announce-list']
+    t.validate()
+
+def test_wrong_announce_list_type(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+
+    # announce-list must be a list
+    for typ in (bytearray, str):
+        t.metainfo['announce-list'] = typ()
+        with pytest.raises(torf.MetainfoError) as excinfo:
+            t.validate()
+        assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'] "
+                                      f"must be list, not {typ.__qualname__}: {t.metainfo['announce-list']!r}")
+
+    # Each item in announce-list must be a list
+    for typ in (bytearray, set):
+        tier = typ()
+        for lst in ([tier],
+                    [tier, []],
+                    [[], tier],
+                    [[], tier, []]):
+            t.metainfo['announce-list'] = lst
+            with pytest.raises(torf.MetainfoError) as excinfo:
+                t.validate()
+            tier_index = lst.index(tier)
+            assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'][{tier_index}] "
+                                          f"must be list, not {typ.__qualname__}: {tier!r}")
+
+    # Each item in each list in announce-list must be a string
+    for typ in (bytearray, set):
+        url = typ()
+        for tier in ([url],
+                     ['http://localhost:123/', url],
+                     [url, 'http://localhost:123/'],
+                     ['http://localhost:123/', url, 'http://localhost:456/']):
+            url_index = tier.index(url)
+            for lst in ([tier],
+                        [tier, []],
+                        [[], tier],
+                        [[], tier, []]):
+                tier_index = lst.index(tier)
+                t.metainfo['announce-list'] = lst
+                with pytest.raises(torf.MetainfoError) as excinfo:
+                    t.validate()
+                assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'][{tier_index}][{url_index}] "
+                                              f"must be str, not {typ.__qualname__}: {url!r}")
+
+def test_invalid_url_in_announce_list(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    for url in ('123', 'http://123:xxx/announce'):
+        for tier in ([url],
+                     ['http://localhost:123/', url],
+                     [url, 'http://localhost:123/'],
+                     ['http://localhost:123/', url, 'http://localhost:456/']):
+            url_index = tier.index(url)
+            for lst in ([tier],
+                        [tier, []],
+                        [[], tier],
+                        [[], tier, []]):
+                tier_index = lst.index(tier)
+                t.metainfo['announce-list'] = lst
+                with pytest.raises(torf.MetainfoError) as excinfo:
+                    t.validate()
+                assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'][{tier_index}][{url_index}] "
+                                              f"is invalid: {url!r}")
 
 
 def test_singlefile_wrong_length_type(generated_singlefile_torrent):

@@ -834,6 +834,11 @@ class Torrent():
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True)
         utils.assert_type(md, ('info', 'pieces'), (bytes, bytearray), must_exist=True)
         utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)
+        utils.assert_type(md, ('announce-list',), (list,), must_exist=False)
+        for i,_ in enumerate(md.get('announce-list', ())):
+            utils.assert_type(md, ('announce-list', i), (list,))
+            for j,_ in enumerate(md['announce-list'][i]):
+                utils.assert_type(md, ('announce-list', i, j), (str,), check=utils.is_url)
 
         if len(md['info']['pieces']) == 0:
             raise error.MetainfoError("['info']['pieces'] is empty")
