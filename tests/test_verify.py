@@ -332,7 +332,7 @@ def test_verify__singlefile__hash_check(tmpdir, create_torrent):
             for error_pos in (offset, offset + int(piece_size/3), offset+piece_size-1):
                 error_pos = min(error_pos, len(content_data)-1)
                 corrupt_content_data = bytearray(content_data)
-                corrupt_content_data[error_pos] = ((content_data[error_pos] + 1) % 256)
+                corrupt_content_data[error_pos] = (content_data[error_pos] + 1) % 256
                 assert len(corrupt_content_data) == len(content_data)
                 assert corrupt_content_data != content_data
                 content_path.write_binary(corrupt_content_data)
@@ -387,7 +387,7 @@ def test_verify__multifile__hash_check__pieces_align_to_files(tmpdir, create_tor
             for error_pos in (0, int(len(data)/2), int(len(data)/2)+1, len(data)-1):
                 error_pos_abs = offset + error_pos
                 corrupt_data = bytearray(data)
-                corrupt_data[error_pos] = ((data[error_pos] + 1) % 256)
+                corrupt_data[error_pos] = (data[error_pos] + 1) % 256
                 assert len(corrupt_data) == len(data)
                 assert corrupt_data != data
                 file.write_binary(corrupt_data)
@@ -459,7 +459,7 @@ def test_verify__multifile__hash_check__pieces_dont_align_to_files(tmpdir, creat
             for error_pos in (0, int(len(data)/2), int(len(data)/2)+1, len(data)-1):
                 error_pos_abs = offset + error_pos
                 corrupt_data = bytearray(data)
-                corrupt_data[error_pos] = ((data[error_pos] + 1) % 256)
+                corrupt_data[error_pos] = (data[error_pos] + 1) % 256
                 assert len(corrupt_data) == len(data)
                 assert corrupt_data != data
                 file.write_binary(corrupt_data)
@@ -560,7 +560,7 @@ def test_verify__multifile__hash_check__one_piece_covers_multiple_files(tmpdir, 
             for error_pos in (0, int(len(data)/2), int(len(data)/2)+1, len(data)-1):
                 error_pos_abs = offset + error_pos
                 corrupt_data = bytearray(data)
-                corrupt_data[error_pos] = ((data[error_pos] + 1) % 256)
+                corrupt_data[error_pos] = (data[error_pos] + 1) % 256
                 assert len(corrupt_data) == len(data)
                 assert corrupt_data != data
                 file.write_binary(corrupt_data)
