@@ -149,6 +149,25 @@ def test_invalid_url_in_announce_list(generated_singlefile_torrent):
                 assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'][{tier_index}][{url_index}] "
                                               f"is invalid: {url!r}")
 
+def test_no_announce_and_no_announce_list_when_torrent_is_private(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    t.metainfo['info']['private'] = True
+    if 'announce' in t.metainfo:
+        del t.metainfo['announce']
+    if 'announce-list' in t.metainfo:
+        del t.metainfo['announce-list']
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == ("Invalid metainfo: ['info']['private'] is True "
+                                  "but no announce URLs are specified")
+
+    t.metainfo['announce'] = 'http://foo.bar'
+    t.validate()
+
+    del t.metainfo['announce']
+    t.metainfo['announce-list'] = [['http://foo.bar']]
+    t.validate()
+
 
 def test_singlefile_wrong_length_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
