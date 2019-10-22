@@ -731,8 +731,8 @@ class Torrent():
         last_cb_call = 0
         for filepath,pieces_done,pieces_total in pieces:
             now = time.time()
-            if now - last_cb_call >= interval or \
-               pieces_done >= pieces_total:
+            if (now - last_cb_call >= interval or
+                pieces_done >= pieces_total):
                 last_cb_call = now
                 if cancel(self, filepath, pieces_done, pieces_total):
                     return False
