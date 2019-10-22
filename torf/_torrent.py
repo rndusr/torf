@@ -929,8 +929,8 @@ class Torrent():
             anything else than ``None``, verification is stopped
 
         If a callback is specified, exceptions are not raised but passed to
-        `callback` as an argument instead, which can then handle the error and
-        maybe either stop the verification by returning non-``None``.
+        `callback` instead, which can then handle the error and maybe stop the
+        verification by returning non-``None``.
 
         :raises FileSizeError: if a file in `path` has an unexpected size
         :raises IsDirectoryError: if `path` is a directory and this torrent
