@@ -15,7 +15,6 @@ def test_verify__validate_is_called_first(monkeypatch):
     assert excinfo.match(f'^Invalid metainfo: Mock error$')
     mock_validate.assert_called_once_with()
 
-
 def test_verify__file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent):
     content_path = tmpdir.join('content.jpg')
     content_path.write('some data')
