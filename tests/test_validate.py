@@ -35,6 +35,13 @@ def test_wrong_pieces_type(generated_singlefile_torrent):
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['pieces'] "
                                   "must be bytes or bytearray, not str: 'many'")
 
+def test_pieces_is_empty(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    t.metainfo['info']['pieces'] = bytes()
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == "Invalid metainfo: ['info']['pieces'] is empty"
+
 
 def test_singlefile_wrong_length_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent

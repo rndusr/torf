@@ -834,7 +834,10 @@ class Torrent():
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True)
         utils.assert_type(md, ('info', 'pieces'), (bytes, bytearray), must_exist=True)
 
-        if 'length' in info and 'files' in info:
+        if len(md['info']['pieces']) == 0:
+            raise error.MetainfoError("['info']['pieces'] is empty")
+
+        elif 'length' in info and 'files' in info:
             raise error.MetainfoError("['info'] includes both 'length' and 'files'")
 
         elif 'length' in info:
