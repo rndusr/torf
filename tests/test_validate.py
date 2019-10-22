@@ -194,6 +194,7 @@ def test_singlefile_wrong_md5sum_type(generated_singlefile_torrent):
 
 def test_multifile_wrong_files_type(generated_multifile_torrent):
     t = generated_multifile_torrent
+    t._path = None
     t.metainfo['info']['files'] = 'foo'
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
@@ -202,6 +203,7 @@ def test_multifile_wrong_files_type(generated_multifile_torrent):
 
 def test_multifile_wrong_path_type(generated_multifile_torrent):
     t = generated_multifile_torrent
+    t._path = None
     t.metainfo['info']['files'][0]['path'] = 'foo/bar/baz'
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
@@ -210,6 +212,7 @@ def test_multifile_wrong_path_type(generated_multifile_torrent):
 
 def test_multifile_wrong_path_item_type(generated_multifile_torrent):
     t = generated_multifile_torrent
+    t._path = None
     t.metainfo['info']['files'][1]['path'][0] = 17
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
@@ -218,6 +221,7 @@ def test_multifile_wrong_path_item_type(generated_multifile_torrent):
 
 def test_multifile_wrong_length_type(generated_multifile_torrent):
     t = generated_multifile_torrent
+    t._path = None
     t.metainfo['info']['files'][2]['length'] = ['this', 'is', 'not', 'a', 'length']
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
@@ -291,6 +295,10 @@ def assert_mismatching_filesizes(torrent, *args):
         torrent.dump()
     assert excinfo.match(r"Invalid metainfo: Mismatching file sizes in metainfo \(\d+\) "
                          rf"and local file system \(\d+\): '{torrent.path}")
+
+    # It's OK if `torrent` doesn't know a local file system path
+    torrent._path = None
+    torrent.dump()
 
 def test_singlefile_mismatching_filesize(generated_singlefile_torrent):
     assert_mismatching_filesizes(generated_singlefile_torrent,

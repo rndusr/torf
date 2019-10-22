@@ -877,6 +877,8 @@ class Torrent():
                 utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False,
                             check=utils.is_md5sum)
+                for j,item in enumerate(fileinfo['path']):
+                    utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
 
             if self.path is not None:
                 # Check if filepath actually points to a directory
@@ -884,9 +886,6 @@ class Torrent():
                     raise error.MetainfoError(f"Metainfo includes {self.path} as directory, but it is not a directory")
 
                 for i,fileinfo in enumerate(info['files']):
-                    for j,item in enumerate(fileinfo['path']):
-                        utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
-
                     filepath = os.path.join(self.path, os.path.join(*fileinfo['path']))
 
                     # Check if filepath exists and is a file
