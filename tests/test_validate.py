@@ -1,7 +1,6 @@
 import torf
 
 import pytest
-import re
 
 
 def test_length_and_files_in_info(generated_multifile_torrent):
