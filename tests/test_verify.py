@@ -625,16 +625,17 @@ def test_verify__multifile__hash_check__one_piece_covers_multiple_files(tmpdir, 
                 file.write_binary(data)
 
 def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeypatch):
-    mock_time = mock.MagicMock(side_effect=tuple(range(100)))
-    import time
-    monkeypatch.setattr(time, 'time', mock_time)
-
     content_file = tmpdir.join('content.jpg')
     content_file.write_binary(os.urandom(torf.Torrent.piece_size_min * 20))
     with create_torrent(path=content_file) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
+
+        import time
+        monkeypatch.setattr(time, 'time',
+                            mock.MagicMock(side_effect=range(1, 100)))
+
         cb = mock.MagicMock()
-        exp_pieces_done = list(range(1, 20, 2)) + [20]
+        exp_pieces_done = list(range(2, 20, 2)) + [20]
         exp_call_count = len(exp_pieces_done)
         def assert_call(t, path, pieces_done, pieces_total, exc):
             assert t == torrent
@@ -649,16 +650,16 @@ def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeyp
         assert len(exp_pieces_done) == 0
 
 def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torrent, monkeypatch):
-    mock_time = mock.MagicMock(side_effect=tuple(range(100)))
-    import time
-    monkeypatch.setattr(time, 'time', mock_time)
-
     piece_size = torf.Torrent.piece_size_min
     content_file = tmpdir.join('content.jpg')
     content_data = os.urandom(piece_size * 20)
     content_file.write_binary(content_data)
     with create_torrent(path=content_file) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
+
+        import time
+        monkeypatch.setattr(time, 'time',
+                            mock.MagicMock(side_effect=range(1, 100)))
 
         corrupt_data = bytearray(content_data)
         corrupt_data[piece_size*7] = (content_data[piece_size*7] + 1) % 256
@@ -668,7 +669,7 @@ def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torr
         content_file.write_binary(corrupt_data)
 
         cb = mock.MagicMock()
-        exp_pieces_done = [1, 4, 7, 8, 9, 12, 15, 18, 20]
+        exp_pieces_done = [3, 6, 8, 9, 12, 15, 18, 20]
         exp_call_count = len(exp_pieces_done)
         def assert_call(t, path, pieces_done, pieces_total, exc):
             assert t == torrent
