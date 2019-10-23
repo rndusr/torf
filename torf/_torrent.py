@@ -967,8 +967,8 @@ class Torrent():
                     pieces_done == pieces_total or
                     now - last_cb_call >= interval):
                     last_cb_call = now
-                    result = callback(torrent, filepath, pieces_done, pieces_total, exception)
-                    return result is not None
+                    retval = callback(torrent, filepath, pieces_done, pieces_total, exception)
+                    return retval is not None
         else:
             # Without a callback, we want to stop on the first exception
             cancel = lambda _, __, ___, ____, exception: exception is not None
