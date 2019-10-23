@@ -119,6 +119,33 @@ def test_multifile_generate_with_callback(multifile_content):
     assert_callback_called(multifile_content)
 
 
+def assert_callback_called_at_interval(torrent, monkeypatch):
+    import time
+    monkeypatch.setattr(time, 'time',
+                        mock.MagicMock(side_effect=range(100)))
+
+    t = torf.Torrent(torrent.path)
+    cb = mock.Mock(return_value=None)
+    interval = 3
+    success = t.generate(callback=cb, interval=interval)
+    assert success
+
+    # Compare number of callback calls
+    number_of_pieces = math.ceil(t.size / t.piece_size)
+    exp_call_count = math.ceil(number_of_pieces / interval)
+    if t.mode == 'singlefile':
+        # The singlefile generator makes one semi-superfluous call to report the
+        # generation of the MD5 sum
+        exp_call_count += 1
+    assert cb.call_count == exp_call_count
+
+def test_singlefile_generate_with_callback_interval(singlefile_content, monkeypatch):
+    assert_callback_called_at_interval(singlefile_content, monkeypatch)
+
+def test_multifile_generate_with_callback_interval(multifile_content, monkeypatch):
+    assert_callback_called_at_interval(multifile_content, monkeypatch)
+
+
 def test_callback_cancels(multifile_content):
     hashed_pieces = []
     def callback(torrent, filepath, pieces_done, pieces_total):
