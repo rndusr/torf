@@ -635,7 +635,7 @@ def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeyp
                             mock.MagicMock(side_effect=range(1, 100)))
 
         cb = mock.MagicMock()
-        exp_pieces_done = list(range(2, 20, 2)) + [20]
+        exp_pieces_done = list(range(1, 20, 2)) + [20]
         exp_call_count = len(exp_pieces_done)
         def assert_call(t, path, pieces_done, pieces_total, exc):
             assert t == torrent
@@ -652,7 +652,7 @@ def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeyp
 def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torrent, monkeypatch):
     piece_size = torf.Torrent.piece_size_min
     content_file = tmpdir.join('content.jpg')
-    content_data = os.urandom(piece_size * 20)
+    content_data = os.urandom(piece_size * 30)
     content_file.write_binary(content_data)
     with create_torrent(path=content_file) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
@@ -664,19 +664,21 @@ def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torr
         corrupt_data = bytearray(content_data)
         corrupt_data[piece_size*7] = (content_data[piece_size*7] + 1) % 256
         corrupt_data[piece_size*8] = (content_data[piece_size*8] + 1) % 256
+        corrupt_data[piece_size*22] = (content_data[piece_size*22] + 1) % 256
         assert len(corrupt_data) == len(content_data)
         assert corrupt_data != content_data
         content_file.write_binary(corrupt_data)
 
         cb = mock.MagicMock()
-        exp_pieces_done = [3, 6, 8, 9, 12, 15, 18, 20]
+        exp_pieces_done = [2, 5, 8, 9, 12, 15, 18, 21, 23, 26, 29, 30]
         exp_call_count = len(exp_pieces_done)
         def assert_call(t, path, pieces_done, pieces_total, exc):
             assert t == torrent
             assert str(path) == str(content_file)
+            print(f'pieces_done={pieces_done}, exp_pieces_done={exp_pieces_done}')
             assert pieces_done == exp_pieces_done.pop(0)
             assert pieces_total == torrent.pieces
-            if pieces_done in (8, 9):
+            if pieces_done in (8, 9, 23):
                 assert exc is not None
             else:
                 assert exc is None
