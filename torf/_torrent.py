@@ -959,7 +959,7 @@ class Torrent():
         self.validate()
 
         if callback is not None:
-            last_cb_call = 0
+            last_cb_call = -1
             def cancel(torrent, filepath, pieces_done, pieces_total, exception):
                 nonlocal last_cb_call
                 now = time.time()
