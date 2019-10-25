@@ -34,11 +34,12 @@ def test_iterable_startswith():
     assert utils.iterable_startswith(b, a)
 
 
-def test_validated_url():
+def test_validated_url__max_port_number():
     utils.validated_url(f'http://foohost:{2**16-1}')
     with pytest.raises(torf.URLError):
         utils.validated_url(f'http://foohost:{2**16}')
 
+def test_validated_url__min_port_number():
     utils.validated_url('http://foohost:0')
     with pytest.raises(torf.URLError):
         utils.validated_url('http://foohost:-1')
