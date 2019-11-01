@@ -25,7 +25,6 @@ from hashlib import sha1
 from datetime import datetime
 import os
 import math
-import time
 from collections import abc, namedtuple
 import errno
 import inspect
@@ -33,8 +32,12 @@ import io
 
 from . import _utils as utils
 from . import _errors as error
+from . import _generate as generate
+from . import debug
+
 from ._version import __version__
 _PACKAGE_NAME = __name__.split('.')[0]
+_NCORES = len(os.sched_getaffinity(0))
 
 
 class Torrent():
@@ -723,88 +726,80 @@ class Torrent():
         elif utils.real_size(self.path) < 1:
             raise error.PathEmptyError(self.path)
 
+        hash_workers_count = _NCORES
         if callback is not None:
-            cancel = lambda *status: callback(*status) is not None
+            cancel = generate.CancelCallback(callback, interval)
         else:
-            cancel = lambda *status: False
+            cancel = None
 
-        if os.path.isfile(self.path):
-            pieces = self._set_pieces_singlefile()
-        elif os.path.isdir(self.path):
-            pieces = self._set_pieces_multifile()
+        # Read piece_size'd chunks from disk and push them to queue for hashing
+        reader_thread = generate.ReadWorker(torrent=self,
+                                            queue_size=hash_workers_count*3)
 
-        # Iterate over hashed pieces and send status information
-        last_cb_call = 0
-        for filepath,pieces_done,pieces_total in pieces:
-            now = time.time()
-            if (now - last_cb_call >= interval or
-                pieces_done >= pieces_total):
-                last_cb_call = now
-                if cancel(self, filepath, pieces_done, pieces_total):
-                    return False
-        return True
+        # Pool of workers that pull from reader_thread's piece queue, calculate
+        # the hashes, and quickly offload the results to a hash queue
+        hasher_threadpool = generate.HashWorkerPool(hash_workers_count,
+                                                    reader_thread.piece_queue)
 
-    def _set_pieces_singlefile(self):
-        filepath = self.path
-        pieces_total = self.pieces
-        pieces_done = 0
-        pieces = bytearray()
-        md5_hasher = md5() if self.include_md5 else None
+        # Pull from the hash queue; also call callback and maybe stop everything
+        def collector_callback(filepath, pieces_done,
+                               cancel=cancel, torrent=self, pieces_total=self.pieces):
+            if (cancel is not None and
+                cancel(torrent, filepath, pieces_done, pieces_total)):
+                    debug('### Status reporter is aborting')
+                    reader_thread.stop()
+                    hasher_threadpool.stop()
+                    collector_thread.stop()
+        collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
+                                                    callback=collector_callback)
 
-        for piece in utils.read_chunks(filepath, self.piece_size):
-            pieces.extend(sha1(piece).digest())
-            if md5_hasher:
-                md5_hasher.update(piece)
-            pieces_done += 1
-            yield (filepath, pieces_done, pieces_total)
+        try:
+            debug(f'### joining reader')
+            reader_thread.join()
+        except BaseException as e:
+            debug(f'### Caught exception from reader: {e!r}')
+            import traceback
+            debug(traceback.format_exc())
 
-        self.metainfo['info']['pieces'] = pieces
-        if md5_hasher:
-            self.metainfo['info']['md5sum'] = md5_hasher.hexdigest()
+            debug(f'### Stopping reader')
+            reader_thread.stop()
+            debug(f'### Done stopping reader')
 
-        # Report completion
-        yield (filepath, pieces_total, pieces_total)
+            debug(f'### Stopping hashers')
+            hasher_threadpool.stop()
+            debug(f'### Done stopping hashers')
 
-    def _set_pieces_multifile(self):
-        piece_size = self.piece_size
-        pieces_total = self.pieces
-        pieces_done = 0
-        piece_buffer = bytearray()
-        pieces = bytearray()
-        md5sums = []
+            debug(f'### Stopping collector')
+            collector_thread.stop()
+            debug(f'### Done stopping collector')
 
-        for filepath in self.filepaths:
-            md5_hasher = md5() if self.include_md5 else None
+            debug(f'### Re-raising: {e!r}')
+            raise
+            debug(f'### Done-raising: {e!r}')
+        finally:
+            debug(f'### Joining hashers')
+            hasher_threadpool.join()
+            debug(f'### Done joining hashers')
 
-            # Read piece_sized chunks across files until piece_buffer is big
-            # enough for a new piece
-            for chunk in utils.read_chunks(filepath, piece_size):
-                piece_buffer.extend(chunk)
-                if len(piece_buffer) >= piece_size:
-                    piece = piece_buffer[:piece_size]
-                    pieces.extend(sha1(piece).digest())
-                    del piece_buffer[:piece_size]
-                    pieces_done += 1
-                    yield (filepath, pieces_done, pieces_total)
+            debug(f'### Joining collector')
+            collector_thread.join()
+            debug(f'### Done joining collector')
 
-                if md5_hasher:
-                    md5_hasher.update(chunk)
+        debug(f'### Hashed {int(len(collector_thread.hashes) / 20)} out of {self.pieces} pieces')
 
-            if md5_hasher:
-                md5sums.append(md5_hasher.hexdigest())
-
-        # Unless self.size is dividable by self.piece_size, there is some data
-        # left in piece_buffer
-        if len(piece_buffer) > 0:
-            pieces.extend(sha1(piece_buffer).digest())
-
-        self.metainfo['info']['pieces'] = pieces
-        if md5_hasher:
-            for md5sum,fileinfo in zip(md5sums, self.metainfo['info']['files']):
-                fileinfo['md5sum'] = md5sum
-
-        # Report completion
-        yield (filepath, pieces_total, pieces_total)
+        # Store generated hashes in metainfo
+        hashes_count = len(collector_thread.hashes) / 20
+        if hashes_count == self.pieces:
+            self.metainfo['info']['pieces'] = collector_thread.hashes
+            return True
+        elif hashes_count < self.pieces:
+            # Hashing was aborted by callback
+            self.metainfo['info']['pieces'] = bytes()
+            return False
+        else:
+            self.metainfo['info']['pieces'] = bytes()
+            raise RuntimeError('Unexpected number of hashes generated: '
+                               f'{hashes_count} instead of {self.pieces}')
 
     utils.ENCODE_CONVERTERS[datetime] = lambda dt: int(dt.timestamp())
     def convert(self):
@@ -967,6 +962,7 @@ class Torrent():
             last_cb_call = -1
             def cancel(torrent, filepath, pieces_done, pieces_total, exception):
                 nonlocal last_cb_call
+                import time
                 now = time.time()
                 if (exception is not None or
                     pieces_done == pieces_total or

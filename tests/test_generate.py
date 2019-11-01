@@ -154,10 +154,6 @@ def assert_callback_called_at_interval(torrent, monkeypatch):
     # Compare number of callback calls
     number_of_pieces = math.ceil(t.size / t.piece_size)
     exp_call_count = math.ceil(number_of_pieces / interval)
-    if t.mode == 'singlefile':
-        # The singlefile generator makes one semi-superfluous call to report the
-        # generation of the MD5 sum
-        exp_call_count += 1
     assert cb.call_count == exp_call_count
 
 def test_singlefile_generate_with_callback_interval(singlefile_content, monkeypatch):
