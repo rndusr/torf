@@ -142,7 +142,7 @@ def test_multifile_generate_with_callback(multifile_content):
 
 def assert_callback_called_at_interval(torrent, monkeypatch):
     import time
-    monkeypatch.setattr(time, 'time',
+    monkeypatch.setattr(time, 'monotonic',
                         mock.MagicMock(side_effect=range(100)))
 
     t = torf.Torrent(torrent.path)
