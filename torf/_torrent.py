@@ -726,11 +726,11 @@ class Torrent():
         elif utils.real_size(self.path) < 1:
             raise error.PathEmptyError(self.path)
 
-        hash_workers_count = _NCORES
         if callback is not None:
             cancel = generate.CancelCallback(callback, interval)
         else:
             cancel = None
+        hash_workers_count = _NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
         reader_thread = generate.ReadWorker(torrent=self,
@@ -961,20 +961,10 @@ class Torrent():
         self.validate()
 
         if callback is not None:
-            last_cb_call = -1
-            def cancel(torrent, filepath, pieces_done, pieces_total, exception):
-                nonlocal last_cb_call
-                import time
-                now = time.time()
-                if (exception is not None or
-                    pieces_done == pieces_total or
-                    now - last_cb_call >= interval):
-                    last_cb_call = now
-                    retval = callback(torrent, filepath, pieces_done, pieces_total, exception)
-                    return retval is not None
+            cancel = generate.CancelCallback(callback, interval)
         else:
-            # Without a callback, we want to stop on the first exception
-            cancel = lambda _, __, ___, ____, exception: exception is not None
+            # Stop the verification process if there was an exception
+            cancel = lambda cb_args, **_: cb_args[-1] is not None
 
         # Combine `path` argument and relative path in torrent to file system
         # (fs) path.  If we don't allow a different torrent name, replace the
@@ -1006,7 +996,8 @@ class Torrent():
             # Check if path exists
             if not os.path.exists(fs_filepath):
                 exception = error.PathNotFoundError(fs_filepath)
-                if cancel(self, fs_filepath, 0, pieces_total, exception):
+                if cancel(cb_args=(self, fs_filepath, 0, pieces_total, exception),
+                          force_callback=True):
                     break
             else:
                 # If we expect a file, check if path is a file.  We don't need to check
@@ -1015,18 +1006,17 @@ class Torrent():
                 # PathNotFoundError when "foo" or "foo/bar" is a file.
                 if self.mode == 'singlefile' and os.path.isdir(path):
                     exception = error.IsDirectoryError(fs_filepath)
-                    if cancel(self, fs_filepath, 0, pieces_total, exception):
-                        if callback:
-                            return False
-                        else:
-                            raise exception
+                    if cancel(cb_args=(self, fs_filepath, 0, pieces_total, exception),
+                              force_callback=True):
+                        break
                 else:
                     # Check file size
                     fs_filepath_size = os.path.getsize(os.path.realpath(fs_filepath))
                     expected_size = self.partial_size(torrent_filepath)
                     if fs_filepath_size != expected_size:
                         exception = error.FileSizeError(fs_filepath, fs_filepath_size, expected_size)
-                        if cancel(self, fs_filepath, 0, pieces_total, exception):
+                        if cancel(cb_args=(self, fs_filepath, 0, pieces_total, exception),
+                                  force_callback=True):
                             break
 
         # If our quick checks yielded any issues, skip the hashing
@@ -1054,10 +1044,13 @@ class Torrent():
             if sha1(piece).digest() != exp_hashes.pop(0):
                 exception = error.ContentError(pieces_done-1, piece_size,
                                                tuple(x[0] for x in fs_filepaths))
-                if cancel(self, fs_filepath, pieces_done, pieces_total, exception):
+                if cancel(cb_args=(self, fs_filepath, pieces_done, pieces_total, exception),
+                          force_callback=True):
                     return False
             else:
-                if cancel(self, fs_filepath, pieces_done, pieces_total, None):
+                if cancel(cb_args=(self, fs_filepath, pieces_done, pieces_total, None),
+                          # Always call callback after the last piece was hashed
+                          force_callback=pieces_done >= pieces_total):
                     return False
             return True
 

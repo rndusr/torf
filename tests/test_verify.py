@@ -631,7 +631,7 @@ def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeyp
         torrent = torf.Torrent.read(torrent_file)
 
         import time
-        monkeypatch.setattr(time, 'time',
+        monkeypatch.setattr(time, 'monotonic',
                             mock.MagicMock(side_effect=range(1, 100)))
 
         cb = mock.MagicMock()
@@ -658,27 +658,27 @@ def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torr
         torrent = torf.Torrent.read(torrent_file)
 
         import time
-        monkeypatch.setattr(time, 'time',
+        monkeypatch.setattr(time, 'monotonic',
                             mock.MagicMock(side_effect=range(1, 100)))
 
         corrupt_data = bytearray(content_data)
-        corrupt_data[piece_size*7] = (content_data[piece_size*7] + 1) % 256
-        corrupt_data[piece_size*8] = (content_data[piece_size*8] + 1) % 256
-        corrupt_data[piece_size*22] = (content_data[piece_size*22] + 1) % 256
+        errpos = (6, 7, 24)  # Positions of corrupt bytes
+        corrupt_data[piece_size*errpos[0]] = (content_data[piece_size*errpos[0]] + 1) % 256
+        corrupt_data[piece_size*errpos[1]] = (content_data[piece_size*errpos[0]] + 1) % 256
+        corrupt_data[piece_size*errpos[2]] = (content_data[piece_size*errpos[2]] + 1) % 256
         assert len(corrupt_data) == len(content_data)
         assert corrupt_data != content_data
         content_file.write_binary(corrupt_data)
 
         cb = mock.MagicMock()
-        exp_pieces_done = [2, 5, 8, 9, 12, 15, 18, 21, 23, 26, 29, 30]
+        exp_pieces_done = [1, 4, 7, 8, 11, 14, 17, 20, 23, 25, 28, 30]
         exp_call_count = len(exp_pieces_done)
         def assert_call(t, path, pieces_done, pieces_total, exc):
             assert t == torrent
             assert str(path) == str(content_file)
-            print(f'pieces_done={pieces_done}, exp_pieces_done={exp_pieces_done}')
             assert pieces_done == exp_pieces_done.pop(0)
             assert pieces_total == torrent.pieces
-            if pieces_done in (8, 9, 23):
+            if pieces_done in tuple(i+1 for i in errpos):
                 assert exc is not None
             else:
                 assert exc is None
