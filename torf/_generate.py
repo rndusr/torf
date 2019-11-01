@@ -255,7 +255,7 @@ class CollectorWorker(Worker):
                 debug(f'collector: Collected piece hash of piece {piece_index}')
                 hashes_unsorted.append((piece_index, piece_hash))
                 if callback:
-                    callback(filepath, len(hashes_unsorted))
+                    callback(filepath, len(hashes_unsorted), piece_index, piece_hash)
             if self._stop:
                 debug(f'collector: Stop flag found while getting piece hash')
                 break

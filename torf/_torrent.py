@@ -742,7 +742,7 @@ class Torrent():
                                                     reader_thread.piece_queue)
 
         # Pull from the hash queue; also call callback and maybe stop everything
-        def collector_callback(filepath, pieces_done,
+        def collector_callback(filepath, pieces_done, piece_index, piece_hash,
                                cancel=cancel, torrent=self, pieces_total=self.pieces):
             if (cancel is not None and
                 cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
