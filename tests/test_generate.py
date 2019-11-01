@@ -8,6 +8,13 @@ import os
 import shutil
 
 
+def test_generate_with_no_path():
+    t = torf.Torrent()
+    with pytest.raises(RuntimeError) as excinfo:
+        t.generate()
+    assert excinfo.match(r'^generate\(\) called with no path specified$')
+
+
 def test_generate_with_nonexisting_path(singlefile_content):
     content_path = singlefile_content.path + '.deletable'
     shutil.copyfile(singlefile_content.path, content_path)
