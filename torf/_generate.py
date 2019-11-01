@@ -112,29 +112,28 @@ class Worker():
 
 
 class ReadWorker(Worker):
-    def __init__(self, torrent, queue_size):
-        self._torrent = torrent
+    def __init__(self, filepaths, piece_size, queue_size):
+        self._filepaths = tuple(filepaths)
+        self._piece_size = piece_size
         self._piece_queue = ExhaustQueue(name='pieces', maxsize=queue_size)
         self._stop = False
         super().__init__(name='reader', worker=self._run)
 
     def _run(self):
         try:
-            if self._torrent.mode == 'singlefile':
-                self._run_singlefile()
-            elif self._torrent.mode == 'multifile':
-                self._run_multifile()
+            if len(self._filepaths) == 1:
+                self._run_singlefile(self._filepaths[0], self._piece_size)
+            elif len(self._filepaths) > 1:
+                self._run_multifile(self._filepaths, self._piece_size)
             else:
-                raise RuntimeError('Unexpected mode: {self._torrent.mode}')
+                raise RuntimeError(f'Unexpected filepaths: {self._filepaths}')
         finally:
             self._piece_queue.exhausted()
 
-    def _run_singlefile(self):
-        torrent = self._torrent
-        filepath = torrent.path
+    def _run_singlefile(self, filepath, piece_size):
         piece_queue = self._piece_queue
         debug(f'{self.name}: Reading single file from {filepath}')
-        for piece_index,piece in enumerate(utils.read_chunks(filepath, torrent.piece_size)):
+        for piece_index,piece in enumerate(utils.read_chunks(filepath, piece_size)):
             item = (piece_index, piece, filepath)
             debug(f'{self.name}: Sending hash piece {piece_index} to {piece_queue}')
             piece_queue.put(item)
@@ -142,14 +141,12 @@ class ReadWorker(Worker):
                 debug(f'{self.name}: Stopped reading after {piece_index+1} pieces')
                 return
 
-    def _run_multifile(self):
-        torrent = self._torrent
+    def _run_multifile(self, filepaths, piece_size):
         piece_buffer = bytearray()
         piece_index = 0
-        piece_size = torrent.piece_size
         piece_queue = self._piece_queue
-        debug(f'{self.name}: Reading from multiple files: {torrent.filepaths}')
-        for filepath in torrent.filepaths:
+        for filepath in filepaths:
+            debug(f'{self.name}: Reading from next file: {filepath}')
             for chunk in utils.read_chunks(filepath, piece_size):
                 # Concatenate chunks across files; if we have enough for a new
                 # piece, put it in piece_queue
@@ -164,8 +161,8 @@ class ReadWorker(Worker):
                     debug(f'{self.name}: Stopped reading after {piece_index+1} pieces')
                     return
 
-        # Unless torrent.size is divisible by torrent.piece_size, there are some
-        # bytes left in piece_buffer
+        # Unless the torrent's total size is divisible by its piece size, there
+        # are some bytes left in piece_buffer
         if len(piece_buffer) > 0:
             debug(f'{self.name}: Sending piece {piece_index} to {piece_queue}')
             piece_queue.put((piece_index, piece_buffer, filepath))

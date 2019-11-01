@@ -733,7 +733,8 @@ class Torrent():
         hash_workers_count = _NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
-        reader_thread = generate.ReadWorker(torrent=self,
+        reader_thread = generate.ReadWorker(filepaths=self.filepaths,
+                                            piece_size=self.piece_size,
                                             queue_size=hash_workers_count*3)
 
         # Pool of workers that pull from reader_thread's piece queue, calculate
