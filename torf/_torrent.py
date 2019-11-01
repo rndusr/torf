@@ -393,9 +393,9 @@ class Torrent():
             return 16 * 2**20      # 16 MiB (absolute maximum)
         # Math is magic!
         return max(1 << max(0, math.ceil(math.log(pieces, 2))),
-                   16*1024)
+                   self.piece_size_min)
 
-    piece_size_min = 16 * 2**10  # 16 KiB
+    piece_size_min = 16 * 1024  # 16 KiB
     """
     Smallest allowed piece size
 
@@ -403,7 +403,7 @@ class Torrent():
     :exception:`PieceSizeError`.
     """
 
-    piece_size_max = 16 * 2**20  # 16 MiB
+    piece_size_max = 16 * 1024*1024  # 16 MiB
     """
     Greatest allowed piece size
 
