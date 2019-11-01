@@ -711,6 +711,7 @@ class Torrent():
         :raises PathNotFoundError: if :attr:`path` does not exist
         :raises ReadError: if :attr:`path` or any file beneath it is not
             readable
+        :raises RuntimeError: if :attr:`path` is None
 
         :return: ``True`` if all pieces were successfully hashed, ``False``
             otherwise
