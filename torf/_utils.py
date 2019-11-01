@@ -71,6 +71,29 @@ def read_chunks(filepath, chunk_size):
         raise error.ReadError(e.errno, filepath)
 
 
+def real_size(path):
+    """
+    Return size for `path`, which is a (link to a) file or directory
+
+    Raise ReadError on failure
+    """
+    if os.path.isdir(os.path.realpath(path)):
+        size = 0
+        def onerror(exc):
+            if hasattr(exc, 'errno'):
+                raise error.ReadError(exc.errno)
+            else:
+                raise error.ReadError(None)
+        walker = os.walk(path, followlinks=True, onerror=onerror)
+        for dirpath,dirnames,filenames in walker:
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                size += os.path.getsize(os.path.realpath(filepath))
+        return size
+    else:
+        return os.path.getsize(os.path.realpath(path))
+
+
 def is_power_of_2(num):
     """Return whether `num` is a power of two"""
     if num == 0:
