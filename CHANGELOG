@@ -1,4 +1,6 @@
 2019-??-?? 3.0.0
+  - Hashing pieces now uses multiple threads resulting in massive performance
+    gains.
   - Torrent.filetree now uses Torrent.File instances as leaf nodes instead of
     None.  Torrent.File is a namedtuple that provides the file name, path,
     directory and size.
