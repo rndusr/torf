@@ -183,14 +183,14 @@ class HashWorkerPool():
         self.hash_queue = ExhaustQueue(name='hashes')
         self._workers_count = workers_count
         self._stop = False
+        self._name_counter = _count().__next__
+        self._name_counter()  # Consume 0 so first worker is 1
+        self._name_counter_lock = threading.Lock()
         self._pool = ThreadPool(workers_count, self._worker)
 
-    _name_counter = _count().__next__
-    _name_counter_lock = threading.Lock()
-    @classmethod
-    def _get_new_worker_name(cls):
-        with cls._name_counter_lock:
-            return f'hasher #{cls._name_counter()}'
+    def _get_new_worker_name(self):
+        with self._name_counter_lock:
+            return f'hasher #{self._name_counter()}'
 
     def _worker(self):
         name = self._get_new_worker_name()
