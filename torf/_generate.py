@@ -282,10 +282,13 @@ class CancelCallback():
         self._interval = interval
         self._prev_callback_time = None
 
-    def __call__(self, torrent, filepath, pieces_done, pieces_total):
+    def __call__(self, cb_args, force_callback=False):
         now = time.monotonic()
-        if (self._prev_callback_time is None or
+        if (# This is the first call
+            self._prev_callback_time is None or
+            # The first call was at least `interval` seconds ago
             now - self._prev_callback_time >= self._interval or
-            pieces_done >= pieces_total):
+            # Some special circumstance (e.g. exception during Torrent.verify())
+            force_callback):
             self._prev_callback_time = now
-            return self._callback(torrent, filepath, pieces_done, pieces_total)
+            return self._callback(*cb_args)

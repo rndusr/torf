@@ -745,7 +745,9 @@ class Torrent():
         def collector_callback(filepath, pieces_done,
                                cancel=cancel, torrent=self, pieces_total=self.pieces):
             if (cancel is not None and
-                cancel(torrent, filepath, pieces_done, pieces_total)):
+                cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
+                       # Always call callback after the last piece was hashed
+                       force_callback=pieces_done >= pieces_total)):
                     debug('### Status reporter is aborting')
                     reader_thread.stop()
                     hasher_threadpool.stop()
