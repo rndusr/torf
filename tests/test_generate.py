@@ -15,6 +15,19 @@ def test_generate_with_no_path():
     assert excinfo.match(r'^generate\(\) called with no path specified$')
 
 
+def test_generate_with_empty_path(tmpdir):
+    content_path = tmpdir.mkdir('empty')
+    # Create content so we can set path
+    content_file = content_path.join('file.jpg')
+    content_file.write('foo')
+    t = torf.Torrent(content_path)
+    content_file.write('')
+
+    with pytest.raises(torf.PathEmptyError) as excinfo:
+        t.generate()
+    assert excinfo.match(f'^{str(t.path)}: Empty directory$')
+
+
 def test_generate_with_nonexisting_path(singlefile_content):
     content_path = singlefile_content.path + '.deletable'
     shutil.copyfile(singlefile_content.path, content_path)
