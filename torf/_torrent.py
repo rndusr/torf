@@ -718,10 +718,10 @@ class Torrent():
         """
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
-        elif self.size <= 0:
-            raise error.PathEmptyError(self.path)
         elif not os.path.exists(self.path):
             raise error.PathNotFoundError(self.path)
+        elif utils.real_size(self.path) < 1:
+            raise error.PathEmptyError(self.path)
 
         if callback is not None:
             cancel = lambda *status: callback(*status) is not None
