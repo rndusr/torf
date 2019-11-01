@@ -3,7 +3,7 @@ import torf
 import pytest
 from unittest import mock
 import math
-from hashlib import md5
+# from hashlib import md5
 import os
 import shutil
 
@@ -35,43 +35,44 @@ def test_generate_with_one_unreadable(multifile_content):
 
 def check_metainfo(content):
     # Without md5 included
-    t = torf.Torrent(content.path, include_md5=False)
+    # t = torf.Torrent(content.path, include_md5=False)
+    t = torf.Torrent(content.path)
     t.piece_size = content.exp_metainfo['info']['piece length']
     t.generate()
     assert t.metainfo['info']['piece length'] == content.exp_metainfo['info']['piece length']
     assert t.metainfo['info']['pieces'] == content.exp_metainfo['info']['pieces']
 
-    # 'md5sum' shouldn't be available
-    if 'length' in t.metainfo['info']:   # Singlefile
-        assert 'md5sum' not in t.metainfo['info']
-    elif 'files' in t.metainfo['info']:  # Multifile
-        for fileinfo in t.metainfo['info']['files']:
-            assert 'md5sum' not in fileinfo
+    # # 'md5sum' shouldn't be available
+    # if 'length' in t.metainfo['info']:   # Singlefile
+    #     assert 'md5sum' not in t.metainfo['info']
+    # elif 'files' in t.metainfo['info']:  # Multifile
+    #     for fileinfo in t.metainfo['info']['files']:
+    #         assert 'md5sum' not in fileinfo
 
-    # With md5 included
-    t = torf.Torrent(content.path,
-                     piece_size=content.exp_metainfo['info']['piece length'])
-    t.include_md5 = True
-    t.generate()
-    assert t.metainfo['info']['piece length'] == content.exp_metainfo['info']['piece length']
-    assert t.metainfo['info']['pieces'] == content.exp_metainfo['info']['pieces']
+    # # With md5 included
+    # t = torf.Torrent(content.path,
+    #                  piece_size=content.exp_metainfo['info']['piece length'])
+    # t.include_md5 = True
+    # t.generate()
+    # assert t.metainfo['info']['piece length'] == content.exp_metainfo['info']['piece length']
+    # assert t.metainfo['info']['pieces'] == content.exp_metainfo['info']['pieces']
 
-    # 'md5sum' should be available
-    if 'length' in t.metainfo['info']:   # Singlefile
-        assert 'md5sum' in t.metainfo['info']
-        with open(t.path, 'rb') as f:
-            file_content = f.read()
-        exp_md5sum = md5(file_content).hexdigest()
-        assert t.metainfo['info']['md5sum'] == exp_md5sum
+    # # 'md5sum' should be available
+    # if 'length' in t.metainfo['info']:   # Singlefile
+    #     assert 'md5sum' in t.metainfo['info']
+    #     with open(t.path, 'rb') as f:
+    #         file_content = f.read()
+    #     exp_md5sum = md5(file_content).hexdigest()
+    #     assert t.metainfo['info']['md5sum'] == exp_md5sum
 
-    elif 'files' in t.metainfo['info']:  # Multifile
-        for fileinfo in t.metainfo['info']['files']:
-            assert 'md5sum' in fileinfo
-            filepath = os.path.join(t.path, os.path.join(*fileinfo['path']))
-            with open(filepath, 'rb') as f:
-                file_content = f.read()
-            exp_md5sum = md5(file_content).hexdigest()
-            assert fileinfo['md5sum'] == exp_md5sum
+    # elif 'files' in t.metainfo['info']:  # Multifile
+    #     for fileinfo in t.metainfo['info']['files']:
+    #         assert 'md5sum' in fileinfo
+    #         filepath = os.path.join(t.path, os.path.join(*fileinfo['path']))
+    #         with open(filepath, 'rb') as f:
+    #             file_content = f.read()
+    #         exp_md5sum = md5(file_content).hexdigest()
+    #         assert fileinfo['md5sum'] == exp_md5sum
 
 def test_generate_with_singlefile(singlefile_content):
     check_metainfo(singlefile_content)

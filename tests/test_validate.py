@@ -177,19 +177,19 @@ def test_singlefile_wrong_length_type(generated_singlefile_torrent):
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['length'] "
                                   "must be int or float, not str: 'foo'")
 
-def test_singlefile_wrong_md5sum_type(generated_singlefile_torrent):
-    t = generated_singlefile_torrent
-    t.metainfo['info']['md5sum'] = 0
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        t.validate()
-    assert str(excinfo.value) == ("Invalid metainfo: ['info']['md5sum'] "
-                                  "must be str, not int: 0")
+# def test_singlefile_wrong_md5sum_type(generated_singlefile_torrent):
+#     t = generated_singlefile_torrent
+#     t.metainfo['info']['md5sum'] = 0
+#     with pytest.raises(torf.MetainfoError) as excinfo:
+#         t.validate()
+#     assert str(excinfo.value) == ("Invalid metainfo: ['info']['md5sum'] "
+#                                   "must be str, not int: 0")
 
-    t.metainfo['info']['md5sum'] = 'Z8b329da9893e34099c7d8ad5cb9c940'
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        t.validate()
-    assert str(excinfo.value) == ("Invalid metainfo: ['info']['md5sum'] is invalid: "
-                                  "'Z8b329da9893e34099c7d8ad5cb9c940'")
+#     t.metainfo['info']['md5sum'] = 'Z8b329da9893e34099c7d8ad5cb9c940'
+#     with pytest.raises(torf.MetainfoError) as excinfo:
+#         t.validate()
+#     assert str(excinfo.value) == ("Invalid metainfo: ['info']['md5sum'] is invalid: "
+#                                   "'Z8b329da9893e34099c7d8ad5cb9c940'")
 
 
 def test_multifile_wrong_files_type(generated_multifile_torrent):
@@ -228,19 +228,19 @@ def test_multifile_wrong_length_type(generated_multifile_torrent):
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][2]['length'] "
                                   "must be int or float, not list: ['this', 'is', 'not', 'a', 'length']")
 
-def test_multifile_wrong_md5sum_type(generated_multifile_torrent):
-    t = generated_multifile_torrent
-    t.metainfo['info']['files'][0]['md5sum'] = 0
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        t.validate()
-    assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][0]['md5sum'] "
-                                  "must be str, not int: 0")
+# def test_multifile_wrong_md5sum_type(generated_multifile_torrent):
+#     t = generated_multifile_torrent
+#     t.metainfo['info']['files'][0]['md5sum'] = 0
+#     with pytest.raises(torf.MetainfoError) as excinfo:
+#         t.validate()
+#     assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][0]['md5sum'] "
+#                                   "must be str, not int: 0")
 
-    t.metainfo['info']['files'][0]['md5sum'] = 'Z8b329da9893e34099c7d8ad5cb9c940'
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        t.validate()
-    assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][0]['md5sum'] is invalid: "
-                                  "'Z8b329da9893e34099c7d8ad5cb9c940'")
+#     t.metainfo['info']['files'][0]['md5sum'] = 'Z8b329da9893e34099c7d8ad5cb9c940'
+#     with pytest.raises(torf.MetainfoError) as excinfo:
+#         t.validate()
+#     assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][0]['md5sum'] is invalid: "
+#                                   "'Z8b329da9893e34099c7d8ad5cb9c940'")
 
 
 def assert_missing_metainfo(torrent, *keys):

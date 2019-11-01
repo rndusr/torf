@@ -20,7 +20,8 @@
 
 from bencoder import bencode, bdecode, BTFailure
 from base64 import b32encode
-from hashlib import sha1, md5
+# from hashlib import sha1, md5
+from hashlib import sha1
 from datetime import datetime
 import os
 import math
@@ -91,7 +92,8 @@ class Torrent():
                  exclude=(), trackers=(), webseeds=(), httpseeds=(),
                  private=False, comment=None, source=None,
                  creation_date=None, created_by='%s/%s' % (_PACKAGE_NAME, __version__),
-                 piece_size=None, include_md5=False, randomize_infohash=False):
+                 # piece_size=None, include_md5=False, randomize_infohash=False):
+                 piece_size=None, randomize_infohash=False):
         self._metainfo = {}
         self.trackers = trackers
         self.webseeds = webseeds
@@ -101,7 +103,7 @@ class Torrent():
         self.creation_date = creation_date
         self.created_by = created_by
         self.source = source
-        self.include_md5 = include_md5
+        # self.include_md5 = include_md5
         self.randomize_infohash = randomize_infohash
         self.exclude = exclude
         self.path = path
@@ -142,7 +144,8 @@ class Torrent():
 
         If set to ``None``, the following keys are removed (if present) from
         :attr:`metainfo`\ ``['info']``: ``piece length``, ``pieces``, ``name``,
-        ``length``, ``md5sum``, ``files``
+        # ``length``, ``md5sum``, ``files``
+        ``length``, ``files``
 
         :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
             file, empty directory or directory containing only empty files)
@@ -155,7 +158,8 @@ class Torrent():
         # Unset path and remove related metainfo
         if hasattr(self, '_path'):
             delattr(self, '_path')
-        for key in ('piece length', 'pieces', 'name', 'length', 'md5sum', 'files'):
+        # for key in ('piece length', 'pieces', 'name', 'length', 'md5sum', 'files'):
+        for key in ('piece length', 'pieces', 'name', 'length', 'files'):
             info.pop(key, None)
 
         if value is not None:
@@ -631,17 +635,17 @@ class Torrent():
             self._exclude = value
             self.path = self.path  # Re-filter file paths
 
-    @property
-    def include_md5(self):
-        """
-        Whether to include MD5 sums for each file
+    # @property
+    # def include_md5(self):
+    #     """
+    #     Whether to include MD5 sums for each file
 
-        This takes only effect when :meth:`generate` is called.
-        """
-        return getattr(self, '_include_md5', False)
-    @include_md5.setter
-    def include_md5(self, value):
-        self._include_md5 = bool(value)
+    #     This takes only effect when :meth:`generate` is called.
+    #     """
+    #     return getattr(self, '_include_md5', False)
+    # @include_md5.setter
+    # def include_md5(self, value):
+    #     self._include_md5 = bool(value)
 
     @property
     def infohash(self):
@@ -856,7 +860,7 @@ class Torrent():
         elif 'length' in info:
             # Validate info as singlefile torrent
             utils.assert_type(md, ('info', 'length'), (int, float), must_exist=True)
-            utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
+            # utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
 
             if self.path is not None:
                 # Check if filepath actually points to a file
@@ -876,7 +880,7 @@ class Torrent():
                 utils.assert_type(md, ('info', 'files', i), (dict,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'length'), (int, float), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
-                utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
+                # utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
                 for j,item in enumerate(fileinfo['path']):
                     utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
 
@@ -1236,11 +1240,11 @@ class Torrent():
             for attr in ('creation_date', 'private'):
                 setattr(torrent, attr, getattr(torrent, attr))
 
-            # Auto-set 'include_md5'
-            info = torrent.metainfo['info']
-            torrent.include_md5 = ('length' in info and 'md5sum' in info) or \
-                                  ('files' in info and all('md5sum' in fileinfo
-                                                           for fileinfo in info['files']))
+            # # Auto-set 'include_md5'
+            # info = torrent.metainfo['info']
+            # torrent.include_md5 = ('length' in info and 'md5sum' in info) or \
+            #                       ('files' in info and all('md5sum' in fileinfo
+            #                                                for fileinfo in info['files']))
 
             if validate:
                 torrent.validate()

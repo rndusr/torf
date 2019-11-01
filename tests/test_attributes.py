@@ -3,7 +3,7 @@ import torf
 import pytest
 from unittest.mock import patch
 import os
-from hashlib import md5
+# from hashlib import md5
 
 
 def test_path_doesnt_exist(torrent, tmpdir):
@@ -24,7 +24,8 @@ def test_path_reset(torrent, singlefile_content, multifile_content):
     assert torrent.metainfo['info']['private'] == True
     torrent.path = None
     assert torrent.metainfo['info']['private'] == True
-    for key in ('piece length', 'pieces', 'name', 'length', 'md5sum', 'files'):
+    # for key in ('piece length', 'pieces', 'name', 'length', 'md5sum', 'files'):
+    for key in ('piece length', 'pieces', 'name', 'length', 'files'):
         assert key not in torrent.metainfo['info']
 
 def test_path_switch_from_singlefile_to_multifile(torrent, singlefile_content, multifile_content):
