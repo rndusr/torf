@@ -21,6 +21,12 @@
 """
 High-level, flexible torrent file and magnet link handling
 """
+import logging
+def enable_debugging():
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+
+def debug(msg):
+    logging.debug(msg)
 
 from ._version import __version__
 from ._errors import *
