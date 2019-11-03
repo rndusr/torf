@@ -243,12 +243,12 @@ class CollectorWorker(Worker):
             try:
                 debug(f'collector: Getting from {hash_queue}')
                 piece_index, piece_hash, filepath = hash_queue.get()
-                debug(f'collector: Got piece hash {piece_index} from {hash_queue}')
+                debug(f'collector: Got piece hash {piece_index} of file {filepath} from {hash_queue}')
             except QueueExhausted:
                 debug(f'collector: {hash_queue} is exhausted')
                 break
             else:
-                debug(f'collector: Collected piece hash of piece {piece_index}')
+                debug(f'collector: Collected piece hash of piece {piece_index} of {filepath}')
                 hashes_unsorted.append((piece_index, piece_hash))
                 if callback:
                     callback(filepath, len(hashes_unsorted), piece_index, piece_hash)
