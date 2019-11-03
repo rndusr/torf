@@ -165,7 +165,7 @@ def test_multifile_generate_with_callback_interval(multifile_content, monkeypatc
 
 def test_callback_cancels(multifile_content):
     hashed_pieces = []
-    def callback(torrent, filepath, pieces_done, pieces_total):
+    def callback(torrent, filepath, pieces_done, pieces_total, piece_index, piece_hash):
         hashed_pieces.append(pieces_done)
         # Cancel after 50 % of the pieces are hashed
         if pieces_done / pieces_total > 0.5:

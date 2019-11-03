@@ -100,7 +100,7 @@ class ContentError(TorfError):
     """On-disk data does not match hashes in metainfo"""
     def __init__(self, piece_index, piece_size, files):
         self._errno = errno.EIO
-        msg = f'Unexpected bytes in piece {piece_index+1}'
+        msg = f'Corruption in piece {piece_index+1}'
 
         if len(files) > 1:
             # Find the slice in the whole stream of files that contains the

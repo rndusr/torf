@@ -27,11 +27,13 @@ def test_verify__file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent)
 
         # With callback
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert str(path) == str('nonexisting/path')
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             assert str(exc) == 'nonexisting/path: No such file or directory'
             return None
         cb.side_effect = assert_call
@@ -60,10 +62,12 @@ def test_verify__file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
 
         # With callback
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             if cb.call_count == 1:
                 assert str(path) == str(content_file1)
                 assert str(exc) == f'{content_file1}: No such file or directory'
@@ -91,10 +95,12 @@ def test_verify__file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torren
 
         # With callback
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             assert str(path) == str(content_path)
             assert str(exc) == f'{content_path}: Unexpected file size: 14 instead of 9 bytes'
             return None
@@ -124,10 +130,12 @@ def test_verify__file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent
 
         # With callback
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             if cb.call_count == 1:
                 assert str(path) == str(content_file2)
                 assert str(exc) == f'{content_file2}: Unexpected file size: 9 instead of 15 bytes'
@@ -158,10 +166,12 @@ def test_verify__path_is_directory_and_torrent_contains_single_file(tmpdir, crea
 
         # With callback
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             assert str(path) == str(content_path)
             assert str(exc) == f'{content_path}: Is a directory'
             return None
@@ -200,10 +210,12 @@ def test_verify__parent_path_is_unreadable(tmpdir, create_torrent):
 
             # With callback
             cb = mock.MagicMock()
-            def assert_call(t, path, pieces_done, pieces_total, exc):
+            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
                 assert t == torrent
                 assert pieces_done == 0
                 assert pieces_total == torrent.pieces
+                assert piece_index == 0
+                assert piece_hash is None
                 if cb.call_count == 1:
                     assert str(path) == str(content_file1)
                     assert str(exc) == f'{content_file1}: No such file or directory'
@@ -240,10 +252,12 @@ def test_verify__allow_different_name_argument_with_singlefile_torrent(tmpdir, c
         # With callback
         # allow_different_name=True
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == cb.call_count
             assert pieces_total == torrent.pieces
+            assert 0 <= piece_index <= pieces_total - 1
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
             assert str(path) == str(new_content_file)
             assert exc == None
             return None
@@ -253,10 +267,12 @@ def test_verify__allow_different_name_argument_with_singlefile_torrent(tmpdir, c
 
         # allow_different_name=False
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             assert str(path) == str(content_file)
             assert str(exc) == f'{content_file}: No such file or directory'
             return None
@@ -290,11 +306,13 @@ def test_verify__allow_different_name_argument_with_multifile_torrent(tmpdir, cr
         # With callback
         # allow_different_name=True
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == cb.call_count
             assert pieces_total == torrent.pieces
-            if pieces_done <= 5:
+            assert 0 <= piece_index <= pieces_total - 1
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            if piece_index <= 4:
                 assert str(path) == os.path.join(new_content_path, 'file1.jpg')
             else:
                 assert str(path) == os.path.join(new_content_path, 'file2.jpg')
@@ -306,10 +324,12 @@ def test_verify__allow_different_name_argument_with_multifile_torrent(tmpdir, cr
 
         # allow_different_name=False
         cb = mock.MagicMock()
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_done == 0
             assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
             if cb.call_count == 1:
                 assert str(path) == str(content_file1)
                 assert str(exc) == f'{content_file1}: No such file or directory'
@@ -342,23 +362,25 @@ def test_verify__singlefile__hash_check(tmpdir, create_torrent):
                 # Without callback
                 with pytest.raises(torf.ContentError) as excinfo:
                     torrent.verify(content_path)
-                assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}$')
+                assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}$')
 
                 # With callback
                 cb = mock.MagicMock(return_value=None)
-                def assert_call(t, path, pieces_done, pieces_total, exc):
+                def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
                     assert t == torrent
                     assert pieces_total == torrent.pieces
                     assert str(path) == str(content_path)
-                    assert 1 <= pieces_done <= 4
-                    if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
-                    elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
-                    elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
-                    elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done}'
+                    assert 1 <= pieces_done <= pieces_total
+                    assert 0 <= piece_index <= pieces_total - 1
+                    assert type(piece_hash) is bytes and len(piece_hash) == 20
+                    if piece_index == 0 and corrupt_piece_index == 0:
+                        assert str(exc) == f'Corruption in piece {piece_index+1}'
+                    elif piece_index == 1 and corrupt_piece_index == 1:
+                        assert str(exc) == f'Corruption in piece {piece_index+1}'
+                    elif piece_index == 2 and corrupt_piece_index == 2:
+                        assert str(exc) == f'Corruption in piece {piece_index+1}'
+                    elif piece_index == 3 and corrupt_piece_index == 3:
+                        assert str(exc) == f'Corruption in piece {piece_index+1}'
                     else:
                         assert exc is None
                     return None
@@ -398,34 +420,36 @@ def test_verify__multifile__hash_check__pieces_align_to_files(tmpdir, create_tor
                 # Without callback
                 with pytest.raises(torf.ContentError) as excinfo:
                     torrent.verify(content_path)
-                assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {file}$')
+                assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {file}$')
 
                 # With callback
                 cb = mock.MagicMock(return_value=None)
-                def assert_call(t, path, pieces_done, pieces_total, exc):
+                def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
                     assert t == torrent
                     assert pieces_total == torrent.pieces
-
                     assert 1 <= pieces_done <= 6
-                    if pieces_done == 1:
+
+                    assert type(piece_hash) is bytes and len(piece_hash) == 20
+                    assert 0 <= piece_index <= 5
+                    if piece_index == 0:
                         assert str(path) == str(content_file1)
-                    elif 2 <= pieces_done <= 3:
+                    elif 1 <= piece_index <= 2:
                         assert str(path) == str(content_file2)
-                    elif 4 <= pieces_done <= 6:
+                    elif 3 <= piece_index <= 5:
                         assert str(path) == str(content_file3)
 
-                    if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file1}'
-                    elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file2}'
-                    elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file2}'
-                    elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file3}'
-                    elif pieces_done == 5 and corrupt_piece_index == 4:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file3}'
-                    elif pieces_done == 6 and corrupt_piece_index == 5:
-                        assert str(exc) == f'Unexpected bytes in piece {pieces_done} in {content_file3}'
+                    if piece_index == 0 and corrupt_piece_index == 0:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file1}'
+                    elif piece_index == 1 and corrupt_piece_index == 1:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+                    elif piece_index == 2 and corrupt_piece_index == 2:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+                    elif piece_index == 3 and corrupt_piece_index == 3:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
+                    elif piece_index == 4 and corrupt_piece_index == 4:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
+                    elif piece_index == 5 and corrupt_piece_index == 5:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     else:
                         assert exc is None
 
@@ -471,52 +495,54 @@ def test_verify__multifile__hash_check__pieces_dont_align_to_files(tmpdir, creat
                 with pytest.raises(torf.ContentError) as excinfo:
                     torrent.verify(content_path)
                 if corrupt_piece_index == 0:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file1}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file1}$')
                 elif corrupt_piece_index == 1:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          f'at least one of these files is corrupt: {content_file1}, {content_file2}$')
                 elif corrupt_piece_index == 2:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file2}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file2}$')
                 elif corrupt_piece_index == 3:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          f'at least one of these files is corrupt: {content_file2}, {content_file3}$')
                 elif corrupt_piece_index == 4:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          f'at least one of these files is corrupt: {content_file2}, {content_file3}$')
                 else:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file3}$')
 
                 # With callback
                 cb = mock.MagicMock()
-                def assert_call(t, path, pieces_done, pieces_total, exc):
+                def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
                     assert t == torrent
                     assert pieces_total == torrent.pieces
-
                     assert 1 <= pieces_done <= 7
-                    if pieces_done == 1:
+
+                    assert type(piece_hash) is bytes and len(piece_hash) == 20
+                    assert 0 <= piece_index <= 6
+                    if piece_index == 0:
                         assert str(path) == str(content_file1)
-                    elif pieces_done == 2:
+                    elif piece_index == 1:
                         assert str(path) == str(content_file2)
-                    elif pieces_done == 3:
+                    elif piece_index == 2:
                         assert str(path) == str(content_file2)
                     else:
                         assert str(path) == str(content_file3)
 
-                    if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file1}'
-                    elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    if piece_index == 0 and corrupt_piece_index == 0:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file1}'
+                    elif piece_index == 1 and corrupt_piece_index == 1:
+                        assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             f'at least one of these files is corrupt: {content_file1}, {content_file2}')
-                    elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file2}'
-                    elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    elif piece_index == 2 and corrupt_piece_index == 2:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+                    elif piece_index == 3 and corrupt_piece_index == 3:
+                        assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             f'at least one of these files is corrupt: {content_file2}, {content_file3}')
                     # NOTE: Piece index 4 is never corrupted because file3.jpg is so big.
-                    elif pieces_done == 6 and corrupt_piece_index == 5:
-                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}'
-                    elif pieces_done == 7 and corrupt_piece_index == 6:
-                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file3}'
+                    elif piece_index == 5 and corrupt_piece_index == 5:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
+                    elif piece_index == 6 and corrupt_piece_index == 6:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     else:
                         assert exc is None
 
@@ -572,46 +598,48 @@ def test_verify__multifile__hash_check__one_piece_covers_multiple_files(tmpdir, 
                 with pytest.raises(torf.ContentError) as excinfo:
                     torrent.verify(content_path)
                 if corrupt_piece_index == 0:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          'at least one of these files is corrupt: '
                                          f'{content_file1}, {content_file2}$')
                 elif corrupt_piece_index == 1:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          'at least one of these files is corrupt: '
                                          f'{content_file2}, {content_file3}, {content_file4}$')
                 elif corrupt_piece_index == 2:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file4}$')
                 else:
-                    assert excinfo.match(f'^Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file4}$')
 
                 # With callback
                 cb = mock.MagicMock()
-                def assert_call(t, path, pieces_done, pieces_total, exc):
+                def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
                     assert t == torrent
                     assert pieces_total == torrent.pieces
                     assert pieces_done == cb.call_count
 
-                    if cb.call_count == 1:
+                    assert type(piece_hash) is bytes and len(piece_hash) == 20
+                    assert 0 <= piece_index <= pieces_total
+                    if piece_index == 0:
                         assert str(path) == str(content_file2)
-                    elif cb.call_count == 2:
+                    elif piece_index == 1:
                         assert str(path) == str(content_file4)
-                    elif cb.call_count == 3:
+                    elif piece_index == 2:
                         assert str(path) == str(content_file4)
                     else:
                         assert str(path) == str(content_file4)
 
-                    if pieces_done == 1 and corrupt_piece_index == 0:
-                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    if piece_index == 0 and corrupt_piece_index == 0:
+                        assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             'at least one of these files is corrupt: '
                                             f'{content_file1}, {content_file2}')
-                    elif pieces_done == 2 and corrupt_piece_index == 1:
-                        assert str(exc) == (f'Unexpected bytes in piece {corrupt_piece_index+1}, '
+                    elif piece_index == 1 and corrupt_piece_index == 1:
+                        assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             'at least one of these files is corrupt: '
                                             f'{content_file2}, {content_file3}, {content_file4}')
-                    elif pieces_done == 3 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}'
-                    elif pieces_done == 4 and corrupt_piece_index == 3:
-                        assert str(exc) == f'Unexpected bytes in piece {corrupt_piece_index+1} in {content_file4}'
+                    elif piece_index == 2 and corrupt_piece_index == 2:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file4}'
+                    elif piece_index == 3 and corrupt_piece_index == 3:
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file4}'
                     else:
                         assert exc is None
 
@@ -635,19 +663,18 @@ def test_verify__callback_is_called_at_intervals(tmpdir, create_torrent, monkeyp
                             mock.MagicMock(side_effect=range(1, 100)))
 
         cb = mock.MagicMock()
-        exp_pieces_done = list(range(1, 20, 2)) + [20]
-        exp_call_count = len(exp_pieces_done)
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert str(path) == str(content_file)
-            assert pieces_done == exp_pieces_done.pop(0)
+            assert 1 <= pieces_done <= pieces_total
             assert pieces_total == torrent.pieces
+            assert 0 <= piece_index <= pieces_total - 1
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
             assert exc is None
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_file, callback=cb, interval=2) == True
-        assert cb.call_count == exp_call_count
-        assert len(exp_pieces_done) == 0
+        assert cb.call_count == (torrent.pieces / 2) + 1
 
 def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torrent, monkeypatch):
     piece_size = torf.Torrent.piece_size_min
@@ -671,19 +698,18 @@ def test_verify__callback_interval_is_ignored_with_exception(tmpdir, create_torr
         content_file.write_binary(corrupt_data)
 
         cb = mock.MagicMock()
-        exp_pieces_done = [1, 4, 7, 8, 11, 14, 17, 20, 23, 25, 28, 30]
-        exp_call_count = len(exp_pieces_done)
-        def assert_call(t, path, pieces_done, pieces_total, exc):
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert str(path) == str(content_file)
-            assert pieces_done == exp_pieces_done.pop(0)
+            assert 1 <= pieces_done <= pieces_total
             assert pieces_total == torrent.pieces
-            if pieces_done in tuple(i+1 for i in errpos):
+            assert 0 <= piece_index <= pieces_total - 1
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            if piece_index in errpos:
                 assert exc is not None
             else:
                 assert exc is None
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_file, callback=cb, interval=3) == False
-        assert cb.call_count == exp_call_count
-        assert len(exp_pieces_done) == 0
+        assert cb.call_count == 12

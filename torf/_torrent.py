@@ -67,7 +67,8 @@ class Torrent():
 
     Hash pieces and update progress once per second:
 
-    >>> def callback(torrent, filepath, pieces_done, pieces_total):
+    >>> def callback(torrent, filepath, pieces_done, pieces_total,
+    ...              piece_index, piece_hash):
     ...     print(f'{pieces_done/pieces_total*100:3.0f} % done')
     >>> success = torrent.generate(callback, interval=1)
       1 % done
@@ -704,8 +705,8 @@ class Torrent():
         pieces are hashed successfully.
 
         :param callable callback: Callable with signature ``(torrent, filepath,
-            pieces_done, pieces_total)``; if `callback` returns anything else
-            than None, hashing is canceled
+            pieces_done, pieces_total, piece_index, piece_hash)``; if `callback`
+            returns anything else than None, hashing is canceled
         :param float interval: Minimum number of seconds between calls to
             `callback` (if 0, `callback` is called once per piece)
 
@@ -746,7 +747,7 @@ class Torrent():
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
                                cancel=cancel, torrent=self, pieces_total=self.pieces):
             if (cancel is not None and
-                cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
+                cancel(cb_args=(torrent, filepath, pieces_done, pieces_total, piece_index, piece_hash),
                        # Always call callback after the last piece was hashed
                        force_callback=pieces_done >= pieces_total)):
                     debug('### Status reporter is aborting')
