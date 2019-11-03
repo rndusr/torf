@@ -734,14 +734,14 @@ class Torrent():
         hash_workers_count = _NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
-        reader_thread = generate.ReadWorker(filepaths=self.filepaths,
-                                            piece_size=self.piece_size,
-                                            queue_size=hash_workers_count*3)
+        reader = generate.Reader(filepaths=self.filepaths,
+                                 piece_size=self.piece_size,
+                                 queue_size=hash_workers_count*3)
 
-        # Pool of workers that pull from reader_thread's piece queue, calculate
-        # the hashes, and quickly offload the results to a hash queue
+        # Pool of workers that pull from reader's piece queue, calculate the
+        # hashes, and quickly offload the results to a hash queue
         hasher_threadpool = generate.HashWorkerPool(hash_workers_count,
-                                                    reader_thread.piece_queue)
+                                                    reader.piece_queue)
 
         # Pull from the hash queue; also call callback and maybe stop everything
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
@@ -751,23 +751,19 @@ class Torrent():
                        # Always call callback after the last piece was hashed
                        force_callback=pieces_done >= pieces_total)):
                     debug('### Status reporter is aborting')
-                    reader_thread.stop()
+                    reader.stop()
                     hasher_threadpool.stop()
                     collector_thread.stop()
         collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
                                                     callback=collector_callback)
 
         try:
-            debug(f'### joining reader')
-            reader_thread.join()
+            debug(f'### Reading')
+            reader.read()
         except BaseException as e:
             debug(f'### Caught exception from reader: {e!r}')
             import traceback
             debug(traceback.format_exc())
-
-            debug(f'### Stopping reader')
-            reader_thread.stop()
-            debug(f'### Done stopping reader')
 
             debug(f'### Stopping hashers')
             hasher_threadpool.stop()

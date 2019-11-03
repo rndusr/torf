@@ -111,15 +111,14 @@ class Worker():
         return self
 
 
-class ReadWorker(Worker):
+class Reader():
     def __init__(self, filepaths, piece_size, queue_size):
         self._filepaths = tuple(filepaths)
         self._piece_size = piece_size
         self._piece_queue = ExhaustQueue(name='pieces', maxsize=queue_size)
         self._stop = False
-        super().__init__(name='reader', worker=self._run)
 
-    def _run(self):
+    def read(self):
         try:
             if len(self._filepaths) == 1:
                 self._run_singlefile(self._filepaths[0], self._piece_size)
@@ -132,13 +131,13 @@ class ReadWorker(Worker):
 
     def _run_singlefile(self, filepath, piece_size):
         piece_queue = self._piece_queue
-        debug(f'{self.name}: Reading single file from {filepath}')
+        debug(f'reader: Reading single file from {filepath}')
         for piece_index,piece in enumerate(utils.read_chunks(filepath, piece_size)):
             item = (piece_index, piece, filepath)
-            debug(f'{self.name}: Sending hash piece {piece_index} to {piece_queue}')
+            debug(f'reader: Sending hash piece {piece_index} to {piece_queue}')
             piece_queue.put(item)
             if self._stop:
-                debug(f'{self.name}: Stopped reading after {piece_index+1} pieces')
+                debug(f'reader: Stopped reading after {piece_index+1} pieces')
                 return
 
     def _run_multifile(self, filepaths, piece_size):
@@ -146,7 +145,7 @@ class ReadWorker(Worker):
         piece_index = 0
         piece_queue = self._piece_queue
         for filepath in filepaths:
-            debug(f'{self.name}: Reading from next file: {filepath}')
+            debug(f'reader: Reading from next file: {filepath}')
             for chunk in utils.read_chunks(filepath, piece_size):
                 # Concatenate chunks across files; if we have enough for a new
                 # piece, put it in piece_queue
@@ -154,21 +153,21 @@ class ReadWorker(Worker):
                 if len(piece_buffer) >= piece_size:
                     piece = piece_buffer[:piece_size]
                     del piece_buffer[:piece_size]
-                    debug(f'{self.name}: Sending piece {piece_index} to {piece_queue}')
+                    debug(f'reader: Sending piece {piece_index} to {piece_queue}')
                     piece_queue.put((piece_index, piece, filepath))
                     piece_index += 1
                 if self._stop:
-                    debug(f'{self.name}: Stopped reading after {piece_index+1} pieces')
+                    debug(f'reader: Stopped reading after {piece_index+1} pieces')
                     return
 
         # Unless the torrent's total size is divisible by its piece size, there
         # are some bytes left in piece_buffer
         if len(piece_buffer) > 0:
-            debug(f'{self.name}: Sending piece {piece_index} to {piece_queue}')
+            debug(f'reader: Sending piece {piece_index} to {piece_queue}')
             piece_queue.put((piece_index, piece_buffer, filepath))
 
     def stop(self):
-        debug(f'{self.name}: Setting stop flag')
+        debug(f'reader: Setting stop flag')
         self._stop = True
         return self
 
