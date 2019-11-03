@@ -936,8 +936,9 @@ class Torrent():
         :param bool allow_different_name: Whether `path` must end with
             :attr:`name`
         :param callable callback: Callable with signature ``(torrent, filepath,
-            pieces_done, pieces_total, exception)``; if `callback` returns
-            anything else than ``None``, verification is stopped
+            pieces_done, pieces_total, piece_index, piece_hash, exception)``; if
+            `callback` returns anything else than ``None``, verification is
+            stopped
         :param float interval: Minimum number of seconds between calls to
             `callback` (if 0, `callback` is called once per piece)
 
@@ -994,7 +995,7 @@ class Torrent():
             # Check if path exists
             if not os.path.exists(fs_filepath):
                 exception = error.PathNotFoundError(fs_filepath)
-                if cancel(cb_args=(self, fs_filepath, 0, pieces_total, exception),
+                if cancel(cb_args=(self, fs_filepath, 0, pieces_total, 0, None, exception),
                           force_callback=True):
                     break
             else:
@@ -1004,7 +1005,7 @@ class Torrent():
                 # PathNotFoundError when "foo" or "foo/bar" is a file.
                 if self.mode == 'singlefile' and os.path.isdir(path):
                     exception = error.IsDirectoryError(fs_filepath)
-                    if cancel(cb_args=(self, fs_filepath, 0, pieces_total, exception),
+                    if cancel(cb_args=(self, fs_filepath, 0, pieces_total, 0, None, exception),
                               force_callback=True):
                         break
                 else:
@@ -1013,7 +1014,7 @@ class Torrent():
                     expected_size = self.partial_size(torrent_filepath)
                     if fs_filepath_size != expected_size:
                         exception = error.FileSizeError(fs_filepath, fs_filepath_size, expected_size)
-                        if cancel(cb_args=(self, fs_filepath, 0, pieces_total, exception),
+                        if cancel(cb_args=(self, fs_filepath, 0, pieces_total, 0, None, exception),
                                   force_callback=True):
                             break
 
@@ -1028,56 +1029,57 @@ class Torrent():
         # contents, hash them and compare with the hashes stored in
         # metainfo['info']['pieces'].
 
-        # Split pieces into 20-byte chunks (the SHA1 hashes)
+        # Read piece_size'd chunks from disk and push them to queue for hashing
+        hash_workers_count = _NCORES
+        reader = generate.Reader(filepaths=(x[0] for x in fs_filepaths),
+                                 piece_size=self.piece_size,
+                                 queue_size=hash_workers_count*3)
+
+        # Pool of workers that pull from reader_thread's piece queue, calculate
+        # the hashes, and quickly offload the results to a hash queue
+        hasher_threadpool = generate.HashWorkerPool(hash_workers_count,
+                                                    reader.piece_queue)
+
+        def stop():
+            reader.stop()
+            hasher_threadpool.stop()
+            collector_thread.stop()
+
+        # Pull from the hash queue; also call callback and maybe stop everything
         pieces = self.metainfo['info']['pieces']
-        exp_hashes = [pieces[pos:pos + 20]
-                      for pos in range(0, len(pieces), 20)]
-        piece_size = self.piece_size
-        piece_buffer = bytearray()
-        def check_piece(piece):
-            # Check hash of `piece`, set the local variable `exception` if the
-            # check fails and return whether the callback wants us to stop
-            # verifying.
+        def collector_callback(filepath, pieces_done, piece_index, piece_hash,
+                               cancel=cancel, torrent=self, pieces_total=self.pieces,
+                               piece_size=self.piece_size,
+                               exp_hashes=tuple(pieces[pos:pos + 20]
+                                                for pos in range(0, len(pieces), 20))):
             nonlocal exception
-            if sha1(piece).digest() != exp_hashes.pop(0):
-                exception = error.ContentError(pieces_done-1, piece_size,
+            if piece_hash != exp_hashes[piece_index]:
+                exception = error.ContentError(piece_index, piece_size,
                                                tuple(x[0] for x in fs_filepaths))
-                if cancel(cb_args=(self, fs_filepath, pieces_done, pieces_total, exception),
+                if cancel(cb_args=(self, filepath, pieces_done, pieces_total,
+                                   piece_index, piece_hash, exception),
                           force_callback=True):
-                    return False
+                    debug('### Status reporter is aborting')
+                    stop()
             else:
-                if cancel(cb_args=(self, fs_filepath, pieces_done, pieces_total, None),
+                if cancel(cb_args=(self, filepath, pieces_done, pieces_total,
+                                   piece_index, piece_hash, None),
                           # Always call callback after the last piece was hashed
                           force_callback=pieces_done >= pieces_total):
-                    return False
-            return True
+                    stop()
+        collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
+                                                    callback=collector_callback)
 
-        # Hack to break out of nested loop
-        class _Break(Exception): pass
         try:
-            for fs_filepath,torrent_filepath in fs_filepaths:
-                # Read piece_sized chunks across files until piece_buffer is big
-                # enough for a new piece
-                for chunk in utils.read_chunks(fs_filepath, piece_size):
-                    piece_buffer.extend(chunk)
-                    if len(piece_buffer) >= piece_size:
-                        piece = piece_buffer[:piece_size]
-                        del piece_buffer[:piece_size]
-                        pieces_done += 1
-                        # Report progress and maybe error
-                        if not check_piece(piece):
-                            raise _Break()
-        except _Break:
-            pass
+            reader.read()
+        except BaseException:
+            stop()
+            raise
         else:
-            # Unless self.size is evenly divisible by self.piece_size, there is
-            # some data left in piece_buffer
-            if len(piece_buffer) > 0:
-                pieces_done += 1
-                check_piece(piece_buffer)
+            hasher_threadpool.join()
+            collector_thread.join()
 
-        # Finally, raise exception unless the callback function already handled
-        # it
+        # Raise exception unless the callback function already handled it
         if exception:
             if callback:
                 return False
