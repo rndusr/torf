@@ -144,11 +144,14 @@ def test_callback_cancels(multifile_content):
 
 
 def test_callback_raises_exception(singlefile_content):
-    def callback(torrent, filepath, pieces_done, pieces_total):
-        raise Exception('Argh!')
-
-    t = torf.Torrent(singlefile_content.path)
-    with pytest.raises(Exception) as excinfo:
-        t.generate(callback=callback)
-    assert excinfo.match(f'^Argh!$')
-    assert not t.is_ready
+    with mock.patch('torf._generate.sha1') as sha1_mock:
+        cb = mock.MagicMock(side_effect=Exception('Argh!'))
+        t = torf.Torrent(singlefile_content.path)
+        with pytest.raises(Exception) as excinfo:
+            t.generate(callback=cb)
+        assert excinfo.match(f'^Argh!$')
+        cb.assert_called_once_with(t, singlefile_content.path, 1, singlefile_content.exp_attrs.pieces)
+        # The pool of hashers should be stopped before all pieces are hashed
+        assert sha1_mock.call_count < singlefile_content.exp_attrs.pieces
+        # TODO: Add a similar test for the reader.
+        assert not t.is_ready
