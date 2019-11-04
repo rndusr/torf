@@ -281,6 +281,7 @@ class CancelCallback():
         self._callback = callback
         self._interval = interval
         self._prev_callback_time = None
+        self._cancel_callbacks = []
 
     def __call__(self, cb_args, force_callback=False):
         now = time.monotonic()
@@ -291,4 +292,21 @@ class CancelCallback():
             # Some special circumstance (e.g. exception during Torrent.verify())
             force_callback):
             self._prev_callback_time = now
-            return self._callback(*cb_args)
+            try:
+                if self._callback(*cb_args) is not None:
+                    debug(f'{now}: {self._callback} cancelled')
+                    self._cancelled()
+                    return True
+                return False
+            except BaseException as e:
+                debug(f'{now}: {self._callback} raised {e!r}')
+                self._cancelled()
+                raise
+
+    def _cancelled(self):
+        for cb in self._cancel_callbacks:
+            debug(f'callback: calling {cb.__qualname__}')
+            cb()
+
+    def on_cancel(self, *funcs):
+        self._cancel_callbacks.extend(funcs)
