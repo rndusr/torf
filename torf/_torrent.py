@@ -20,7 +20,6 @@
 
 from bencoder import bencode, bdecode, BTFailure
 from base64 import b32encode
-# from hashlib import sha1, md5
 from hashlib import sha1
 from datetime import datetime
 import os
@@ -95,7 +94,6 @@ class Torrent():
                  exclude=(), trackers=(), webseeds=(), httpseeds=(),
                  private=False, comment=None, source=None,
                  creation_date=None, created_by='%s/%s' % (_PACKAGE_NAME, __version__),
-                 # piece_size=None, include_md5=False, randomize_infohash=False):
                  piece_size=None, randomize_infohash=False):
         self._metainfo = {}
         self.trackers = trackers
@@ -106,7 +104,6 @@ class Torrent():
         self.creation_date = creation_date
         self.created_by = created_by
         self.source = source
-        # self.include_md5 = include_md5
         self.randomize_infohash = randomize_infohash
         self.exclude = exclude
         self.path = path
@@ -147,7 +144,6 @@ class Torrent():
 
         If set to ``None``, the following keys are removed (if present) from
         :attr:`metainfo`\ ``['info']``: ``piece length``, ``pieces``, ``name``,
-        # ``length``, ``md5sum``, ``files``
         ``length``, ``files``
 
         :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
@@ -161,7 +157,6 @@ class Torrent():
         # Unset path and remove related metainfo
         if hasattr(self, '_path'):
             delattr(self, '_path')
-        # for key in ('piece length', 'pieces', 'name', 'length', 'md5sum', 'files'):
         for key in ('piece length', 'pieces', 'name', 'length', 'files'):
             info.pop(key, None)
 
@@ -637,18 +632,6 @@ class Torrent():
         if value != getattr(self, '_exclude', None):
             self._exclude = value
             self.path = self.path  # Re-filter file paths
-
-    # @property
-    # def include_md5(self):
-    #     """
-    #     Whether to include MD5 sums for each file
-
-    #     This takes only effect when :meth:`generate` is called.
-    #     """
-    #     return getattr(self, '_include_md5', False)
-    # @include_md5.setter
-    # def include_md5(self, value):
-    #     self._include_md5 = bool(value)
 
     @property
     def infohash(self):
@@ -1230,12 +1213,6 @@ class Torrent():
             # (e.g. int -> datetime)
             for attr in ('creation_date', 'private'):
                 setattr(torrent, attr, getattr(torrent, attr))
-
-            # # Auto-set 'include_md5'
-            # info = torrent.metainfo['info']
-            # torrent.include_md5 = ('length' in info and 'md5sum' in info) or \
-            #                       ('files' in info and all('md5sum' in fileinfo
-            #                                                for fileinfo in info['files']))
 
             if validate:
                 torrent.validate()

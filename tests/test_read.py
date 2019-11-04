@@ -66,31 +66,6 @@ def test_multiple_trackers(valid_singlefile_metainfo, tmpdir):
                           in valid_singlefile_metainfo[b'announce-list']]
 
 
-# def test_include_md5_singlefile(valid_singlefile_metainfo):
-#     valid_singlefile_metainfo[b'info'][b'md5sum'] = b'd8e8fca2dc0f896fd7cb4cb0031ba249'
-#     fo = io.BytesIO(bencode(valid_singlefile_metainfo))
-#     t = torf.Torrent.read_stream(fo)
-#     assert t.include_md5 is True
-
-#     valid_singlefile_metainfo[b'info'].pop(b'md5sum', None)
-#     fo = io.BytesIO(bencode(valid_singlefile_metainfo))
-#     t = torf.Torrent.read_stream(fo)
-#     assert t.include_md5 is False
-
-# def test_include_md5_multifile(valid_multifile_metainfo):
-#     for fileinfo in valid_multifile_metainfo[b'info'][b'files']:
-#         fileinfo[b'md5sum'] = b'd8e8fca2dc0f896fd7cb4cb0031ba249'
-#     fo = io.BytesIO(bencode(valid_multifile_metainfo))
-#     t = torf.Torrent.read_stream(fo)
-#     assert t.include_md5 is True
-
-#     for fileinfo in valid_multifile_metainfo[b'info'][b'files']:
-#         fileinfo.pop(b'md5sum', None)
-#     fo = io.BytesIO(bencode(valid_multifile_metainfo))
-#     t = torf.Torrent.read_stream(fo)
-#     assert t.include_md5 is False
-
-
 def test_validate_missing_info():
     data = OrderedDict([
         (b'foo', b'bar'),

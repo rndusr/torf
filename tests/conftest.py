@@ -111,7 +111,6 @@ def generate_random_Torrent_args():
             'created_by'    : _randstr(),
             'source'        : _randstr(),
             'piece_size'    : random.choice((None, 2**14, 2**15, 2**16, 2**17, 2**18, 2**19, 2**20)),
-            # 'include_md5'   : random.choice((True, False)),
         }
 
         # Remove random items from args
