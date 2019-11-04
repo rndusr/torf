@@ -134,7 +134,7 @@ class Reader():
         debug(f'reader: Reading single file from {filepath}')
         for piece_index,piece in enumerate(utils.read_chunks(filepath, piece_size)):
             item = (piece_index, piece, filepath)
-            debug(f'reader: Sending hash piece {piece_index} to {piece_queue}')
+            debug(f'reader: Sending piece {piece_index} to {piece_queue}')
             piece_queue.put(item)
             if self._stop:
                 debug(f'reader: Stopped reading after {piece_index+1} pieces')
