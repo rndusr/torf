@@ -728,14 +728,23 @@ class Torrent():
         # Pull from the hash queue; also call callback and maybe stop everything
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
                                cancel=cancel, torrent=self, pieces_total=self.pieces):
-            if (cancel is not None and
-                cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
-                       # Always call callback after the last piece was hashed
-                       force_callback=pieces_done >= pieces_total)):
-                    debug('### Status reporter is aborting')
+            if cancel is not None:
+                try:
+                    stop = cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
+                                  # Always call callback after the last piece was hashed
+                                  force_callback=pieces_done >= pieces_total)
+                except BaseException as e:
+                    debug(f'### Status reporter crashed: {e!r}')
                     reader.stop()
                     hasher_threadpool.stop()
                     collector_thread.stop()
+                    raise
+                else:
+                    if stop:
+                        debug('### Status reporter is aborting')
+                        reader.stop()
+                        hasher_threadpool.stop()
+                        collector_thread.stop()
         collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
                                                     callback=collector_callback)
 
