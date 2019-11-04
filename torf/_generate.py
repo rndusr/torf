@@ -178,8 +178,8 @@ class Reader():
 
 class HashWorkerPool():
     def __init__(self, workers_count, piece_queue):
-        self.piece_queue = piece_queue
-        self.hash_queue = ExhaustQueue(name='hashes')
+        self._piece_queue = piece_queue
+        self._hash_queue = ExhaustQueue(name='hashes')
         self._workers_count = workers_count
         self._stop = False
         self._name_counter = _count().__next__
@@ -193,8 +193,8 @@ class HashWorkerPool():
 
     def _worker(self):
         name = self._get_new_worker_name()
-        piece_queue = self.piece_queue
-        hash_queue = self.hash_queue
+        piece_queue = self._piece_queue
+        hash_queue = self._hash_queue
         while True:
             try:
                 debug(f'{name}: Getting from {piece_queue}')
@@ -222,9 +222,13 @@ class HashWorkerPool():
         debug(f'hasherpool: Joining {self._workers_count} workers')
         self._pool.close()
         self._pool.join()
-        self.hash_queue.exhausted()
+        self._hash_queue.exhausted()
         debug(f'hasherpool: All workers joined')
         return self
+
+    @property
+    def hash_queue(self):
+        return self._hash_queue
 
 
 class CollectorWorker(Worker):
