@@ -838,7 +838,7 @@ class Torrent():
         elif 'length' in info:
             # Validate info as singlefile torrent
             utils.assert_type(md, ('info', 'length'), (int, float), must_exist=True)
-            # utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
+            utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
 
             if self.path is not None:
                 # Check if filepath actually points to a file
@@ -858,7 +858,7 @@ class Torrent():
                 utils.assert_type(md, ('info', 'files', i), (dict,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'length'), (int, float), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
-                # utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
+                utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
                 for j,item in enumerate(fileinfo['path']):
                     utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
 

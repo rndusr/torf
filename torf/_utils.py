@@ -31,9 +31,9 @@ import errno
 from . import _errors as error
 
 
-# _md5sum_regex = re.compile(r'^[0-9a-fA-F]{32}$')
-# def is_md5sum(value):
-#     return bool(_md5sum_regex.match(value))
+_md5sum_regex = re.compile(r'^[0-9a-fA-F]{32}$')
+def is_md5sum(value):
+    return bool(_md5sum_regex.match(value))
 
 
 def is_url(url):
