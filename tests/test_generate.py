@@ -141,3 +141,14 @@ def test_callback_cancels(multifile_content):
     assert success is False
     assert hashed_pieces[-1] > 0
     assert hashed_pieces[-1] < t.pieces
+
+
+def test_callback_raises_exception(singlefile_content):
+    def callback(torrent, filepath, pieces_done, pieces_total):
+        raise Exception('Argh!')
+
+    t = torf.Torrent(singlefile_content.path)
+    with pytest.raises(Exception) as excinfo:
+        t.generate(callback=callback)
+    assert excinfo.match(f'^Argh!$')
+    assert not t.is_ready
