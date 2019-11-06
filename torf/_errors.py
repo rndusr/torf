@@ -34,17 +34,41 @@ class URLError(TorfError):
     """Invalid URL"""
     def __init__(self, url):
         self._errno = errno.EINVAL
+        self._url = url
         super().__init__(f'{url}: Invalid URL')
+
+    @property
+    def url(self):
+        """The invalid URL"""
+        return self._url
 
 
 class PieceSizeError(TorfError):
     """Invalid piece size"""
     def __init__(self, size, min=None, max=None):
         self._errno = errno.EINVAL
+        self._size = size
+        self._min = min
+        self._max = max
         if min is not None and max is not None:
             super().__init__(f'Piece size must be between {min} and {max}: {size}')
         elif size is not None:
             super().__init__(f'Piece size must be a power of 2: {size}')
+
+    @property
+    def size(self):
+        """The invalid piece size"""
+        return self._size
+
+    @property
+    def min(self):
+        """Smallest allowed piece size or ``None``"""
+        return self._min
+
+    @property
+    def max(self):
+        """Largest allowed piece size or ``None``"""
+        return self._max
 
 
 class MetainfoError(TorfError):
@@ -58,48 +82,93 @@ class ParseError(TorfError):
     """Invalid bencoded metainfo"""
     def __init__(self, filepath=None):
         self._errno = errno.EINVAL
+        self._filepath = filepath
         if filepath is None:
             super().__init__('Invalid metainfo format')
         else:
             super().__init__(f'{filepath}: Invalid torrent file format')
+
+    @property
+    def filepath(self):
+        """Path of the offending torrent file or ``None``"""
+        return self._filepath
 
 
 class PathNotFoundError(TorfError):
     """Path does not exist"""
     def __init__(self, path):
         self._errno = errno.ENOENT
+        self._path = path
         super().__init__(f'{path}: {os.strerror(self._errno)}')
+
+    @property
+    def path(self):
+        """Path of the non-existing file or directory"""
+        return self._path
 
 
 class PathEmptyError(TorfError):
     """Empty file or directory or directory that contains only empty files"""
     def __init__(self, path):
         self._errno = errno.ENODATA
+        self._path = path
         if os.path.isfile(path):
             super().__init__(f'{path}: Empty file')
         else:
             super().__init__(f'{path}: Empty directory')
+
+    @property
+    def path(self):
+        """Path of the offending file or directory"""
+        return self._path
 
 
 class IsDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
     def __init__(self, path):
         self._errno = errno.EISDIR
+        self._path = path
         super().__init__(f'{path}: {os.strerror(self._errno)}')
+
+    @property
+    def path(self):
+        """Path of the offending directory"""
+        return self._path
 
 
 class FileSizeError(TorfError):
     """Unexpected file size"""
-    def __init__(self, file_path, actual_size, expected_size):
+    def __init__(self, filepath, actual_size, expected_size):
         self._errno = errno.EFBIG
-        super().__init__(f'{file_path}: Unexpected file size: '
+        self._filepath = filepath
+        self._actual_size = actual_size
+        self._expected_size = expected_size
+        super().__init__(f'{filepath}: Unexpected file size: '
                          f'{actual_size} instead of {expected_size} bytes')
+
+    @property
+    def filepath(self):
+        """Path of the offending file"""
+        return self._filepath
+
+    @property
+    def actual_size(self):
+        """Size as reported by the file system"""
+        return self._actual_size
+
+    @property
+    def expected_size(self):
+        """Size as specified in the metainfo"""
+        return self._expected_size
 
 
 class ContentError(TorfError):
     """On-disk data does not match hashes in metainfo"""
     def __init__(self, piece_index, piece_size, files):
         self._errno = errno.EIO
+        self._piece_index = piece_index
+        self._piece_size = piece_size
+        self._files = files
         msg = f'Corruption in piece {piece_index+1}'
 
         if len(files) > 1:
@@ -137,6 +206,21 @@ class ContentError(TorfError):
 
         super().__init__(msg)
 
+    @property
+    def piece_index(self):
+        """Index of the corrupt piece in the stream of concatenated files"""
+        return self._piece_index
+
+    @property
+    def piece_size(self):
+        """Potentially corrupt files"""
+        return self._piece_size
+
+    @property
+    def files(self):
+        """Size of the corrupt piece in bytes"""
+        return self._files
+
 
 class ReadError(TorfError):
     """Unreadable file or stream"""
@@ -151,8 +235,9 @@ class ReadError(TorfError):
 
     @property
     def path(self):
-        """File path that caused the error"""
+        """Path of the offending file or ``None``"""
         return self._path
+
 
 class WriteError(TorfError):
     """Unwritable file or stream"""
@@ -167,5 +252,5 @@ class WriteError(TorfError):
 
     @property
     def path(self):
-        """File path that caused the error"""
+        """Path of the offending file or ``None``"""
         return self._path
