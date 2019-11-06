@@ -710,9 +710,9 @@ class Torrent():
             raise error.PathEmptyError(self.path)
 
         if callback is not None:
-            maybe_cancel = generate.CancelCallback(callback, interval)
+            cancel = generate.CancelCallback(callback, interval)
         else:
-            maybe_cancel = None
+            cancel = None
         hash_workers_count = _NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
@@ -727,18 +727,18 @@ class Torrent():
 
         # Pull from the hash queue; also call callback and maybe stop everything
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
-                               maybe_cancel=maybe_cancel, torrent=self, pieces_total=self.pieces):
-            if maybe_cancel is not None:
-                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
-                             # Always call callback after the last piece was hashed
-                             force_callback=pieces_done >= pieces_total)
+                               cancel=cancel, torrent=self, pieces_total=self.pieces):
+            if cancel is not None:
+               cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
+                      # Always call callback after the last piece was hashed
+                      force_callback=pieces_done >= pieces_total)
         collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
                                                     callback=collector_callback)
 
-        if maybe_cancel:
-            maybe_cancel.on_cancel(reader.stop,
-                                   hasher_threadpool.stop,
-                                   collector_thread.stop)
+        if cancel:
+           cancel.on_cancel(reader.stop,
+                            hasher_threadpool.stop,
+                            collector_thread.stop)
 
         try:
             debug(f'### Reading')
