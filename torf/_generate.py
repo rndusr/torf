@@ -199,7 +199,6 @@ class HashWorkerPool():
             try:
                 debug(f'{name}: Getting from {piece_queue}')
                 piece_index, piece, filepath = piece_queue.get()
-                debug(f'{name}: Got piece {piece_index} from {piece_queue}')
             except QueueExhausted:
                 debug(f'{name}: {piece_queue} is exhausted')
                 break
@@ -247,7 +246,6 @@ class CollectorWorker(Worker):
             try:
                 debug(f'collector: Getting from {hash_queue}')
                 piece_index, piece_hash, filepath = hash_queue.get()
-                debug(f'collector: Got piece hash {piece_index} of file {filepath} from {hash_queue}')
             except QueueExhausted:
                 debug(f'collector: {hash_queue} is exhausted')
                 break
