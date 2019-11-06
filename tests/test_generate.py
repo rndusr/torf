@@ -7,14 +7,14 @@ import os
 import shutil
 
 
-def test_generate_with_no_path():
+def test_no_path():
     t = torf.Torrent()
     with pytest.raises(RuntimeError) as excinfo:
         t.generate()
     assert excinfo.match(r'^generate\(\) called with no path specified$')
 
 
-def test_generate_with_empty_path(tmpdir):
+def test_with_empty_path(tmpdir):
     content_path = tmpdir.mkdir('empty')
     # Create content so we can set path
     content_file = content_path.join('file.jpg')
@@ -27,7 +27,7 @@ def test_generate_with_empty_path(tmpdir):
     assert excinfo.match(f'^{str(t.path)}: Empty directory$')
 
 
-def test_generate_with_nonexisting_path(singlefile_content):
+def test_nonexisting_path(singlefile_content):
     content_path = singlefile_content.path + '.deletable'
     shutil.copyfile(singlefile_content.path, content_path)
     t = torf.Torrent(content_path)
@@ -38,7 +38,7 @@ def test_generate_with_nonexisting_path(singlefile_content):
     assert excinfo.match(f'^{content_path}: No such file or directory$')
 
 
-def test_generate_with_one_unreadable(multifile_content):
+def test_unreadable_file_in_multifile_torrent(multifile_content):
     t = torf.Torrent(multifile_content.path)
 
     old_mode = os.stat(multifile_content.path).st_mode
@@ -59,10 +59,10 @@ def check_metainfo(content):
     assert t.metainfo['info']['piece length'] == content.exp_metainfo['info']['piece length']
     assert t.metainfo['info']['pieces'] == content.exp_metainfo['info']['pieces']
 
-def test_generate_with_singlefile(singlefile_content):
+def test_generate_with_singlefile_torrent(singlefile_content):
     check_metainfo(singlefile_content)
 
-def test_generate_with_multifile(multifile_content):
+def test_generate_with_multifile_torrent(multifile_content):
     check_metainfo(multifile_content)
 
 
@@ -98,10 +98,10 @@ def assert_callback_called(torrent):
     exp_filepaths = list(t.filepaths)
     assert processed_filepaths == exp_filepaths
 
-def test_singlefile_generate_with_callback(singlefile_content):
+def test_callback_is_called_with_singlefile_torrent(singlefile_content):
     assert_callback_called(singlefile_content)
 
-def test_multifile_generate_with_callback(multifile_content):
+def test_callback_is_called_with_multifile_torrent(multifile_content):
     assert_callback_called(multifile_content)
 
 
@@ -121,10 +121,10 @@ def assert_callback_called_at_interval(torrent, monkeypatch):
     exp_call_count = math.ceil(number_of_pieces / interval)
     assert cb.call_count == exp_call_count
 
-def test_singlefile_generate_with_callback_interval(singlefile_content, monkeypatch):
+def test_callback_is_called_at_interval_with_singlefile_torrent(singlefile_content, monkeypatch):
     assert_callback_called_at_interval(singlefile_content, monkeypatch)
 
-def test_multifile_generate_with_callback_interval(multifile_content, monkeypatch):
+def test_callback_is_called_at_interval_with_multifile_torrent(multifile_content, monkeypatch):
     assert_callback_called_at_interval(multifile_content, monkeypatch)
 
 
