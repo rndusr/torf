@@ -52,7 +52,7 @@ class PieceSizeError(TorfError):
         self._max = max
         if min is not None and max is not None:
             super().__init__(f'Piece size must be between {min} and {max}: {size}')
-        elif size is not None:
+        else:
             super().__init__(f'Piece size must be a power of 2: {size}')
 
     @property
