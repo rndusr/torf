@@ -683,7 +683,7 @@ class Torrent():
         """
         Hash pieces and report progress to `callback`
 
-        This method sets ``pieces`` in :attr:`metainfo`\ ``['info']`` when all
+        This method sets ``pieces`` in :attr:`metainfo`\ ``['info']`` if all
         pieces are hashed successfully.
 
         :param callable callback: Callable with signature ``(torrent, filepath,
@@ -702,6 +702,8 @@ class Torrent():
         :return: ``True`` if all pieces were successfully hashed, ``False``
             otherwise
         """
+        self.metainfo['info']['pieces'] = bytes()
+
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
         elif not os.path.exists(self.path):
@@ -777,10 +779,8 @@ class Torrent():
             return True
         elif hashes_count < self.pieces:
             # Hashing was aborted by callback
-            self.metainfo['info']['pieces'] = bytes()
             return False
         else:
-            self.metainfo['info']['pieces'] = bytes()
             raise RuntimeError('Unexpected number of hashes generated: '
                                f'{hashes_count} instead of {self.pieces}')
 
