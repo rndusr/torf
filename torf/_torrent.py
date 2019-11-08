@@ -36,7 +36,7 @@ from . import debug
 
 from ._version import __version__
 _PACKAGE_NAME = __name__.split('.')[0]
-_NCORES = len(os.sched_getaffinity(0))
+NCORES = len(os.sched_getaffinity(0))
 
 
 class Torrent():
@@ -715,19 +715,17 @@ class Torrent():
             maybe_cancel = generate.CancelCallback(callback, interval)
         else:
             maybe_cancel = None
-        hash_workers_count = _NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
         reader = generate.Reader(filepaths=self.filepaths,
                                  file_sizes={fs_filepath:self.partial_size(t_filepath)
                                              for fs_filepath,t_filepath in zip(self.filepaths, self.files)},
                                  piece_size=self.piece_size,
-                                 queue_size=hash_workers_count*3)
+                                 queue_size=NCORES*3)
 
         # Pool of workers that pull from reader's piece queue, calculate the
         # hashes, and quickly offload the results to a hash queue
-        hasher_threadpool = generate.HashWorkerPool(hash_workers_count,
-                                                    reader.piece_queue)
+        hasher_threadpool = generate.HashWorkerPool(NCORES, reader.piece_queue)
 
         # Pull from the hash queue; also call callback and maybe stop everything
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
@@ -896,176 +894,233 @@ class Torrent():
             self.validate()
         return bencode(self.convert())
 
-    def verify(self, path, allow_different_name=True, callback=None, interval=0):
+    def _verify_prepare(self, path, callback, interval):
+        """Common tasks of :meth:`verify` and :meth:`verify_filesize`"""
+        self.validate()
+
+        if callback is not None:
+            callback = generate.CancelCallback(callback, interval=interval)
+        else:
+            # Stop the verification process if there was an exception
+            callback = generate.CancelCallback(lambda *cb_args: cb_args[-1])
+
+        # Generate an ordered list of file system paths and their corresponding
+        # paths inside the torrent
+        paths = []
+        for torrent_filepath in self.files:
+            torrent_subpath = torrent_filepath.split(os.sep)[1:]
+            fs_filepath = os.path.normpath(os.path.join(path, *torrent_subpath))
+            paths.append((fs_filepath, torrent_filepath))
+
+        return paths, callback
+
+    def verify_filesize(self, path, callback=None):
         """
-        Check if `path` contains all the data in this torrent
+        Check if `path` looks like it should contain all the data of this torrent
 
-        Excess files in `path` are ignored. Only the files described in this
-        torrent are read.
+        Walk through :attr:`files` and check if each file exists in `path`, is
+        readable and has the correct size.  Excess files in `path` are ignored.
 
-        Verification is done in two passes to fail as quickly as possible:
-
-            1. Walk through :attr:`files` and check if each one exists in
-               `path`, has the correct size and is readable. If this pass fails,
-               the next pass is skipped.
-
-            2. Walk through :attr:`files` again, generate SHA1 hashes from the
-               contents and compare each generated hash to the ones stored in
-               :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
+        This is fast and should find most manipulations, but :meth:`verify` is
+        necessary to detect corruptions (e.g. due to bit rot).
 
         :param str path: Directory or file to check
-        :param bool allow_different_name: Whether `path` must end with
-            :attr:`name`
-        :param callable callback: Callable with signature ``(torrent, filepath,
-            pieces_done, pieces_total, piece_index, piece_hash, exception)``; if
-            `callback` returns anything else than ``None``, verification is
-            stopped
-        :param float interval: Minimum number of seconds between calls to
-            `callback` (if 0, `callback` is called once per piece)
+        :param callable callback: Callable with signature ``(torrent,
+            filepath_in_filesystem, filepath_in_torrent, files_done,
+            files_total, exception)``; if `callback` returns anything else than
+            ``None``, verification is stopped
 
         If a callback is specified, exceptions are not raised but passed to
         `callback` instead, which can then handle the error and maybe stop the
         verification by returning non-``None``.
 
-        :raises FileSizeError: if a file in `path` has an unexpected size
+        :raises FileSizeError: if a file has an unexpected size
         :raises IsDirectoryError: if `path` is a directory and this torrent
             contains a single file
-        :raises ContentError: if a file in `path` contains unexpected data
-        :raises PathNotFoundError: if `path` doesn't exist
-        :raises ReadError: if `path` or any file beneath it is not readable
-        :raises MetainfoError: if :meth:`validate` raises one
+        :raises PathNotFoundError: if a file doesn't exist
+        :raises MetainfoError: if :meth:`validate` fails
 
         :return: ``True`` if `path` is verified successfully, ``False``
             otherwise
         """
-        self.validate()
-
-        if callback is not None:
-            cancel = generate.CancelCallback(callback, interval)
-        else:
-            # Stop the verification process if there was an exception
-            cancel = lambda cb_args, **_: cb_args[-1] is not None
-
-        # Combine `path` argument and relative path in torrent to file system
-        # (fs) path.  If we don't allow a different torrent name, replace the
-        # path's last component with the torrent's name.  This will raise a
-        # PathNotFoundError later if names differ.
-        fs_location = os.path.dirname(path)
-        fs_name = os.path.basename(path)
-        if allow_different_name:
-            fs_path = os.path.join(fs_location, fs_name)
-        else:
-            fs_path = os.path.join(fs_location, self.name)
-        fs_path = os.path.normpath(fs_path)
-
-        # Generate an ordered list of file system paths and their corresponding
-        # paths inside the torrent
-        fs_filepaths = []
-        for torrent_filepath in self.files:
-            torrent_subpath = torrent_filepath.split(os.sep)[1:]
-            fs_filepath = os.path.normpath(os.path.join(fs_path, *torrent_subpath))
-            fs_filepaths.append((fs_filepath, torrent_filepath))
-
-        pieces_total = self.pieces
-        pieces_done = 0
+        raise_exceptions = not callback
+        filepaths, cancel = self._verify_prepare(path, callback, interval=0)
+        files_total = len(filepaths)
         exception = None
-        torrent_mode = self.mode
 
-        # Do some quick checks before time-consuming hashing
-        for fs_filepath,torrent_filepath in fs_filepaths:
+        for files_done,(fs_filepath,torrent_filepath) in enumerate(filepaths, start=1):
             # Check if path exists
             if not os.path.exists(fs_filepath):
                 exception = error.PathNotFoundError(fs_filepath)
-                if cancel(cb_args=(self, fs_filepath, 0, pieces_total, 0, None, exception),
-                          force_callback=True):
+                if cancel(cb_args=(self, fs_filepath, torrent_filepath,
+                                   files_done, files_total, exception),
+                          force_call=True):
                     break
-            else:
-                # If we expect a file, check if path is a file.  We don't need to check
-                # for a directory if we expect one because we are iterating over files
-                # (fs_filepaths), so the path "foo/bar/baz" will result in a
-                # PathNotFoundError when "foo" or "foo/bar" is a file.
-                if self.mode == 'singlefile' and os.path.isdir(path):
-                    exception = error.IsDirectoryError(fs_filepath)
-                    if cancel(cb_args=(self, fs_filepath, 0, pieces_total, 0, None, exception),
-                              force_callback=True):
-                        break
                 else:
-                    # Check file size
-                    fs_filepath_size = os.path.getsize(os.path.realpath(fs_filepath))
-                    expected_size = self.partial_size(torrent_filepath)
-                    if fs_filepath_size != expected_size:
-                        exception = error.FileSizeError(fs_filepath, fs_filepath_size, expected_size)
-                        if cancel(cb_args=(self, fs_filepath, 0, pieces_total, 0, None, exception),
-                                  force_callback=True):
-                            break
+                    continue
 
-        # If our quick checks yielded any issues, skip the hashing
+            # If we expect a file, check if path is a file.  We don't need to
+            # check for a directory if we expect one because we are iterating
+            # over files (filepaths), so the path "foo/bar/baz" will result in a
+            # PathNotFoundError if "foo" or "foo/bar" is a file.
+            if self.mode == 'singlefile' and os.path.isdir(path):
+                exception = error.IsDirectoryError(fs_filepath)
+                if cancel(cb_args=(self, fs_filepath, torrent_filepath,
+                                   files_done, files_total, exception),
+                          force_call=True):
+                    break
+                else:
+                    continue
+
+            # Check file size
+            fs_filepath_size = os.path.getsize(os.path.realpath(fs_filepath))
+            expected_size = self.partial_size(torrent_filepath)
+            if fs_filepath_size != expected_size:
+                exception = error.FileSizeError(fs_filepath, fs_filepath_size, expected_size)
+                if cancel(cb_args=(self, fs_filepath, torrent_filepath,
+                                   files_done, files_total, exception),
+                          force_call=True):
+                    break
+                else:
+                    continue
+
+            # Report no error for current file
+            if cancel(cb_args=(self, fs_filepath, torrent_filepath, files_done, files_total, None),
+                      force_call=True):
+                break
+
         if exception:
-            if callback:
-                return False
-            else:
+            if raise_exceptions:
                 raise exception
+            else:
+                return False
+        else:
+            return True
 
-        # We haven't found any errors yet, so we need to read the files's
-        # contents, hash them and compare with the hashes stored in
-        # metainfo['info']['pieces'].
+    def verify(self, path, callback=None, interval=0):
+        """
+        Check if `path` contains all the data of this torrent
+
+        Generate hashes from the contents of :attr:`files` and compare each
+        generated hash to the ones stored in :attr:`metainfo`\ ``['info']``\
+        ``['pieces']``.
+
+        :param str path: Directory or file to check
+        :param callable callback: Callable with signature ``(torrent, filepath,
+            pieces_done, pieces_total, piece_index, piece_hash, exception)``; if
+            `callback` returns anything else than ``None``, verification is
+            stopped
+        :param float interval: Minimum number of seconds between calls to
+            `callback` (if 0, `callback` is called once per piece); this is
+            ignored in case of error
+
+        If a callback is specified, exceptions are not raised but passed to
+        `callback` instead, which can then handle the error and maybe stop the
+        verification by returning non-``None``.
+
+        :raises ContentError: if a file contains unexpected data
+        :raises ReadError: if a file is not readable
+        :raises MetainfoError: if :meth:`validate` fails
+
+        :return: ``True`` if `path` is verified successfully, ``False``
+            otherwise
+        """
+        raise_exceptions = not callback
+        filepaths, maybe_cancel = self._verify_prepare(path, callback, interval=interval)
+        fs_filepaths = tuple(x[0] for x in filepaths)
+        exception = None
+
+        # Assuming "foo/bar/baz.jpg" is in the metainfo, it might exist as
+        # "asdf/bar/baz.jpg" in the file system.  In that case, seeing
+        # "foo/bar/baz.jpg" in error messages is confusing, so we replace the
+        # first segment of the torrent file path with the last segment of the
+        # `path` argument.
+        def replace_torrent_name(filepath, _replacement=str(path).split(os.sep)[-1]):
+            if os.sep not in filepath:
+                # Singlefile torrent
+                return _replacement
+            else:
+                # Multifile torrent
+                subpath = os.sep.join(filepath.split(os.sep)[1:])
+                return os.path.join(_replacement, subpath)
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
-        hash_workers_count = _NCORES
-        reader = generate.Reader(filepaths=(x[0] for x in fs_filepaths),
+        def reader_error_callback(exc, filepath, piece_index, torrent=self,
+                                  pieces_done=0, pieces_total=self.pieces,
+                                  piece_hash=None):
+            nonlocal exception
+            exception = exc
+            maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                  piece_index, piece_hash, exception),
+                         force_call=True)
+        reader = generate.Reader(filepaths=fs_filepaths,
+                                 file_sizes={fs_path:self.partial_size(t_path)
+                                             for fs_path,t_path in filepaths},
                                  piece_size=self.piece_size,
-                                 queue_size=hash_workers_count*3)
+                                 queue_size=NCORES*3,
+                                 error_callback=reader_error_callback)
 
         # Pool of workers that pull from reader_thread's piece queue, calculate
         # the hashes, and quickly offload the results to a hash queue
-        hasher_threadpool = generate.HashWorkerPool(hash_workers_count,
-                                                    reader.piece_queue)
-
-        def stop():
-            reader.stop()
-            hasher_threadpool.stop()
-            collector_thread.stop()
+        hasher_threadpool = generate.HashWorkerPool(NCORES, reader.piece_queue)
 
         # Pull from the hash queue; also call callback and maybe stop everything
         pieces = self.metainfo['info']['pieces']
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
-                               cancel=cancel, torrent=self, pieces_total=self.pieces,
-                               piece_size=self.piece_size,
+                               maybe_cancel=maybe_cancel, torrent=self,
+                               pieces_total=self.pieces, piece_size=self.piece_size,
                                exp_hashes=tuple(pieces[pos:pos + 20]
                                                 for pos in range(0, len(pieces), 20))):
             nonlocal exception
             if piece_hash != exp_hashes[piece_index]:
-                exception = error.ContentError(piece_index, piece_size,
-                                               tuple(x[0] for x in fs_filepaths))
-                if cancel(cb_args=(self, filepath, pieces_done, pieces_total,
-                                   piece_index, piece_hash, exception),
-                          force_callback=True):
-                    debug('### Status reporter is aborting')
-                    stop()
+                files = tuple((replace_torrent_name(t_path), self.partial_size(t_path))
+                              for _,t_path in filepaths)
+                exception = error.ContentError(piece_index, piece_size, files)
+                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                      piece_index, piece_hash, exception),
+                             force_call=True)
             else:
-                if cancel(cb_args=(self, filepath, pieces_done, pieces_total,
-                                   piece_index, piece_hash, None),
-                          # Always call callback after the last piece was hashed
-                          force_callback=pieces_done >= pieces_total):
-                    stop()
+                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                      piece_index, piece_hash, None),
+                             # Always call callback after the last piece was hashed
+                             force_call=pieces_done >= pieces_total)
         collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
                                                     callback=collector_callback)
 
+        maybe_cancel.on_cancel(reader.stop,
+                               hasher_threadpool.stop,
+                               collector_thread.stop)
+
         try:
+            debug(f'### Reading')
             reader.read()
-        except BaseException:
-            stop()
+        except BaseException as e:
+            debug(f'### Stopping hashers')
+            hasher_threadpool.stop()
+            debug(f'### Done stopping hashers')
+
+            debug(f'### Stopping collector')
+            collector_thread.stop()
+            debug(f'### Done stopping collector')
+
+            debug(f'### Re-raising: {e!r}')
             raise
-        else:
+            debug(f'### Done-raising: {e!r}')
+        finally:
+            debug(f'### Joining hashers')
             hasher_threadpool.join()
+            debug(f'### Done joining hashers')
+
+            debug(f'### Joining collector')
             collector_thread.join()
+            debug(f'### Done joining collector')
 
         # Raise exception unless the callback function already handled it
         if exception:
-            if callback:
-                return False
-            else:
+            if raise_exceptions:
                 raise exception
+            else:
+                return False
         else:
             return True
 
