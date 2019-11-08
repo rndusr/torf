@@ -52,18 +52,19 @@ def test_unreadable_file_in_multifile_torrent(multifile_content):
         os.chmod(multifile_content.path, mode=old_mode)
 
 
-def check_metainfo(content):
+def check_metainfo(content, tmpdir):
     t = torf.Torrent(content.path)
     t.piece_size = content.exp_metainfo['info']['piece length']
     t.generate()
+    t.write(tmpdir.join('torf.torrent'), overwrite=True)
     assert t.metainfo['info']['piece length'] == content.exp_metainfo['info']['piece length']
     assert t.metainfo['info']['pieces'] == content.exp_metainfo['info']['pieces']
 
-def test_generate_with_singlefile_torrent(singlefile_content):
-    check_metainfo(singlefile_content)
+def test_generate_with_singlefile_torrent(singlefile_content, tmpdir):
+    check_metainfo(singlefile_content, tmpdir)
 
-def test_generate_with_multifile_torrent(multifile_content):
-    check_metainfo(multifile_content)
+def test_generate_with_multifile_torrent(multifile_content, tmpdir):
+    check_metainfo(multifile_content, tmpdir)
 
 
 def assert_callback_called(torrent):
