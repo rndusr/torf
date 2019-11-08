@@ -180,11 +180,7 @@ class ContentError(TorfError):
             # Find the files that are covered by the corrupt piece
             corrupt_files = []
             cur_pos = 0
-            for i,file in enumerate(files):
-                filesize = os.path.getsize(file)
-                file_i_beg = cur_pos
-                file_i_end = file_i_beg + filesize
-
+            for filepath,filesize in files:
                 # `file` is possibly corrupt if:
                 # 1. The corrupt piece STARTS between the beginning and the end
                 #    of the file in the stream.
@@ -192,10 +188,12 @@ class ContentError(TorfError):
                 #    of the file in the stream.
                 # 3. Both beginning and end of the file are between beginning
                 #    and end of the corrupt piece (i.e. file fits in one piece).
+                file_i_beg = cur_pos
+                file_i_end = file_i_beg + filesize
                 if (file_i_beg <= err_i_beg < file_i_end or
                     file_i_beg < err_i_end <= file_i_end or
                     (file_i_beg >= err_i_beg and file_i_end < err_i_end)):
-                    corrupt_files.append(files[i])
+                    corrupt_files.append(filepath)
                 cur_pos += filesize
 
             if len(corrupt_files) == 1:
