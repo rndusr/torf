@@ -59,6 +59,8 @@ def check_metainfo(content, tmpdir):
     t.write(tmpdir.join('torf.torrent'), overwrite=True)
     assert t.metainfo['info']['piece length'] == content.exp_metainfo['info']['piece length']
     assert t.metainfo['info']['pieces'] == content.exp_metainfo['info']['pieces']
+    assert t.infohash == content.exp_attrs.infohash
+    assert t.infohash_base32 == content.exp_attrs.infohash_base32
 
 def test_generate_with_singlefile_torrent(singlefile_content, tmpdir):
     check_metainfo(singlefile_content, tmpdir)
