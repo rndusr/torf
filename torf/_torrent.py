@@ -712,13 +712,15 @@ class Torrent():
             raise error.PathEmptyError(self.path)
 
         if callback is not None:
-            cancel = generate.CancelCallback(callback, interval)
+            maybe_cancel = generate.CancelCallback(callback, interval)
         else:
-            cancel = None
+            maybe_cancel = None
         hash_workers_count = _NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
         reader = generate.Reader(filepaths=self.filepaths,
+                                 file_sizes={fs_filepath:self.partial_size(t_filepath)
+                                             for fs_filepath,t_filepath in zip(self.filepaths, self.files)},
                                  piece_size=self.piece_size,
                                  queue_size=hash_workers_count*3)
 
@@ -729,27 +731,23 @@ class Torrent():
 
         # Pull from the hash queue; also call callback and maybe stop everything
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
-                               cancel=cancel, torrent=self, pieces_total=self.pieces):
-            if cancel is not None:
-               cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
-                      # Always call callback after the last piece was hashed
-                      force_callback=pieces_done >= pieces_total)
+                               maybe_cancel=maybe_cancel, torrent=self, pieces_total=self.pieces):
+            if maybe_cancel is not None:
+                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
+                             # Always call callback after the last piece was hashed
+                             force_call=pieces_done >= pieces_total)
         collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
                                                     callback=collector_callback)
 
-        if cancel:
-           cancel.on_cancel(reader.stop,
-                            hasher_threadpool.stop,
-                            collector_thread.stop)
+        if maybe_cancel:
+           maybe_cancel.on_cancel(reader.stop,
+                                  hasher_threadpool.stop,
+                                  collector_thread.stop)
 
         try:
             debug(f'### Reading')
             reader.read()
         except BaseException as e:
-            debug(f'### Caught exception from reader: {e!r}')
-            import traceback
-            debug(traceback.format_exc())
-
             debug(f'### Stopping hashers')
             hasher_threadpool.stop()
             debug(f'### Done stopping hashers')
