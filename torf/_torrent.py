@@ -849,7 +849,7 @@ class Torrent():
                 # Check if size matches
                 if os.path.getsize(self.path) != info['length']:
                     raise error.MetainfoError(f"Mismatching file sizes in metainfo ({info['length']})"
-                                              f" and local file system ({os.path.getsize(self.path)}): "
+                                              f" and file system ({os.path.getsize(self.path)}): "
                                               f"{self.path!r}")
 
         elif 'files' in info:
@@ -873,14 +873,14 @@ class Torrent():
 
                     # Check if filepath exists and is a file
                     if not os.path.exists(filepath):
-                        raise error.MetainfoError(f"Metainfo inclues file that doesn't exist: {filepath!r}")
+                        raise error.MetainfoError(f"Metainfo includes file that doesn't exist: {filepath!r}")
                     if not os.path.isfile(filepath):
-                        raise error.MetainfoError(f"Metainfo inclues non-file: {filepath!r}")
+                        raise error.MetainfoError(f"Metainfo includes file that isn't a file: {filepath!r}")
 
                     # Check if sizes match
                     if os.path.getsize(filepath) != fileinfo['length']:
                         raise error.MetainfoError(f"Mismatching file sizes in metainfo ({fileinfo['length']})"
-                                                  f" and local file system ({os.path.getsize(filepath)}): "
+                                                  f" and file system ({os.path.getsize(filepath)}): "
                                                   f"{filepath!r}")
 
         else:

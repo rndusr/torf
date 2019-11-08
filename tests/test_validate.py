@@ -294,7 +294,7 @@ def assert_mismatching_filesizes(torrent, *args):
     with pytest.raises(torf.MetainfoError) as excinfo:
         torrent.dump()
     assert excinfo.match(r"Invalid metainfo: Mismatching file sizes in metainfo \(\d+\) "
-                         rf"and local file system \(\d+\): '{torrent.path}")
+                         rf"and file system \(\d+\): '{torrent.path}")
 
     # It's OK if `torrent` doesn't know a local file system path
     torrent._path = None
