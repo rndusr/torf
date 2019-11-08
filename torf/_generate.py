@@ -112,10 +112,12 @@ class Worker():
 
 
 class Reader():
-    def __init__(self, filepaths, piece_size, queue_size):
+    def __init__(self, filepaths, piece_size, file_sizes, queue_size, error_callback=None):
         self._filepaths = tuple(filepaths)
         self._piece_size = piece_size
+        self._file_sizes = file_sizes
         self._piece_queue = ExhaustQueue(name='pieces', maxsize=queue_size)
+        self._error_callback = error_callback
         self._stop = False
 
     def read(self):
@@ -132,38 +134,81 @@ class Reader():
     def _run_singlefile(self, filepath, piece_size):
         piece_queue = self._piece_queue
         debug(f'reader: Reading single file from {filepath}')
-        for piece_index,piece in enumerate(utils.read_chunks(filepath, piece_size)):
-            item = (piece_index, piece, filepath)
-            debug(f'reader: Sending piece {piece_index} to {piece_queue}')
-            piece_queue.put(item)
-            if self._stop:
-                debug(f'reader: Stopped reading after {piece_index+1} pieces')
-                return
-
-    def _run_multifile(self, filepaths, piece_size):
-        piece_buffer = bytearray()
-        piece_index = 0
-        piece_queue = self._piece_queue
-        for filepath in filepaths:
-            debug(f'reader: Reading from next file: {filepath}')
-            for chunk in utils.read_chunks(filepath, piece_size):
-                # Concatenate chunks across files; if we have enough for a new
-                # piece, put it in piece_queue
-                piece_buffer.extend(chunk)
-                if len(piece_buffer) >= piece_size:
-                    piece = piece_buffer[:piece_size]
-                    del piece_buffer[:piece_size]
-                    debug(f'reader: Sending piece {piece_index} to {piece_queue}')
-                    piece_queue.put((piece_index, piece, filepath))
-                    piece_index += 1
+        try:
+            for piece_index,piece in enumerate(utils.read_chunks(filepath, piece_size)):
+                item = (piece_index, piece, filepath)
+                debug(f'reader: Sending piece {piece_index} to {piece_queue}')
+                piece_queue.put(item)
                 if self._stop:
                     debug(f'reader: Stopped reading after {piece_index+1} pieces')
                     return
+        except Exception as e:
+            if self._error_callback is not None:
+                self._error_callback(e, filepath, 0)
+            else:
+                raise
+
+    def _run_multifile(self, filepaths, piece_size):
+        piece_queue = self._piece_queue
+        piece_buffer = bytearray()
+
+        # piece_index can't be a simple incrementing integer: If a file doesn't
+        # exist, the pieces of existing files should still have correct
+        # piece_indexes.
+        bytes_read = 0
+        def calc_piece_index(bytes_read, piece_size):
+            return max(0, int(bytes_read / piece_size) - 1)
+
+        for filepath in filepaths:
+            debug(f'reader: Reading from next file: {filepath}')
+            try:
+                for chunk in utils.read_chunks(filepath, piece_size):
+                    # Concatenate chunks across files; if we have enough for a new
+                    # piece, put it in piece_queue
+                    piece_buffer.extend(chunk)
+                    bytes_read += len(chunk)
+                    debug(f'Total bytes read: {bytes_read}')
+
+                    if len(piece_buffer) >= piece_size:
+                        piece = piece_buffer[:piece_size]
+                        del piece_buffer[:piece_size]
+                        piece_index = calc_piece_index(bytes_read, piece_size)
+                        debug(f'reader: Sending piece {piece_index} to {piece_queue}')
+                        piece_queue.put((piece_index, piece, filepath))
+
+                    if self._stop:
+                        debug(f'reader: Stopped reading after {piece_index+1} pieces')
+                        return
+
+            except Exception as e:
+                if self._error_callback is not None:
+                    filesize = self._file_sizes[filepath]
+
+                    # Pretend we did read the first piece of the missing file
+                    piece_index = calc_piece_index(bytes_read + min(filesize, piece_size),
+                                                   piece_size)
+                    self._error_callback(e, filepath, piece_index)
+
+                    # Pretend we read the whole file so we can calculate future
+                    # piece_indexes correctly
+                    bytes_read += filesize
+                    debug(f'Total bytes read (fake): {bytes_read}')
+
+                    if self._stop:
+                        debug(f'reader: Stopped reading after {piece_index+1} pieces')
+                        return
+                else:
+                    raise
 
         # Unless the torrent's total size is divisible by its piece size, there
         # are some bytes left in piece_buffer
         if len(piece_buffer) > 0:
-            debug(f'reader: Sending piece {piece_index} to {piece_queue}')
+            debug(f'Left over bytes in buffer: {len(piece_buffer)}')
+            piece_index = calc_piece_index(bytes_read, piece_size)
+            filesize = self._file_sizes[filepath]
+            if bytes_read + filesize > piece_size:
+                piece_index += 1
+            debug(f'reader: Sending last piece {piece_index} to {piece_queue}')
             piece_queue.put((piece_index, piece_buffer, filepath))
 
     def stop(self):
