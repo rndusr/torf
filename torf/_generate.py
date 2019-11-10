@@ -166,12 +166,13 @@ class Reader():
                     # Concatenate chunks across files; if we have enough for a new
                     # piece, put it in piece_queue
                     piece_buffer.extend(chunk)
-                    bytes_read += len(chunk)
-                    debug(f'Total bytes read: {bytes_read}')
-
                     if len(piece_buffer) >= piece_size:
                         piece = piece_buffer[:piece_size]
                         del piece_buffer[:piece_size]
+
+                        bytes_read += piece_size
+                        debug(f'Total bytes read: {bytes_read}')
+
                         piece_index = calc_piece_index(bytes_read, piece_size)
                         debug(f'reader: Sending piece {piece_index} to {piece_queue}')
                         piece_queue.put((piece_index, piece, filepath))
