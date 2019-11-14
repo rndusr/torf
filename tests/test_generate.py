@@ -92,13 +92,13 @@ def assert_callback_called(torrent):
     exp_call_args_list = exp_call_args_list[:call_num]
     assert stripped_call_args_list == exp_call_args_list
 
-    # Make sure that the expected filepaths were reported to callback
-    processed_filepaths = []
+    # Make sure that all filepaths were reported to callback
+    processed_filepaths = set()
     for args in cb.call_args_list:
         filepath = args[0][1]
         if filepath not in processed_filepaths:
-            processed_filepaths.append(filepath)
-    exp_filepaths = list(t.filepaths)
+            processed_filepaths.add(filepath)
+    exp_filepaths = set(t.filepaths)
     assert processed_filepaths == exp_filepaths
 
 def test_callback_is_called_with_singlefile_torrent(singlefile_content):
