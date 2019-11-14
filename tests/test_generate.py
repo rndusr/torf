@@ -122,7 +122,7 @@ def assert_callback_called_at_interval(torrent, monkeypatch):
     # Compare number of callback calls
     number_of_pieces = math.ceil(t.size / t.piece_size)
     exp_call_count = max(2, math.ceil(number_of_pieces / interval))
-    assert cb.call_count == exp_call_count
+    assert exp_call_count <= cb.call_count <= exp_call_count+1
 
 def test_callback_is_called_at_interval_with_singlefile_torrent(singlefile_content, monkeypatch):
     assert_callback_called_at_interval(singlefile_content, monkeypatch)
