@@ -780,120 +780,6 @@ class Torrent():
             raise RuntimeError('Unexpected number of hashes generated: '
                                f'{hashes_count} instead of {self.pieces}')
 
-    utils.ENCODE_CONVERTERS[datetime] = lambda dt: int(dt.timestamp())
-    def convert(self):
-        """
-        Return :attr:`metainfo` with all keys encoded to :class:`bytes` and all
-        values encoded to :class:`bytes`, :class:`int`, :class:`list` or
-        :class:`OrderedDict`
-
-        :raises MetainfoError: on values that cannot be converted properly
-        """
-        try:
-            return utils.encode_dict(self.metainfo)
-        except ValueError as e:
-            raise error.MetainfoError(str(e))
-
-    def validate(self):
-        """
-        Check if all mandatory keys exist in :attr:`metainfo` and all standard keys
-        have correct types
-
-        The necessary values are documented here:
-            | http://bittorrent.org/beps/bep_0003.html
-            | https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
-
-        :raises MetainfoError: if :attr:`metainfo` would not generate a valid
-            torrent file or magnet link
-        """
-        md = self.metainfo
-        info = md['info']
-
-        # Check values shared by singlefile and multifile torrents
-        utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
-        utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True)
-        utils.assert_type(md, ('info', 'pieces'), (bytes, bytearray), must_exist=True)
-        utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)
-        utils.assert_type(md, ('announce-list',), (list,), must_exist=False)
-        for i,_ in enumerate(md.get('announce-list', ())):
-            utils.assert_type(md, ('announce-list', i), (list,))
-            for j,_ in enumerate(md['announce-list'][i]):
-                utils.assert_type(md, ('announce-list', i, j), (str,), check=utils.is_url)
-
-        if len(md['info']['pieces']) == 0:
-            raise error.MetainfoError("['info']['pieces'] is empty")
-
-        elif len(md['info']['pieces']) % 20 != 0:
-            raise error.MetainfoError("length of ['info']['pieces'] is not divisible by 20")
-
-        elif info.get('private') and not md.get('announce') and not md.get('announce-list'):
-            raise error.MetainfoError("['info']['private'] is True but no announce URLs are specified")
-
-        elif 'length' in info and 'files' in info:
-            raise error.MetainfoError("['info'] includes both 'length' and 'files'")
-
-        elif 'length' in info:
-            # Validate info as singlefile torrent
-            utils.assert_type(md, ('info', 'length'), (int, float), must_exist=True)
-            utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
-
-            if self.path is not None:
-                # Check if filepath actually points to a file
-                if not os.path.isfile(self.path):
-                    raise error.MetainfoError(f"Metainfo includes {self.path} as file, but it is not a file")
-
-                # Check if size matches
-                if os.path.getsize(self.path) != info['length']:
-                    raise error.MetainfoError(f"Mismatching file sizes in metainfo ({info['length']})"
-                                              f" and file system ({os.path.getsize(self.path)}): "
-                                              f"{self.path!r}")
-
-        elif 'files' in info:
-            # Validate info as multifile torrent
-            utils.assert_type(md, ('info', 'files'), (list,), must_exist=True)
-            for i,fileinfo in enumerate(info['files']):
-                utils.assert_type(md, ('info', 'files', i), (dict,), must_exist=True)
-                utils.assert_type(md, ('info', 'files', i, 'length'), (int, float), must_exist=True)
-                utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
-                utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
-                for j,item in enumerate(fileinfo['path']):
-                    utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
-
-            if self.path is not None:
-                # Check if filepath actually points to a directory
-                if not os.path.isdir(self.path):
-                    raise error.MetainfoError(f"Metainfo includes {self.path} as directory, but it is not a directory")
-
-                for i,fileinfo in enumerate(info['files']):
-                    filepath = os.path.join(self.path, os.path.join(*fileinfo['path']))
-
-                    # Check if filepath exists and is a file
-                    if not os.path.exists(filepath):
-                        raise error.MetainfoError(f"Metainfo includes file that doesn't exist: {filepath!r}")
-                    if not os.path.isfile(filepath):
-                        raise error.MetainfoError(f"Metainfo includes file that isn't a file: {filepath!r}")
-
-                    # Check if sizes match
-                    if os.path.getsize(filepath) != fileinfo['length']:
-                        raise error.MetainfoError(f"Mismatching file sizes in metainfo ({fileinfo['length']})"
-                                                  f" and file system ({os.path.getsize(filepath)}): "
-                                                  f"{filepath!r}")
-
-        else:
-            raise error.MetainfoError("Missing 'length' or 'files' in metainfo")
-
-    def dump(self, validate=True):
-        """
-        Create bencoded :attr:`metainfo` (i.e. the content of a torrent file)
-
-        :param bool validate: Whether to run :meth:`validate` first
-
-        :return: :attr:`metainfo` as bencoded :class:`bytes`
-        """
-        if validate:
-            self.validate()
-        return bencode(self.convert())
-
     def _verify_prepare(self, path, callback, interval):
         """Common tasks of :meth:`verify` and :meth:`verify_filesize`"""
         self.validate()
@@ -1123,6 +1009,122 @@ class Torrent():
                 return False
         else:
             return True
+
+
+
+    def validate(self):
+        """
+        Check if all mandatory keys exist in :attr:`metainfo` and all standard keys
+        have correct types
+
+        The necessary values are documented here:
+            | http://bittorrent.org/beps/bep_0003.html
+            | https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
+
+        :raises MetainfoError: if :attr:`metainfo` would not generate a valid
+            torrent file or magnet link
+        """
+        md = self.metainfo
+        info = md['info']
+
+        # Check values shared by singlefile and multifile torrents
+        utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
+        utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True)
+        utils.assert_type(md, ('info', 'pieces'), (bytes, bytearray), must_exist=True)
+        utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)
+        utils.assert_type(md, ('announce-list',), (list,), must_exist=False)
+        for i,_ in enumerate(md.get('announce-list', ())):
+            utils.assert_type(md, ('announce-list', i), (list,))
+            for j,_ in enumerate(md['announce-list'][i]):
+                utils.assert_type(md, ('announce-list', i, j), (str,), check=utils.is_url)
+
+        if len(md['info']['pieces']) == 0:
+            raise error.MetainfoError("['info']['pieces'] is empty")
+
+        elif len(md['info']['pieces']) % 20 != 0:
+            raise error.MetainfoError("length of ['info']['pieces'] is not divisible by 20")
+
+        elif info.get('private') and not md.get('announce') and not md.get('announce-list'):
+            raise error.MetainfoError("['info']['private'] is True but no announce URLs are specified")
+
+        elif 'length' in info and 'files' in info:
+            raise error.MetainfoError("['info'] includes both 'length' and 'files'")
+
+        elif 'length' in info:
+            # Validate info as singlefile torrent
+            utils.assert_type(md, ('info', 'length'), (int, float), must_exist=True)
+            utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
+
+            if self.path is not None:
+                # Check if filepath actually points to a file
+                if not os.path.isfile(self.path):
+                    raise error.MetainfoError(f"Metainfo includes {self.path} as file, but it is not a file")
+
+                # Check if size matches
+                if os.path.getsize(self.path) != info['length']:
+                    raise error.MetainfoError(f"Mismatching file sizes in metainfo ({info['length']})"
+                                              f" and file system ({os.path.getsize(self.path)}): "
+                                              f"{self.path!r}")
+
+        elif 'files' in info:
+            # Validate info as multifile torrent
+            utils.assert_type(md, ('info', 'files'), (list,), must_exist=True)
+            for i,fileinfo in enumerate(info['files']):
+                utils.assert_type(md, ('info', 'files', i), (dict,), must_exist=True)
+                utils.assert_type(md, ('info', 'files', i, 'length'), (int, float), must_exist=True)
+                utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
+                utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
+                for j,item in enumerate(fileinfo['path']):
+                    utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
+
+            if self.path is not None:
+                # Check if filepath actually points to a directory
+                if not os.path.isdir(self.path):
+                    raise error.MetainfoError(f"Metainfo includes {self.path} as directory, but it is not a directory")
+
+                for i,fileinfo in enumerate(info['files']):
+                    filepath = os.path.join(self.path, os.path.join(*fileinfo['path']))
+
+                    # Check if filepath exists and is a file
+                    if not os.path.exists(filepath):
+                        raise error.MetainfoError(f"Metainfo includes file that doesn't exist: {filepath!r}")
+                    if not os.path.isfile(filepath):
+                        raise error.MetainfoError(f"Metainfo includes file that isn't a file: {filepath!r}")
+
+                    # Check if sizes match
+                    if os.path.getsize(filepath) != fileinfo['length']:
+                        raise error.MetainfoError(f"Mismatching file sizes in metainfo ({fileinfo['length']})"
+                                                  f" and file system ({os.path.getsize(filepath)}): "
+                                                  f"{filepath!r}")
+
+        else:
+            raise error.MetainfoError("Missing 'length' or 'files' in metainfo")
+
+    utils.ENCODE_CONVERTERS[datetime] = lambda dt: int(dt.timestamp())
+    def convert(self):
+        """
+        Return :attr:`metainfo` with all keys encoded to :class:`bytes` and all
+        values encoded to :class:`bytes`, :class:`int`, :class:`list` or
+        :class:`OrderedDict`
+
+        :raises MetainfoError: on values that cannot be converted properly
+        """
+        try:
+            return utils.encode_dict(self.metainfo)
+        except ValueError as e:
+            raise error.MetainfoError(str(e))
+
+    def dump(self, validate=True):
+        """
+        Create bencoded :attr:`metainfo` (i.e. the content of a torrent file)
+
+        :param bool validate: Whether to run :meth:`validate` first
+
+        :return: :attr:`metainfo` as bencoded :class:`bytes`
+        """
+        if validate:
+            self.validate()
+        return bencode(self.convert())
 
     def write_stream(self, stream, validate=True):
         """
