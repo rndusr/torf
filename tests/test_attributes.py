@@ -49,14 +49,22 @@ def test_path_switch_from_multifile_to_singlefile(torrent, singlefile_content, m
     assert 'files' not in torrent.metainfo['info']
 
 def test_path_is_period(torrent, multifile_content):
-    os.chdir(multifile_content.path)
-    torrent.path = '.'
-    assert torrent.name == os.path.basename(multifile_content.path)
+    cwd = os.getcwd()
+    try:
+        os.chdir(multifile_content.path)
+        torrent.path = '.'
+        assert torrent.name == os.path.basename(multifile_content.path)
+    finally:
+        os.chdir(cwd)
 
 def test_path_is_double_period(torrent, multifile_content):
-    os.chdir(multifile_content.path)
-    torrent.path = '..'
-    assert torrent.name == os.path.basename(os.path.dirname(multifile_content.path))
+    cwd = os.getcwd()
+    try:
+        os.chdir(multifile_content.path)
+        torrent.path = '..'
+        assert torrent.name == os.path.basename(os.path.dirname(multifile_content.path))
+    finally:
+        os.chdir(cwd)
 
 
 def test_mode(singlefile_content, multifile_content):
