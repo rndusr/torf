@@ -397,7 +397,7 @@ class Torrent():
     """
     Smallest allowed piece size
 
-    Setting :attr:`piece_size` to a smaller value will raise
+    Setting :attr:`piece_size` to a smaller value raises
     :exception:`PieceSizeError`.
     """
 
@@ -405,7 +405,7 @@ class Torrent():
     """
     Greatest allowed piece size
 
-    Setting :attr:`piece_size` to a greater value will raise
+    Setting :attr:`piece_size` to a greater value raises
     :exception:`PieceSizeError`.
     """
 
