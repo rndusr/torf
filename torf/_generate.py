@@ -293,13 +293,11 @@ class HashWorkerPool():
         hash_queue = self._hash_queue
         while True:
             try:
-                debug(f'{name}: Getting from {piece_queue}')
                 piece_index, piece, filepath = piece_queue.get()
             except QueueExhausted:
                 debug(f'{name}: {piece_queue} is exhausted')
                 break
             else:
-                debug(f'{name}: Hashing piece {piece_index}')
                 piece_hash = sha1(piece).digest()
                 debug(f'{name}: Sending hash of piece {piece_index} to {hash_queue}')
                 hash_queue.put((piece_index, piece_hash, filepath))
