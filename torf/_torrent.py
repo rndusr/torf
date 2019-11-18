@@ -897,7 +897,8 @@ class Torrent():
         else:
             return True
 
-    def verify(self, path, callback=None, interval=0):
+    def verify(self, path, skip_file_on_first_error=True, threads=None,
+               callback=None, interval=0):
         """
         Check if `path` contains all the data of this torrent
 
@@ -906,6 +907,10 @@ class Torrent():
         ``['pieces']``.
 
         :param str path: Directory or file to check
+        :param skip_file_on_first_error bool: Whether to stop hashing pieces
+            from file if a piece from it is corrupt
+        :param threads int: How many threads to use for hashing pieces or
+            ``None`` to use one thread per available CPU core
         :param callable callback: Callable with signature ``(torrent, filepath,
             pieces_done, pieces_total, piece_index, piece_hash, exception)``; if
             `callback` returns anything else than ``None``, verification is
@@ -928,92 +933,75 @@ class Torrent():
         raise_exceptions = not callback
         filepaths, maybe_cancel = self._verify_prepare(path, callback, interval=interval)
         fs_filepaths = tuple(x[0] for x in filepaths)
-        exception = None
 
-        # Assuming "foo/bar/baz.jpg" is in the metainfo, it might exist as
-        # "asdf/bar/baz.jpg" in the file system.  In that case, seeing
-        # "foo/bar/baz.jpg" in error messages is confusing, so we replace the
-        # first segment of the torrent file path with the last segment of the
-        # `path` argument.
-        def replace_torrent_name(filepath, _replacement=str(path).split(os.sep)[-1]):
-            if os.sep not in filepath:
-                # Singlefile torrent
-                return _replacement
-            else:
-                # Multifile torrent
-                subpath = os.sep.join(filepath.split(os.sep)[1:])
-                return os.path.join(_replacement, subpath)
-
-        # Read piece_size'd chunks from disk and push them to queue for hashing
-        def reader_error_callback(exc, filepath, piece_index, torrent=self,
-                                  pieces_done=0, pieces_total=self.pieces,
-                                  piece_hash=None):
-            nonlocal exception
-            exception = exc
-            maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
-                                  piece_index, piece_hash, exception),
+        if self.mode == 'singlefile' and os.path.isdir(os.path.realpath(path)):
+            exception = error.IsDirectoryError(path)
+            maybe_cancel(cb_args=(self, fs_filepaths[0], 0, self.pieces, 0, None, exception),
                          force_call=True)
-        reader = generate.Reader(filepaths=fs_filepaths,
-                                 file_sizes={fs_path:self.partial_size(t_path)
-                                             for fs_path,t_path in filepaths},
-                                 piece_size=self.piece_size,
-                                 queue_size=NCORES*3,
-                                 error_callback=reader_error_callback)
+        elif self.mode == 'multifile' and not os.path.isdir(os.path.realpath(path)):
+            exception = error.NotDirectoryError(path)
+            maybe_cancel(cb_args=(self, fs_filepaths[0], 0, self.pieces, 0, None, exception),
+                         force_call=True)
+        else:
+            exception = None
+            threads = threads or NCORES
 
-        # Pool of workers that pull from reader_thread's piece queue, calculate
-        # the hashes, and quickly offload the results to a hash queue
-        hasher_threadpool = generate.HashWorkerPool(NCORES, reader.piece_queue)
-
-        # Pull from the hash queue; also call callback and maybe stop everything
-        pieces = self.metainfo['info']['pieces']
-        def collector_callback(filepath, pieces_done, piece_index, piece_hash,
-                               maybe_cancel=maybe_cancel, torrent=self,
-                               pieces_total=self.pieces, piece_size=self.piece_size,
-                               exp_hashes=tuple(pieces[pos:pos + 20]
-                                                for pos in range(0, len(pieces), 20))):
-            nonlocal exception
-            if piece_hash != exp_hashes[piece_index]:
-                files = tuple((replace_torrent_name(t_path), self.partial_size(t_path))
-                              for _,t_path in filepaths)
-                exception = error.ContentError(piece_index, piece_size, files)
+            # Read piece_size'd chunks from disk and push them to queue for hashing
+            def reader_error_callback(exc, filepath, piece_index, torrent=self,
+                                      pieces_done=0, pieces_total=self.pieces,
+                                      piece_hash=None):
+                nonlocal exception
+                exception = exc
                 maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
                                       piece_index, piece_hash, exception),
                              force_call=True)
-            else:
-                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
-                                      piece_index, piece_hash, None),
-                             # Always call callback after the last piece was hashed
-                             force_call=pieces_done >= pieces_total)
-        collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
-                                                    callback=collector_callback)
+            reader = generate.Reader(filepaths=fs_filepaths,
+                                     file_sizes={fs_path:self.partial_size(t_path)
+                                                 for fs_path,t_path in filepaths},
+                                     piece_size=self.piece_size,
+                                     queue_size=threads*3,
+                                     error_callback=reader_error_callback)
 
-        maybe_cancel.on_cancel(reader.stop,
-                               hasher_threadpool.stop,
-                               collector_thread.stop)
+            # Pool of workers that pull from reader_thread's piece queue, calculate
+            # the hashes, and quickly offload the results to a hash queue
+            hasher_threadpool = generate.HashWorkerPool(threads, reader.piece_queue)
 
-        try:
-            debug(f'### Reading')
-            reader.read()
-        except BaseException as e:
-            debug(f'### Stopping hashers')
-            hasher_threadpool.stop()
-            debug(f'### Done stopping hashers')
-
-            debug(f'### Stopping collector')
-            collector_thread.stop()
-            debug(f'### Done stopping collector')
-
-            debug(f'### Re-raising: {e!r}')
-            raise
-            debug(f'### Done-raising: {e!r}')
-        finally:
-            debug(f'### Joining hashers')
-            hasher_threadpool.join()
-            debug(f'### Done joining hashers')
-
-            debug(f'### Joining collector')
-            collector_thread.join()
-            debug(f'### Done joining collector')
+            # Pull from the hash queue; also call callback and maybe stop everything
+            def collector_callback(filepath, pieces_done, piece_index, piece_hash,
+                                   torrent=self, pieces_total=self.pieces, piece_size=self.piece_size,
+                                   exp_hashes=self.hashes):
+                nonlocal exception
+                if piece_hash != exp_hashes[piece_index]:
+                    if skip_file_on_first_error:
+                        reader.skip_file(filepath)
+                    files = tuple((fs_path, self.partial_size(t_path))
+                                  for fs_path,t_path in filepaths)
+                    exception = error.ContentError(piece_index, piece_size, files)
+                    maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                          piece_index, piece_hash, exception),
+                                 force_call=True)
+                else:
+                    maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                          piece_index, piece_hash, None),
+                                 # Always call callback after the last piece was hashed
+                                 force_call=pieces_done >= pieces_total)
+            collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
+                                                        callback=collector_callback,
+                                                        file_was_skipped=lambda f: f in reader.skipped_files)
+            maybe_cancel.on_cancel(reader.stop,
+                                   hasher_threadpool.stop,
+                                   collector_thread.stop)
+            try:
+                reader.read()
+            except BaseException as e:
+                hasher_threadpool.stop()
+                collector_thread.stop()
+                raise
+            finally:
+                hasher_threadpool.join()
+                collector_thread.join()
+                if collector_thread.exception is not None:
+                    exception = collector_thread.exception
 
         # Raise exception unless the callback function already handled it
         if exception:
@@ -1023,8 +1011,6 @@ class Torrent():
                 return False
         else:
             return True
-
-
 
     def validate(self):
         """
