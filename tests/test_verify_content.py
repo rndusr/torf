@@ -3,6 +3,7 @@ import torf
 import pytest
 from unittest import mock
 import os
+import shutil
 
 
 def test_validate_is_called_first(monkeypatch):
@@ -15,94 +16,508 @@ def test_validate_is_called_first(monkeypatch):
     mock_validate.assert_called_once_with()
 
 
-def test_file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent):
-    content_path = tmpdir.join('content.jpg')
-    content_path.write('some data')
+def test_verify_content_successfully_with_singlefile_torrent(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.join('some file.jpg')
+    content_path.write_binary(os.urandom(3*piece_size+1000))
+
     with create_torrent(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
         # Without callback
-        with pytest.raises(torf.ReadError) as excinfo:
-            torrent.verify('nonexisting/path')
-        assert excinfo.match(f'^nonexisting/path: No such file or directory$')
+        assert torrent.verify(content_path, skip_file_on_first_error=False) == True
 
         # With callback
+        exp_piece_indexes = list(range(4))
+        exp_call_count = len(exp_piece_indexes)
         cb = mock.MagicMock()
         def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
-            assert str(path) == 'nonexisting/path'
-            assert pieces_done == 0
+            assert str(path) == str(content_path)
+            assert 0 <= pieces_done <= pieces_total
             assert pieces_total == torrent.pieces
-            assert piece_index == 0
-            assert piece_hash is None
-            assert str(exc) == 'nonexisting/path: No such file or directory'
+            assert 0 <= piece_index <= pieces_total - 1
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            assert exc is None
+            exp_piece_indexes.remove(piece_index)
             return None
         cb.side_effect = assert_call
-        assert torrent.verify('nonexisting/path', callback=cb, interval=0) == False
-        assert cb.call_count == 1
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == True
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
 
 
-def test_file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
+def test_verify_content_successfully_with_multifile_torrent(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
     content_path = tmpdir.mkdir('content')
     content_file1 = content_path.join('file1.jpg')
     content_file2 = content_path.join('file2.jpg')
     content_file3 = content_path.join('file3.jpg')
-    content_file1.write_binary(os.urandom(torf.Torrent.piece_size_min*2))
-    content_file2.write_binary(os.urandom(torf.Torrent.piece_size_min*3))
-    content_file3.write_binary(os.urandom(torf.Torrent.piece_size_min*4))
+    content_file1.write_binary(os.urandom(2*piece_size+1000))
+    content_file2.write_binary(os.urandom(3*piece_size+1000))
+    content_file3.write_binary(os.urandom(4*piece_size+3000))
 
     with create_torrent(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
-        print(len(torrent.metainfo['info']['pieces']))
-
-        os.remove(content_file1)
-        os.remove(content_file3)
 
         # Without callback
-        with pytest.raises(torf.ReadError) as excinfo:
-            torrent.verify(content_path)
-        assert excinfo.match(f'^{content_file1}: No such file or directory$')
+        assert torrent.verify(content_path, skip_file_on_first_error=False) == True
 
         # With callback
-        exp_piece_indexes = [0,        # file1: one call for the "no such file" error
-                             2, 3, 4,  # file2: one call per piece
-                             5]        # file3: one call for the "no such file" error
+        exp_piece_indexes = list(range(10))
+        exp_call_count = len(exp_piece_indexes)
         cb = mock.MagicMock()
-        import logging
-        logging.debug('#'*50)
-        import threading
-        lock = threading.Lock()
         def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-            with lock:
-                logging.debug(f'CALL: {path}, {pieces_done}, {pieces_total}, {piece_index}, {piece_hash}, {exc}')
+            assert t == torrent
+            assert 0 <= pieces_done <= pieces_total
+            assert pieces_total == torrent.pieces
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            if piece_index in (0, 1):
+                assert str(path) == str(content_file1)
+            elif piece_index in (2, 3, 4):
+                assert str(path) == str(content_file2)
+            elif piece_index in (5, 6, 7, 8, 9):
+                assert str(path) == str(content_file3)
+            assert exc is None
+            exp_piece_indexes.remove(piece_index)
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == True
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
+
+
+def test_verify_content__file_is_missing(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom(piece_size+100))
+    data_file2 = os.urandom((piece_size*2)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom(piece_size+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        corruption_offset = piece_size
+        data_file2_corrupt = data_file2[:corruption_offset] + data_file2[corruption_offset+10:]
+        assert len(data_file2_corrupt) == len(data_file2) - 10
+        content_file2.write_binary(data_file2_corrupt)
+
+        # Without callback
+        with pytest.raises(torf.ContentError) as excinfo:
+            torrent.verify(content_path, skip_file_on_first_error=False)
+        # All file2 pieces after index 3 are corrupt and it's possible that
+        # latter pieces are processed first
+        assert (str(excinfo.value) == (f'Corruption in piece 3 in {content_file2}') or
+                str(excinfo.value) == (f'Corruption in piece 4, at least one of these files is corrupt: '
+                                       f'{content_file2}, {content_file3}'))
+
+        # With callback
+        # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
+        exp_piece_indexes = [
+            0,  # file1[0:16384]: ok
+            1,  # file1[-100:] + file2[:16284]: ok
+            2,  # file2[16284:16284+16384]: corrupt, bytes file2[piece_size:piece_size+10] are missing
+            3,  # file2[-300:] + file3[:16084]: still corrupt because of file2, skipped
+            4,  # file3[-600:]: ok
+        ]
+        exp_call_count = len(exp_piece_indexes)
+
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
             assert t == torrent
             assert pieces_total == torrent.pieces
             assert 0 <= pieces_done <= pieces_total
             if piece_index == 0:
                 assert str(path) == str(content_file1)
-                assert piece_hash is None
-                assert str(exc) == f'{content_file1}: No such file or directory'
-            elif piece_index in (2, 3, 4):
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 1:
                 assert str(path) == str(content_file2)
                 assert type(piece_hash) is bytes and len(piece_hash) == 20
                 assert exc is None
-            elif piece_index == 5:
+            elif piece_index == 2:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+            elif piece_index == 3:
                 assert str(path) == str(content_file3)
-                assert piece_hash is None
-                assert str(exc) == f'{content_file3}: No such file or directory'
-            logging.debug(f'removing {piece_index} from {exp_piece_indexes}')
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == (f'Corruption in piece {piece_index+1}, '
+                                    'at least one of these files is corrupt: '
+                                    f'{content_file2}, {content_file3}')
+            elif piece_index == 4:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
             exp_piece_indexes.remove(piece_index)
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_path, callback=cb, interval=0) == False
-        #   9 pieces/calls total
-        # - 2 pieces in file1 - 4 pieces in file3
-        # + 1 error for file1 + 1 error for file3
-        assert cb.call_count == 5
-        assert len(exp_piece_indexes) == 0
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
 
 
-def test_path_is_directory_and_torrent_contains_single_file(tmpdir, create_torrent):
+def test_verify_content__file_is_smaller(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom(piece_size+100))
+    data_file2 = os.urandom((piece_size*2)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom(piece_size+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        corruption_offset = piece_size
+        data_file2_corrupt = data_file2[:corruption_offset] + data_file2[corruption_offset+10:]
+        assert len(data_file2_corrupt) == len(data_file2) - 10
+        content_file2.write_binary(data_file2_corrupt)
+
+        # Without callback
+        with pytest.raises(torf.ContentError) as excinfo:
+            torrent.verify(content_path, skip_file_on_first_error=False)
+        # All file2 pieces after index 3 are corrupt and it's possible that
+        # latter pieces are processed first
+        assert (str(excinfo.value) == (f'Corruption in piece 3 in {content_file2}') or
+                str(excinfo.value) == (f'Corruption in piece 4, at least one of these files is corrupt: '
+                                       f'{content_file2}, {content_file3}'))
+
+        # With callback
+        # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
+        exp_piece_indexes = [
+            0,  # file1[0:16384]: ok
+            1,  # file1[-100:] + file2[:16284]: ok
+            2,  # file2[16284:16284+16384]: corrupt, bytes file2[piece_size:piece_size+10] are missing
+            3,  # file2[-300:] + file3[:16084]: still corrupt because of file2, skipped
+            4,  # file3[-600:]: ok
+        ]
+        exp_call_count = len(exp_piece_indexes)
+
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_total == torrent.pieces
+            assert 0 <= pieces_done <= pieces_total
+            if piece_index == 0:
+                assert str(path) == str(content_file1)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 1:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 2:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+            elif piece_index == 3:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == (f'Corruption in piece {piece_index+1}, '
+                                    'at least one of these files is corrupt: '
+                                    f'{content_file2}, {content_file3}')
+            elif piece_index == 4:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            exp_piece_indexes.remove(piece_index)
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
+
+
+def test_verify_content__file_is_bigger(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom(piece_size+100))
+    data_file2 = os.urandom((piece_size*2)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom(piece_size+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        corruption_offset = piece_size
+        data_file2_corrupt = (data_file2[:corruption_offset] +
+                              b'\x12'*10 +
+                              data_file2[corruption_offset:])
+        assert len(data_file2_corrupt) == len(data_file2) + 10
+        content_file2.write_binary(data_file2_corrupt)
+
+        # Without callback
+        with pytest.raises(torf.ContentError) as excinfo:
+            torrent.verify(content_path, skip_file_on_first_error=False)
+        # All file2 pieces after index 3 are corrupt and it's possible that
+        # latter pieces are processed first
+        assert (str(excinfo.value) == (f'Corruption in piece 3 in {content_file2}') or
+                str(excinfo.value) == (f'Corruption in piece 4, at least one of these files is corrupt: '
+                                       f'{content_file2}, {content_file3}'))
+
+        # With callback
+        # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
+        exp_piece_indexes = [
+            0,  # file1[0:16384]: ok
+            1,  # file1[-100:] + file2[:16284]: ok
+            2,  # file2[16284:16284+16384]: corrupt, additional bytes at file2[piece_size:piece_size+10]
+            3,  # file2[-300:] + file3[:16084]: still corrupt because of file2
+            4,  # file3[-600:]: ok
+        ]
+        exp_call_count = len(exp_piece_indexes)
+
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_total == torrent.pieces
+            assert 0 <= pieces_done <= pieces_total
+            if piece_index == 0:
+                assert str(path) == str(content_file1)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 1:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 2:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+            elif piece_index == 3:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == (f'Corruption in piece {piece_index+1}, '
+                                    'at least one of these files is corrupt: '
+                                    f'{content_file2}, {content_file3}')
+            elif piece_index == 4:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            exp_piece_indexes.remove(piece_index)
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
+
+
+def test_verify_content__file_is_same_size_but_corrupt(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom(piece_size+100))
+    data_file2 = os.urandom((piece_size*2)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom(piece_size+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        corruption_offset = piece_size
+        data_file2_corrupt = (data_file2[:corruption_offset] +
+                              b'\x12'*10 +
+                              data_file2[corruption_offset+10:])
+        assert len(data_file2_corrupt) == len(data_file2)
+        content_file2.write_binary(data_file2_corrupt)
+
+        # Without callback
+        with pytest.raises(torf.ContentError) as excinfo:
+            torrent.verify(content_path, skip_file_on_first_error=False)
+        assert excinfo.match(f'^Corruption in piece 3 in {content_file2}')
+
+        # With callback
+        # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
+        exp_piece_indexes = [
+            0,  # file1[0:16384]: ok
+            1,  # file1[-100:] + file2[:16284]: ok
+            2,  # file2[16284:16284+16384]: corrupt
+            3,  # file2[-300:] + file3[:16084]: ok
+            4,  # file3[-600:]: ok
+        ]
+        exp_call_count = len(exp_piece_indexes)
+
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_total == torrent.pieces
+            assert 0 <= pieces_done <= pieces_total
+            if piece_index == 0:
+                assert str(path) == str(content_file1)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 1:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 2:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
+            elif piece_index == 3:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 4:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            exp_piece_indexes.remove(piece_index)
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
+
+
+def test_verify_content__skip_file_on_first_error(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom((piece_size*3)+100))
+    data_file2 = os.urandom((piece_size*10)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom((piece_size*2)+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        # Corrupt multiple pieces
+        data_file2_corrupt = bytearray(data_file2)
+        for pos in (4*piece_size+1000, 8*piece_size+1000):
+            data_file2_corrupt[pos] = (data_file2_corrupt[pos] + 1) % 256
+        assert data_file2_corrupt != data_file2
+        content_file2.write_binary(data_file2_corrupt)
+
+        reported_goodies = set()
+        reported_badies = set()
+
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_total == torrent.pieces
+            assert 0 <= pieces_done <= pieces_total
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            if exc is None:
+                assert piece_hash
+                reported_goodies.add((piece_index, path))
+            else:
+                reported_badies.add((piece_index, path, str(exc)))
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=True, callback=cb, interval=0) == False
+
+        # Exactly one of the two corruptions in file2 must have been reported,
+        # but we can't predict which one was found first.
+        assert any(badie in reported_badies
+                   for badie in [(7, content_file2, f'Corruption in piece 8 in {content_file2}'),
+                                 (11, content_file2, f'Corruption in piece 12 in {content_file2}')])
+        assert len(reported_badies) == 1
+
+        # All pieces of non-corrupt file1 and file3 must have been reported, and
+        # we expect at least one reported good piece of file2 before a corrupt
+        # piece is found.
+        assert (0, content_file1) in reported_goodies
+        assert (1, content_file1) in reported_goodies
+        assert (2, content_file1) in reported_goodies
+        assert any(goodie in reported_goodies
+                   for goodie in [(3, content_file2),
+                                  (4, content_file2),
+                                  (5, content_file2),
+                                  (6, content_file2),
+                                  (8, content_file2),
+                                  (9, content_file2),
+                                  (10, content_file2),
+                                  (12, content_file2)])
+        assert (7, content_file2) not in reported_goodies
+        assert (11, content_file2) not in reported_goodies
+        assert (13, content_file3) in reported_goodies
+        assert (14, content_file3) in reported_goodies
+        assert (15, content_file3) in reported_goodies
+
+
+def test_verify_content__skip_file_on_first_error_with_corrupt_piece_overlapping_multiple_files(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom((piece_size*3)+100))
+    data_file2 = os.urandom((piece_size*10)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom((piece_size*2)+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        # Corrupt multiple pieces
+        data_file2_corrupt = bytearray(data_file2)
+        for pos in (4*piece_size+1000, 8*piece_size+1000, -100):
+            data_file2_corrupt[pos] = (data_file2_corrupt[pos] + 1) % 256
+        assert data_file2_corrupt != data_file2
+        content_file2.write_binary(data_file2_corrupt)
+
+        reported_goodies = set()
+        reported_badies = set()
+
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_total == torrent.pieces
+            assert 0 <= pieces_done <= pieces_total
+            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            if exc is None:
+                assert piece_hash
+                reported_goodies.add((piece_index, path))
+            else:
+                reported_badies.add((piece_index, path, str(exc)))
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=True, callback=cb, interval=0) == False
+
+        # The first corruption (index 7) is reported, the second corruption
+        # (index 11) is ignored, but the third corruption (index 13) is reported
+        # again, because it also corrupts file3.
+        assert reported_badies == set(((7, content_file2, f'Corruption in piece 8 in {content_file2}'),
+                                       (13, content_file3, (f'Corruption in piece 14, at least one of these files is corrupt: '
+                                                            f'{content_file2}, {content_file3}'))))
+
+        # All pieces of non-corrupt file1 must have been reported, and we expect
+        # at least one reported good piece of file2 before a corrupt piece is
+        # found.  file3 is also skipped because its first piece is corrupt.
+        assert (0, content_file1) in reported_goodies
+        assert (1, content_file1) in reported_goodies
+        assert (2, content_file1) in reported_goodies
+        assert any(goodie in reported_goodies
+                   for goodie in [(3, content_file2),
+                                  (4, content_file2),
+                                  (5, content_file2),
+                                  (6, content_file2),
+                                  (8, content_file2),
+                                  (9, content_file2),
+                                  (10, content_file2),
+                                  (12, content_file2)])
+        assert (7, content_file2) not in reported_goodies
+        assert (11, content_file2) not in reported_goodies
+        assert (13, content_file2) not in reported_goodies
+        # Not checking for 14 and 15 because they may be in reported_goodies if
+        # they were checked before 13, but there is no way to tell.
+
+
+def test_verify_content__path_is_directory_and_torrent_contains_single_file(tmpdir, create_torrent):
     content_path = tmpdir.join('content')
     content_path.write('some data')
     with create_torrent(path=content_path) as torrent_file:
@@ -115,7 +530,7 @@ def test_path_is_directory_and_torrent_contains_single_file(tmpdir, create_torre
         assert os.path.isdir(content_path)
 
         # Without callback
-        with pytest.raises(torf.ReadError) as excinfo:
+        with pytest.raises(torf.IsDirectoryError) as excinfo:
             torrent.verify(content_path)
         assert excinfo.match(f'^{content_path}: Is a directory$')
 
@@ -135,7 +550,40 @@ def test_path_is_directory_and_torrent_contains_single_file(tmpdir, create_torre
         assert cb.call_count == 1
 
 
-def test_parent_path_is_unreadable(tmpdir, create_torrent):
+def test_verify_content__path_is_single_file_and_torrent_contains_directory(tmpdir, create_torrent):
+    content_path = tmpdir.mkdir('content')
+    content_file = content_path.join('file.jpg')
+    content_file.write('some data')
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        shutil.rmtree(content_path)
+        content_path = tmpdir.join('content')
+        content_path.write('some data')
+        assert os.path.isfile(content_path)
+
+        # Without callback
+        with pytest.raises(torf.NotDirectoryError) as excinfo:
+            torrent.verify(content_path)
+        assert excinfo.match(f'^{content_path}: Not a directory$')
+
+        # With callback
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_done == 0
+            assert pieces_total == torrent.pieces
+            assert piece_index == 0
+            assert piece_hash is None
+            assert str(path) == str(content_file)
+            assert str(exc) == f'{content_path}: Not a directory'
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, callback=cb, interval=0) == False
+        assert cb.call_count == 1
+
+
+def test_verify_content__parent_path_is_unreadable(tmpdir, create_torrent):
     content_path = tmpdir.mkdir('content')
     unreadable_path1 = content_path.mkdir('unreadable1').mkdir('b').mkdir('c')
     unreadable_path2 = content_path.mkdir('unreadable2').mkdir('b').mkdir('c')
@@ -160,29 +608,18 @@ def test_parent_path_is_unreadable(tmpdir, create_torrent):
                 torrent.verify(content_path)
             assert excinfo.match(f'^{content_file1}: Permission denied$')
 
-            import logging
-            logging.debug('#'*50)
-
-            import threading
-            lock = threading.Lock()
-
             # With callback
-            exp_paths = [str(content_file1),  # file1: unreadable exception
-                         str(content_file2),  # file2: unreadable exception
+            exp_paths = [str(content_file1),  # file1: unreadable
+                         str(content_file2),  # file2: unreadable
                          str(content_file2)]  # file2: file2 corrupted exception
                                               # no call for file3 because there is only 1 piece
             exp_file2_exceptions = [f'{str(content_file2)}: Permission denied',
                                     ('Corruption in piece 1, at least one of these files is corrupt: '
-                                     'content/readable/b/c/file3.jpg, '
-                                     'content/unreadable1/b/c/file1.jpg, '
-                                     'content/unreadable2/b/c/file2.jpg')]
+                                     f'{content_file3}, {content_file1}, {content_file2}')]
             cb = mock.MagicMock()
             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                with lock:
-                    logging.debug(f'CALL: {path}, {pieces_done}, {pieces_total}, {piece_index}, {piece_hash}, {exc}')
                 assert t == torrent
                 assert pieces_total == torrent.pieces
-                assert piece_index == 0
                 assert str(path) in (str(content_file1), str(content_file2))
                 if str(path) == str(content_file1):
                     assert pieces_done == 0
@@ -197,22 +634,18 @@ def test_parent_path_is_unreadable(tmpdir, create_torrent):
                     else:
                         assert pieces_done == 1
                         assert type(piece_hash) is bytes and len(piece_hash) == 20
-
-                logging.debug(f'removing {str(path)} from {exp_paths}')
                 exp_paths.remove(str(path))
                 return None
             cb.side_effect = assert_call
             assert torrent.verify(content_path, callback=cb, interval=0) == False
             assert cb.call_count == 3
             assert len(exp_paths) == 0
-
-
         finally:
             os.chmod(unreadable_path1, mode=unreadable_path1_mode)
             os.chmod(unreadable_path2, mode=unreadable_path2_mode)
 
 
-def test_hash_check_with_singlefile_torrent(tmpdir, create_torrent):
+def test_verify_content__corruption_in_singlefile_torrent(tmpdir, create_torrent):
     piece_size = torf.Torrent.piece_size_min
     content_path = tmpdir.join('content.jpg')
     content_data = os.urandom(int(piece_size * 3.12345))
@@ -232,7 +665,7 @@ def test_hash_check_with_singlefile_torrent(tmpdir, create_torrent):
 
                 # Without callback
                 with pytest.raises(torf.ContentError) as excinfo:
-                    torrent.verify(content_path)
+                    torrent.verify(content_path, skip_file_on_first_error=False)
                 assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}$')
 
                 # With callback
@@ -256,11 +689,11 @@ def test_hash_check_with_singlefile_torrent(tmpdir, create_torrent):
                         assert exc is None
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb, interval=0) == False
+                assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
                 assert cb.call_count == 4
 
 
-def test_hash_check_with_multifile_torrent_and_pieces_aligning_to_files(tmpdir, create_torrent):
+def test_verify_content__corruption_in_multifile_torrent_and_pieces_aligning_to_files(tmpdir, create_torrent):
     piece_size = torf.Torrent.piece_size_min
     content_path = tmpdir.mkdir('content')
     content_file1 = content_path.join('file1.jpg')
@@ -273,9 +706,6 @@ def test_hash_check_with_multifile_torrent_and_pieces_aligning_to_files(tmpdir, 
     content_file1.write_binary(content_data1)
     content_file2.write_binary(content_data2)
     content_file3.write_binary(content_data3)
-
-    def real_path(path):
-        return os.sep.join(str(path).split(os.sep)[-2:])
 
     with create_torrent(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
@@ -295,8 +725,8 @@ def test_hash_check_with_multifile_torrent_and_pieces_aligning_to_files(tmpdir, 
 
                 # Without callback
                 with pytest.raises(torf.ContentError) as excinfo:
-                    torrent.verify(content_path)
-                assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {real_path(file)}$')
+                    torrent.verify(content_path, skip_file_on_first_error=False)
+                assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {file}$')
 
                 # With callback
                 cb = mock.MagicMock(return_value=None)
@@ -315,23 +745,23 @@ def test_hash_check_with_multifile_torrent_and_pieces_aligning_to_files(tmpdir, 
                         assert str(path) == str(content_file3)
 
                     if piece_index == 0 and corrupt_piece_index == 0:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file1)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file1}'
                     elif piece_index == 1 and corrupt_piece_index == 1:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file2)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
                     elif piece_index == 2 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file2)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
                     elif piece_index == 3 and corrupt_piece_index == 3:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file3)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     elif piece_index == 4 and corrupt_piece_index == 4:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file3)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     elif piece_index == 5 and corrupt_piece_index == 5:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file3)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     else:
                         assert exc is None
 
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb, interval=0) == False
+                assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
                 assert cb.call_count == 6
 
                 # Restore original data so it we don't get the same error in the
@@ -339,7 +769,7 @@ def test_hash_check_with_multifile_torrent_and_pieces_aligning_to_files(tmpdir, 
                 file.write_binary(data)
 
 
-def test_hash_check_with_multifile_torrent_and_pieces_not_aligning_to_files(tmpdir, create_torrent):
+def test_verify_content__corruption_in_multifile_torrent_and_pieces_not_aligning_to_files(tmpdir, create_torrent):
     piece_size = torf.Torrent.piece_size_min
     content_path = tmpdir.mkdir('content')
     content_file1 = content_path.join('file1.jpg')
@@ -352,9 +782,6 @@ def test_hash_check_with_multifile_torrent_and_pieces_not_aligning_to_files(tmpd
     content_file1.write_binary(content_data1)
     content_file2.write_binary(content_data2)
     content_file3.write_binary(content_data3)
-
-    def real_path(path):
-        return os.sep.join(str(path).split(os.sep)[-2:])
 
     with create_torrent(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
@@ -374,25 +801,25 @@ def test_hash_check_with_multifile_torrent_and_pieces_not_aligning_to_files(tmpd
 
                 # Without callback
                 with pytest.raises(torf.ContentError) as excinfo:
-                    torrent.verify(content_path)
+                    torrent.verify(content_path, skip_file_on_first_error=False)
                 if corrupt_piece_index == 0:
-                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {real_path(content_file1)}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file1}$')
                 elif corrupt_piece_index == 1:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          f'at least one of these files is corrupt: '
-                                         f'{real_path(content_file1)}, {real_path(content_file2)}$')
+                                         f'{content_file1}, {content_file2}$')
                 elif corrupt_piece_index == 2:
-                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {real_path(content_file2)}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file2}$')
                 elif corrupt_piece_index == 3:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          f'at least one of these files is corrupt: '
-                                         f'{real_path(content_file2)}, {real_path(content_file3)}$')
+                                         f'{content_file2}, {content_file3}$')
                 elif corrupt_piece_index == 4:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          f'at least one of these files is corrupt: '
-                                         f'{real_path(content_file2)}, {real_path(content_file3)}$')
+                                         f'{content_file2}, {content_file3}$')
                 else:
-                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {real_path(content_file3)}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file3}$')
 
                 # With callback
                 cb = mock.MagicMock()
@@ -413,28 +840,27 @@ def test_hash_check_with_multifile_torrent_and_pieces_not_aligning_to_files(tmpd
                         assert str(path) == str(content_file3)
 
                     if piece_index == 0 and corrupt_piece_index == 0:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file1)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file1}'
                     elif piece_index == 1 and corrupt_piece_index == 1:
                         assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             f'at least one of these files is corrupt: '
-                                            f'{real_path(content_file1)}, {real_path(content_file2)}')
+                                            f'{content_file1}, {content_file2}')
                     elif piece_index == 2 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file2)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file2}'
                     elif piece_index == 3 and corrupt_piece_index == 3:
                         assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             f'at least one of these files is corrupt: '
-                                            f'{real_path(content_file2)}, {real_path(content_file3)}')
-                    # NOTE: Piece index 4 is never corrupted because file3.jpg is so big.
+                                            f'{content_file2}, {content_file3}')
                     elif piece_index == 5 and corrupt_piece_index == 5:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file3)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     elif piece_index == 6 and corrupt_piece_index == 6:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file3)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file3}'
                     else:
                         assert exc is None
 
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb, interval=0) == False
+                assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
                 assert cb.call_count == 7
 
                 # Restore original data so it we don't get the same error in the
@@ -442,7 +868,7 @@ def test_hash_check_with_multifile_torrent_and_pieces_not_aligning_to_files(tmpd
                 file.write_binary(data)
 
 
-def test_hash_check_with_multifile_torrent_and_one_piece_covering_multiple_files(tmpdir, create_torrent):
+def test_verify_content_corruption_in_multifile_torrent_and_one_piece_covering_multiple_files(tmpdir, create_torrent):
     piece_size = torf.Torrent.piece_size_min
     content_path = tmpdir.mkdir('content')
     content_file1 = content_path.join('file1.jpg')
@@ -464,9 +890,6 @@ def test_hash_check_with_multifile_torrent_and_one_piece_covering_multiple_files
     content_offset3 = len(content_data1) + len(content_data2)
     content_offset4 = len(content_data1) + len(content_data2) + len(content_data3)
 
-    def real_path(path):
-        return os.sep.join(str(path).split(os.sep)[-2:])
-
     with create_torrent(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
         assert torrent.pieces == 4
@@ -487,19 +910,19 @@ def test_hash_check_with_multifile_torrent_and_one_piece_covering_multiple_files
 
                 # Without callback
                 with pytest.raises(torf.ContentError) as excinfo:
-                    torrent.verify(content_path)
+                    torrent.verify(content_path, skip_file_on_first_error=False)
                 if corrupt_piece_index == 0:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          'at least one of these files is corrupt: '
-                                         f'{real_path(content_file1)}, {real_path(content_file2)}$')
+                                         f'{content_file1}, {content_file2}$')
                 elif corrupt_piece_index == 1:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
                                          'at least one of these files is corrupt: '
-                                         f'{real_path(content_file2)}, {real_path(content_file3)}, {real_path(content_file4)}$')
+                                         f'{content_file2}, {content_file3}, {content_file4}$')
                 elif corrupt_piece_index == 2:
-                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {real_path(content_file4)}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file4}$')
                 else:
-                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {real_path(content_file4)}$')
+                    assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file4}$')
 
                 # With callback
                 cb = mock.MagicMock()
@@ -522,21 +945,21 @@ def test_hash_check_with_multifile_torrent_and_one_piece_covering_multiple_files
                     if piece_index == 0 and corrupt_piece_index == 0:
                         assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             'at least one of these files is corrupt: '
-                                            f'{real_path(content_file1)}, {real_path(content_file2)}')
+                                            f'{content_file1}, {content_file2}')
                     elif piece_index == 1 and corrupt_piece_index == 1:
                         assert str(exc) == (f'Corruption in piece {piece_index+1}, '
                                             'at least one of these files is corrupt: '
-                                            f'{real_path(content_file2)}, {real_path(content_file3)}, {real_path(content_file4)}')
+                                            f'{content_file2}, {content_file3}, {content_file4}')
                     elif piece_index == 2 and corrupt_piece_index == 2:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file4)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file4}'
                     elif piece_index == 3 and corrupt_piece_index == 3:
-                        assert str(exc) == f'Corruption in piece {piece_index+1} in {real_path(content_file4)}'
+                        assert str(exc) == f'Corruption in piece {piece_index+1} in {content_file4}'
                     else:
                         assert exc is None
 
                     return None
                 cb.side_effect = assert_call
-                assert torrent.verify(content_path, callback=cb, interval=0) == False
+                assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
                 assert cb.call_count == 4
 
                 # Restore original data so it we don't get the same error in the
@@ -544,7 +967,7 @@ def test_hash_check_with_multifile_torrent_and_one_piece_covering_multiple_files
                 file.write_binary(data)
 
 
-def test_callback_is_called_at_intervals(tmpdir, create_torrent, monkeypatch):
+def test_verify_content__callback_is_called_at_intervals(tmpdir, create_torrent, monkeypatch):
     content_file = tmpdir.join('content.jpg')
     content_file.write_binary(os.urandom(torf.Torrent.piece_size_min * 20))
     with create_torrent(path=content_file) as torrent_file:
@@ -565,11 +988,11 @@ def test_callback_is_called_at_intervals(tmpdir, create_torrent, monkeypatch):
             assert exc is None
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_file, callback=cb, interval=2) == True
+        assert torrent.verify(content_file, skip_file_on_first_error=False, callback=cb, interval=2) == True
         assert cb.call_count == (torrent.pieces / 2) + 1
 
 
-def test_callback_interval_is_ignored_with_exception(tmpdir, create_torrent, monkeypatch):
+def test_verify_content__callback_interval_is_ignored_with_exception(tmpdir, create_torrent, monkeypatch):
     piece_size = torf.Torrent.piece_size_min
     content_file = tmpdir.join('content.jpg')
     content_data = os.urandom(piece_size * 30)
@@ -604,41 +1027,24 @@ def test_callback_interval_is_ignored_with_exception(tmpdir, create_torrent, mon
                 assert exc is None
             return None
         cb.side_effect = assert_call
-        assert torrent.verify(content_file, callback=cb, interval=3) == False
+        assert torrent.verify(content_file, skip_file_on_first_error=False, callback=cb, interval=3) == False
         assert cb.call_count == 12
 
 
 def test_callback_raises_exception(tmpdir, create_torrent, monkeypatch):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file2 = content_path.join('file2.jpg')
-    content_file3 = content_path.join('file3.jpg')
-    content_file1.write('some data')
-    content_file2.write('some other data')
-    content_file3.write('some more data')
+    content = tmpdir.join('file.jpg')
+    content.write_binary(os.urandom(5*torf.Torrent.piece_size_min))
 
-    with create_torrent(path=content_path) as torrent_file:
+    with create_torrent(path=content) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
         cb = mock.MagicMock()
-        def assert_call(t, fs_path, t_path, files_done, files_total, exc):
-            assert t == torrent
-            assert files_done == cb.call_count
-            assert files_total == 3
-            if cb.call_count == 1:
-                assert fs_path == str(content_file1)
-                assert t_path == os.sep.join(str(content_file1).split(os.sep)[-2:])
-                assert exc is None
-            elif cb.call_count == 2:
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            if cb.call_count == 3:
                 raise RuntimeError("I'm off")
-            elif cb.call_count == 3:
-                assert fs_path == str(content_file3)
-                assert t_path == os.sep.join(str(content_file3).split(os.sep)[-2:])
-                assert exc is None
             return None
         cb.side_effect = assert_call
-
         with pytest.raises(RuntimeError) as excinfo:
-            torrent.verify_filesize(content_path, callback=cb)
+            torrent.verify(content, skip_file_on_first_error=False, callback=cb)
         assert excinfo.match(f"^I'm off$")
-        assert cb.call_count == 2
+        assert cb.call_count == 3
