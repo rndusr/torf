@@ -325,9 +325,10 @@ class HashWorkerPool():
 
 
 class CollectorWorker(Worker):
-    def __init__(self, hash_queue, callback=None):
+    def __init__(self, hash_queue, file_was_skipped=None, callback=None):
         self._hash_queue = hash_queue
         self._callback = callback
+        self._file_was_skipped = file_was_skipped
         self._stop = False
         self._hashes = bytes()
         super().__init__(name='collector', worker=self._collect_hashes)
@@ -336,18 +337,22 @@ class CollectorWorker(Worker):
         hash_queue = self._hash_queue
         callback = self._callback
         hashes_unsorted = []
+        file_was_skipped = self._file_was_skipped
         while True:
             try:
-                debug(f'collector: Getting from {hash_queue}')
+                # debug(f'collector: Getting from {hash_queue}')
                 piece_index, piece_hash, filepath = hash_queue.get()
             except QueueExhausted:
                 debug(f'collector: {hash_queue} is exhausted')
                 break
             else:
-                debug(f'collector: Collected piece hash of piece {piece_index} of {filepath}')
-                hashes_unsorted.append((piece_index, piece_hash))
-                if callback:
-                    callback(filepath, len(hashes_unsorted), piece_index, piece_hash)
+                if file_was_skipped is None or not file_was_skipped(filepath):
+                    debug(f'collector: Collected piece hash of piece {piece_index} of {filepath}')
+                    hashes_unsorted.append((piece_index, piece_hash))
+                    if callback:
+                        callback(filepath, len(hashes_unsorted), piece_index, piece_hash)
+                else:
+                    debug(f'collector: Skipping piece hash of piece {piece_index} of {filepath}')
             if self._stop:
                 debug(f'collector: Stop flag found while getting piece hash')
                 break
