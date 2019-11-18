@@ -273,10 +273,11 @@ class Reader():
 
 
 class HashWorkerPool():
-    def __init__(self, workers_count, piece_queue):
+    def __init__(self, workers_count, piece_queue, file_was_skipped=None):
         self._piece_queue = piece_queue
         self._hash_queue = ExhaustQueue(name='hashes')
         self._workers_count = workers_count
+        self._file_was_skipped = file_was_skipped
         self._stop = False
         self._name_counter = _count().__next__
         self._name_counter()  # Consume 0 so first worker is 1
@@ -291,6 +292,7 @@ class HashWorkerPool():
         name = self._get_new_worker_name()
         piece_queue = self._piece_queue
         hash_queue = self._hash_queue
+        file_was_skipped = self._file_was_skipped
         while True:
             try:
                 piece_index, piece, filepath = piece_queue.get()
@@ -299,8 +301,11 @@ class HashWorkerPool():
                 break
             else:
                 piece_hash = sha1(piece).digest()
-                debug(f'{name}: Sending hash of piece {piece_index} to {hash_queue}')
-                hash_queue.put((piece_index, piece_hash, filepath))
+                if file_was_skipped is None or not file_was_skipped(filepath):
+                    debug(f'{name}: Sending hash of piece {piece_index} to {hash_queue}')
+                    hash_queue.put((piece_index, piece_hash, filepath))
+                else:
+                    debug(f'{name}: Skipping hash of piece {piece_index} to {hash_queue}')
             if self._stop:
                 debug(f'{name}: Stop flag found')
                 break
