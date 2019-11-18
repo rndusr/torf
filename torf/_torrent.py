@@ -692,13 +692,15 @@ class Torrent():
         else:
             return True
 
-    def generate(self, callback=None, interval=0):
+    def generate(self, threads=None, callback=None, interval=0):
         """
         Hash pieces and report progress to `callback`
 
         This method sets ``pieces`` in :attr:`metainfo`\ ``['info']`` if all
         pieces are hashed successfully.
 
+        :param threads int: How many threads to use for hashing pieces or
+            ``None`` to use one thread per available CPU core
         :param callable callback: Callable with signature ``(torrent, filepath,
             pieces_done, pieces_total)``; if `callback` returns anything else
             than None, hashing is canceled
@@ -728,15 +730,16 @@ class Torrent():
             maybe_cancel = generate.CancelCallback(callback, interval)
         else:
             maybe_cancel = None
+        threads = threads or NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
         reader = generate.Reader(filepaths=self.filepaths,
                                  piece_size=self.piece_size,
-                                 queue_size=NCORES*3)
+                                 queue_size=threads*3)
 
         # Pool of workers that pull from reader's piece queue, calculate the
         # hashes, and quickly offload the results to a hash queue
-        hasher_threadpool = generate.HashWorkerPool(NCORES, reader.piece_queue)
+        hasher_threadpool = generate.HashWorkerPool(threads, reader.piece_queue)
 
         # Pull from the hash queue; also call callback and maybe stop everything
         def collector_callback(filepath, pieces_done, piece_index, piece_hash,
