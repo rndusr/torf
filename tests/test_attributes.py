@@ -245,6 +245,19 @@ def test_piece_size(torrent, multifile_content):
     torrent.metainfo['info']['piece length'] = -12
 
 
+def test_hashes(torrent, multifile_content):
+    assert torrent.hashes is None
+    torrent.path = multifile_content.path
+    torrent.piece_size = multifile_content.exp_metainfo['info']['piece length']
+    assert torrent.hashes is None
+    torrent.generate()
+    hashes_string = multifile_content.exp_metainfo['info']['pieces']
+    assert torrent.hashes == tuple(hashes_string[pos:pos+20]
+                                   for pos in range(0, len(hashes_string), 20))
+    torrent.path = None
+    assert torrent.hashes is None
+
+
 def test_calculate_piece_size():
     assert torf.Torrent().calculate_piece_size(1) == 16 * 1024             # minimum is 16 KiB
     assert torf.Torrent().calculate_piece_size(100 * 2**20) == 128 * 1024  # 100 MiB => 128 KiB

@@ -421,6 +421,19 @@ class Torrent():
             return math.ceil(self.size / self.piece_size)
 
     @property
+    def hashes(self):
+        """
+        Tuple of SHA1 piece hashes as :class:`bytes` or ``None`` if
+        :attr:`metainfo`\ ``['info']``\ ``['pieces']`` isn't a :class:`bytes` or
+        :class:`bytearray`.
+        """
+        hashes = self.metainfo['info'].get('pieces')
+        if isinstance(hashes, (bytes, bytearray)):
+            # Each hash is 20 bytes long
+            return tuple(bytes(hashes[pos:pos+20])
+                         for pos in range(0, len(hashes), 20))
+
+    @property
     def name(self):
         """
         Name of the torrent
