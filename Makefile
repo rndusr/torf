@@ -13,6 +13,7 @@ venv:
 	"$(VENV_PATH)"/bin/pip install --upgrade wheel docutils
 	"$(VENV_PATH)"/bin/pip install --upgrade pytest
 	"$(VENV_PATH)"/bin/pip install --editable .
+	"$(VENV_PATH)"/bin/pip install --editable ../torf-cli
 
 test: venv
 	. "$(VENV_PATH)"/bin/activate ; \
