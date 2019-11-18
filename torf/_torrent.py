@@ -731,8 +731,6 @@ class Torrent():
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
         reader = generate.Reader(filepaths=self.filepaths,
-                                 file_sizes={fs_filepath:self.partial_size(t_filepath)
-                                             for fs_filepath,t_filepath in zip(self.filepaths, self.files)},
                                  piece_size=self.piece_size,
                                  queue_size=NCORES*3)
 
