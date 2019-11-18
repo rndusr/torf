@@ -136,6 +136,19 @@ class IsDirectoryError(TorfError):
         return self._path
 
 
+class NotDirectoryError(TorfError):
+    """Expected (link to) directory, but found something else"""
+    def __init__(self, path):
+        self._errno = errno.ENOTDIR
+        self._path = path
+        super().__init__(f'{path}: {os.strerror(self._errno)}')
+
+    @property
+    def path(self):
+        """Path of the offending non-directory"""
+        return self._path
+
+
 class FileSizeError(TorfError):
     """Unexpected file size"""
     def __init__(self, filepath, actual_size, expected_size):
