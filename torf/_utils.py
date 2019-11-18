@@ -27,6 +27,7 @@ from urllib.parse import quote_plus as urlquote
 from collections import abc, OrderedDict
 import re
 import errno
+import io
 
 from . import _errors as error
 
@@ -57,12 +58,78 @@ def validated_url(url):
         raise error.URLError(url)
 
 
-def read_chunks(filepath, chunk_size):
-    """Generator that yields chunks from file"""
+class _FixedSizeFile():
+    """
+    File-like object with a guaranteed size
+
+    If `filepath` is smaller than `size`, it is padded with null bytes.  If it
+    is larger, EOF is reported after reading `size` bytes.
+
+    If reading from `filepath` raises an `OSError`, a `ReadError` is raised.
+    """
+    def __init__(self, filepath, size):
+        try:
+            self._stream = io.FileIO(filepath, mode='r')
+        except OSError as e:
+            raise error.ReadError(e.errno, filepath)
+        self.name = str(filepath)
+        self._size = size
+        self._pos = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _, __, ___):
+        if self._stream is not None:
+            self._stream.close()
+
+    def read(self, length):
+        oldpos = self._pos
+        filesize = self._size
+
+        # Report EOF at specified size
+        if oldpos >= filesize:
+            return bytes()
+
+        max_chunk_len = min(length, filesize - oldpos)
+        try:
+            chunk = self._stream.read(max_chunk_len)
+        except OSError as e:
+            raise error.ReadError(e.errno, filepath)
+
+        len_chunk = len(chunk)
+        self._pos += len_chunk
+        newpos = self._pos
+
+        # Pad with null bytes if we hit EOF before reading `self._size` bytes
+        if len_chunk < max_chunk_len and newpos < filesize:
+            nulls = max_chunk_len - len_chunk
+            chunk += b'\x00' * nulls
+            self._pos += nulls
+            return chunk
+
+        assert len_chunk == max_chunk_len
+        return chunk
+
+def read_chunks(filepath, chunksize, filesize=None):
+    """
+    Generator that yields chunks from file
+
+    If `filesize` is not None, it is the expected size of `filepath` in bytes.
+    If `filepath` has a different size, it is transparently cropped or padded
+    with null bytes to match the expected size.
+    """
+    if filesize is not None:
+        cm = _FixedSizeFile(filepath, size=filesize)
+    else:
+        try:
+            cm = open(filepath, 'rb')
+        except OSError as e:
+            raise error.ReadError(e.errno, filepath)
     try:
-        with open(filepath, 'rb') as f:
+        with cm as f:
             while True:
-                chunk = f.read(chunk_size)
+                chunk = f.read(chunksize)
                 if chunk:
                     yield chunk
                 else:

@@ -6,6 +6,67 @@ import os
 from collections import OrderedDict
 
 
+ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
+
+def test_read_chunks__unreadable_file(tmpdir):
+    with pytest.raises(torf.ReadError) as excinfo:
+        tuple(utils.read_chunks('no/such/file', 10))
+    assert excinfo.match(r'^no/such/file: No such file or directory$')
+
+def test_read_chunks__readable_file(tmpdir):
+    filepath = tmpdir.join('some_file')
+    filepath.write(ALPHABET[:16])
+    chunks = tuple(utils.read_chunks(filepath, 4))
+    assert chunks == (b'abcd', b'efgh', b'ijkl', b'mnop')
+    chunks = tuple(utils.read_chunks(filepath, 5))
+    assert chunks == (b'abcde', b'fghij', b'klmno', b'p')
+    chunks = tuple(utils.read_chunks(filepath, 5))
+    assert chunks == (b'abcde', b'fghij', b'klmno', b'p')
+
+def test_read_chunks__fixed_size__unreadable_file(tmpdir):
+    with pytest.raises(torf.ReadError) as excinfo:
+        tuple(utils.read_chunks('nonexisting/file', 10))
+    assert excinfo.match(r'^nonexisting/file: No such file or directory$')
+
+def test_read_chunks__fixed_size__file_smaller_than_wanted_size(tmpdir):
+    filepath = tmpdir.join('some_file')
+    filepath.write(ALPHABET[:10])
+    chunks = tuple(utils.read_chunks(filepath, 3, 15))
+    assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00')
+    chunks = tuple(utils.read_chunks(filepath, 3, 16))
+    assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00', b'\x00')
+
+def test_read_chunks__fixed_size__file_larger_than_wanted_size(tmpdir):
+    filepath = tmpdir.join('some_file')
+    filepath.write(ALPHABET[:15])
+    chunks = tuple(utils.read_chunks(filepath, 4, 8))
+    assert chunks == (b'abcd', b'efgh')
+    chunks = tuple(utils.read_chunks(filepath, 4, 10))
+    assert chunks == (b'abcd', b'efgh', b'ij')
+
+def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(tmpdir):
+    filepath = tmpdir.join('some_file')
+    filepath.write(ALPHABET[:12])
+    chunks = tuple(utils.read_chunks(filepath, 3, 12))
+    assert chunks == (b'abc', b'def', b'ghi', b'jkl')
+    chunks = tuple(utils.read_chunks(filepath, 4, 12))
+    assert chunks == (b'abcd', b'efgh', b'ijkl')
+
+def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(tmpdir):
+    filepath = tmpdir.join('some_file')
+    filepath.write(ALPHABET[:13])
+    chunks = tuple(utils.read_chunks(filepath, 3, 13))
+    assert chunks == (b'abc', b'def', b'ghi', b'jkl', b'm')
+    chunks = tuple(utils.read_chunks(filepath, 3, 14))
+    assert chunks == (b'abc', b'def', b'ghi', b'jkl', b'm\x00')
+
+def test_read_chunks__fixed_size__file_smaller_than_chunk_size(tmpdir):
+    filepath = tmpdir.join('some_file')
+    filepath.write(ALPHABET[:5])
+    chunks = tuple(utils.read_chunks(filepath, 10, 5))
+    assert chunks == (b'abcde',)
+
+
 def test_is_power_of_2():
     assert utils.is_power_of_2(0) is False
     for n in range(1, 30):
