@@ -32,7 +32,6 @@ import io
 from . import _utils as utils
 from . import _errors as error
 from . import _generate as generate
-from . import debug
 
 from ._version import __version__
 _PACKAGE_NAME = __name__.split('.')[0]
@@ -757,30 +756,14 @@ class Torrent():
                                   collector_thread.stop)
 
         try:
-            debug(f'### Reading')
             reader.read()
         except BaseException as e:
-            debug(f'### Stopping hashers')
             hasher_threadpool.stop()
-            debug(f'### Done stopping hashers')
-
-            debug(f'### Stopping collector')
             collector_thread.stop()
-            debug(f'### Done stopping collector')
-
-            debug(f'### Re-raising: {e!r}')
             raise
-            debug(f'### Done-raising: {e!r}')
         finally:
-            debug(f'### Joining hashers')
             hasher_threadpool.join()
-            debug(f'### Done joining hashers')
-
-            debug(f'### Joining collector')
             collector_thread.join()
-            debug(f'### Done joining collector')
-
-        debug(f'### Hashed {int(len(collector_thread.hashes) / 20)} out of {self.pieces} pieces')
 
         # Store generated hashes in metainfo
         hashes_count = len(collector_thread.hashes) / 20
