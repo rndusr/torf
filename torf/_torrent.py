@@ -147,6 +147,8 @@ class Torrent():
 
         :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
             file, empty directory or directory containing only empty files)
+        :raises ReadError: if :attr:`path` is a directory and not readable
+        :raises PathNotFoundError: if :attr:`path` doesn't exist
         """
         return getattr(self, '_path', None)
     @path.setter
