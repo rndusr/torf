@@ -164,8 +164,8 @@ class Torrent():
         if value is not None:
             # Set new path and update related metainfo
             path = os.path.normpath(str(value))
-            if os.path.isfile(path):
-                info['length'] = os.path.getsize(path)
+            if not os.path.exists(path):
+                raise error.PathNotFoundError(value)
             elif os.path.isdir(path):
                 files = []
                 basepath = path.split(os.sep)
@@ -175,7 +175,7 @@ class Torrent():
                                   'path'  : filepath.split(os.sep)[len(basepath):]})
                 info['files'] = files
             else:
-                raise error.PathNotFoundError(value)
+                info['length'] = os.path.getsize(path)
 
             if self.size < 1:
                 raise error.PathEmptyError(path)
