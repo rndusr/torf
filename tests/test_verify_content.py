@@ -1028,7 +1028,7 @@ def test_verify_content__callback_interval_is_ignored_with_exception(tmpdir, cre
             return None
         cb.side_effect = assert_call
         assert torrent.verify(content_file, skip_file_on_first_error=False, callback=cb, interval=3) == False
-        assert cb.call_count == 12
+        assert 11 <= cb.call_count <= 13
 
 
 def test_callback_raises_exception(tmpdir, create_torrent, monkeypatch):
