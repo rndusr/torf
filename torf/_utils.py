@@ -147,10 +147,7 @@ def real_size(path):
     if os.path.isdir(os.path.realpath(path)):
         size = 0
         def onerror(exc):
-            if hasattr(exc, 'errno'):
-                raise error.ReadError(exc.errno)
-            else:
-                raise error.ReadError(None)
+            raise error.ReadError(getattr(exc, 'errno', None))
         walker = os.walk(path, followlinks=True, onerror=onerror)
         for dirpath,dirnames,filenames in walker:
             for filename in filenames:
