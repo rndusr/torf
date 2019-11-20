@@ -19,21 +19,15 @@
 # SOFTWARE.
 
 import os
-import errno
+
 
 class TorfError(Exception):
     """Base exception for all exceptions raised by torf"""
-
-    @property
-    def errno(self):
-        """Error code (see :mod:`errno` module and `errno -l`)"""
-        return self._errno
-
+    pass
 
 class URLError(TorfError):
     """Invalid URL"""
     def __init__(self, url):
-        self._errno = errno.EINVAL
         self._url = url
         super().__init__(f'{url}: Invalid URL')
 
@@ -46,7 +40,6 @@ class URLError(TorfError):
 class PieceSizeError(TorfError):
     """Invalid piece size"""
     def __init__(self, size, min=None, max=None):
-        self._errno = errno.EINVAL
         self._size = size
         self._min = min
         self._max = max
@@ -74,14 +67,12 @@ class PieceSizeError(TorfError):
 class MetainfoError(TorfError):
     """Invalid torrent metainfo"""
     def __init__(self, msg):
-        self._errno = errno.EINVAL
         super().__init__(f'Invalid metainfo: {msg}')
 
 
 class ParseError(TorfError):
     """Invalid bencoded metainfo"""
     def __init__(self, filepath=None):
-        self._errno = errno.EINVAL
         self._filepath = filepath
         if filepath is None:
             super().__init__('Invalid metainfo format')
@@ -97,9 +88,8 @@ class ParseError(TorfError):
 class PathNotFoundError(TorfError):
     """Path does not exist"""
     def __init__(self, path):
-        self._errno = errno.ENOENT
         self._path = path
-        super().__init__(f'{path}: {os.strerror(self._errno)}')
+        super().__init__(f'{path}: No such file or directory')
 
     @property
     def path(self):
@@ -110,7 +100,6 @@ class PathNotFoundError(TorfError):
 class PathEmptyError(TorfError):
     """Empty file or directory or directory that contains only empty files"""
     def __init__(self, path):
-        self._errno = errno.ENODATA
         self._path = path
         if os.path.isfile(path):
             super().__init__(f'{path}: Empty file')
@@ -126,9 +115,8 @@ class PathEmptyError(TorfError):
 class IsDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
     def __init__(self, path):
-        self._errno = errno.EISDIR
         self._path = path
-        super().__init__(f'{path}: {os.strerror(self._errno)}')
+        super().__init__(f'{path}: Is a directory')
 
     @property
     def path(self):
@@ -139,9 +127,8 @@ class IsDirectoryError(TorfError):
 class NotDirectoryError(TorfError):
     """Expected (link to) directory, but found something else"""
     def __init__(self, path):
-        self._errno = errno.ENOTDIR
         self._path = path
-        super().__init__(f'{path}: {os.strerror(self._errno)}')
+        super().__init__(f'{path}: Not a directory')
 
     @property
     def path(self):
@@ -152,7 +139,6 @@ class NotDirectoryError(TorfError):
 class FileSizeError(TorfError):
     """Unexpected file size"""
     def __init__(self, filepath, actual_size, expected_size):
-        self._errno = errno.EFBIG
         self._filepath = filepath
         self._actual_size = actual_size
         self._expected_size = expected_size
@@ -178,7 +164,6 @@ class FileSizeError(TorfError):
 class ContentError(TorfError):
     """On-disk data does not match hashes in metainfo"""
     def __init__(self, piece_index, piece_size, files):
-        self._errno = errno.EIO
         self._piece_index = piece_index
         self._piece_size = piece_size
         self._files = files
@@ -236,7 +221,6 @@ class ContentError(TorfError):
 class ReadError(TorfError):
     """Unreadable file or stream"""
     def __init__(self, error_code, path=None):
-        self._errno = error_code
         self._path = path
         msg = os.strerror(error_code) if error_code else 'Unable to read'
         if path is None:
@@ -253,7 +237,6 @@ class ReadError(TorfError):
 class WriteError(TorfError):
     """Unwritable file or stream"""
     def __init__(self, error_code, path=None):
-        self._errno = error_code
         self._path = path
         msg = os.strerror(error_code) if error_code else 'Unable to write'
         if path is None:
