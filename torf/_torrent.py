@@ -1201,8 +1201,7 @@ class Torrent():
         return 'magnet:?' + '&'.join(parts)
 
     # Maximum number of bytes that read() reads from torrent files.  This limit
-    # exists in case we're accidentally reading from a huge, non-torrent file
-    # that could even fill up RAM and crash the whole application.
+    # exists because we don't want to read gigabytes before raising an error.
     MAX_TORRENT_FILE_SIZE = int(10e6)  # 10MB
 
     @classmethod
