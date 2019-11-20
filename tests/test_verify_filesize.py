@@ -98,7 +98,7 @@ def test_file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torrent):
         assert os.path.getsize(content_path) != torrent.size
 
         # Without callback
-        with pytest.raises(torf.FileSizeError) as excinfo:
+        with pytest.raises(torf.VerifyFileSizeError) as excinfo:
             torrent.verify_filesize(content_path)
         assert excinfo.match(f'^{content_path}: Unexpected file size: 14 instead of 9 bytes$')
 
@@ -135,7 +135,7 @@ def test_file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent):
         assert open(content_file3).read() == 'some more different data'
 
         # Without callback
-        with pytest.raises(torf.FileSizeError) as excinfo:
+        with pytest.raises(torf.VerifyFileSizeError) as excinfo:
             torrent.verify_filesize(content_path)
         assert excinfo.match(f'^{content_file2}: Unexpected file size: 25 instead of 15 bytes$')
 
@@ -176,7 +176,7 @@ def test_path_is_directory_and_torrent_contains_single_file(tmpdir, create_torre
         assert os.path.isdir(content_path)
 
         # Without callback
-        with pytest.raises(torf.IsDirectoryError) as excinfo:
+        with pytest.raises(torf.VerifyNotDirectoryError) as excinfo:
             torrent.verify_filesize(content_path)
         assert excinfo.match(f'^{content_path}: Is a directory$')
 

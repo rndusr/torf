@@ -112,7 +112,7 @@ class PathEmptyError(TorfError):
         return self._path
 
 
-class IsDirectoryError(TorfError):
+class VerifyNotDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
     def __init__(self, path):
         self._path = path
@@ -124,7 +124,7 @@ class IsDirectoryError(TorfError):
         return self._path
 
 
-class NotDirectoryError(TorfError):
+class VerifyIsDirectoryError(TorfError):
     """Expected (link to) directory, but found something else"""
     def __init__(self, path):
         self._path = path
@@ -136,7 +136,7 @@ class NotDirectoryError(TorfError):
         return self._path
 
 
-class FileSizeError(TorfError):
+class VerifyFileSizeError(TorfError):
     """Unexpected file size"""
     def __init__(self, filepath, actual_size, expected_size):
         self._filepath = filepath
@@ -161,7 +161,7 @@ class FileSizeError(TorfError):
         return self._expected_size
 
 
-class ContentError(TorfError):
+class VerifyContentError(TorfError):
     """On-disk data does not match hashes in metainfo"""
     def __init__(self, piece_index, piece_size, files):
         self._piece_index = piece_index

@@ -819,9 +819,9 @@ class Torrent():
         `callback` instead, which can then handle the error and maybe stop the
         verification by returning non-``None``.
 
-        :raises FileSizeError: if a file has an unexpected size
-        :raises IsDirectoryError: if `path` is a directory and this torrent
-            contains a single file
+        :raises VerifyFileSizeError: if a file has an unexpected size
+        :raises VerifyNotDirectoryError: if `path` is a directory and this
+            torrent contains a single file
         :raises PathNotFoundError: if a file doesn't exist
         :raises MetainfoError: if :meth:`validate` fails
 
@@ -849,7 +849,7 @@ class Torrent():
             # over files (filepaths), so the path "foo/bar/baz" will result in a
             # PathNotFoundError if "foo" or "foo/bar" is a file.
             if self.mode == 'singlefile' and os.path.isdir(path):
-                exception = error.IsDirectoryError(fs_filepath)
+                exception = error.VerifyNotDirectoryError(fs_filepath)
                 if cancel(cb_args=(self, fs_filepath, torrent_filepath,
                                    files_done, files_total, exception),
                           force_call=True):
@@ -861,7 +861,7 @@ class Torrent():
             fs_filepath_size = os.path.getsize(os.path.realpath(fs_filepath))
             expected_size = self.partial_size(torrent_filepath)
             if fs_filepath_size != expected_size:
-                exception = error.FileSizeError(fs_filepath, fs_filepath_size, expected_size)
+                exception = error.VerifyFileSizeError(fs_filepath, fs_filepath_size, expected_size)
                 if cancel(cb_args=(self, fs_filepath, torrent_filepath,
                                    files_done, files_total, exception),
                           force_call=True):
@@ -908,7 +908,7 @@ class Torrent():
         `callback` instead, which can then handle the error and maybe stop the
         verification by returning non-``None``.
 
-        :raises ContentError: if a file contains unexpected data
+        :raises VerifyContentError: if a file contains unexpected data
         :raises ReadError: if a file is not readable
         :raises MetainfoError: if :meth:`validate` fails
 
@@ -920,11 +920,11 @@ class Torrent():
         fs_filepaths = tuple(x[0] for x in filepaths)
 
         if self.mode == 'singlefile' and os.path.isdir(os.path.realpath(path)):
-            exception = error.IsDirectoryError(path)
+            exception = error.VerifyNotDirectoryError(path)
             maybe_cancel(cb_args=(self, fs_filepaths[0], 0, self.pieces, 0, None, exception),
                          force_call=True)
         elif self.mode == 'multifile' and not os.path.isdir(os.path.realpath(path)):
-            exception = error.NotDirectoryError(path)
+            exception = error.VerifyIsDirectoryError(path)
             maybe_cancel(cb_args=(self, fs_filepaths[0], 0, self.pieces, 0, None, exception),
                          force_call=True)
         else:
@@ -963,7 +963,7 @@ class Torrent():
                         reader.skip_file(filepath)
                     files = tuple((fs_path, self.partial_size(t_path))
                                   for fs_path,t_path in filepaths)
-                    exception = error.ContentError(piece_index, piece_size, files)
+                    exception = error.VerifyContentError(piece_index, piece_size, files)
                     maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
                                           piece_index, piece_hash, exception),
                                  force_call=True)

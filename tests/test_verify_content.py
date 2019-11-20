@@ -107,7 +107,7 @@ def test_verify_content__file_is_missing(tmpdir, create_torrent):
         content_file2.write_binary(data_file2_corrupt)
 
         # Without callback
-        with pytest.raises(torf.ContentError) as excinfo:
+        with pytest.raises(torf.VerifyContentError) as excinfo:
             torrent.verify(content_path, skip_file_on_first_error=False)
         # All file2 pieces after index 3 are corrupt and it's possible that
         # latter pieces are processed first
@@ -181,7 +181,7 @@ def test_verify_content__file_is_smaller(tmpdir, create_torrent):
         content_file2.write_binary(data_file2_corrupt)
 
         # Without callback
-        with pytest.raises(torf.ContentError) as excinfo:
+        with pytest.raises(torf.VerifyContentError) as excinfo:
             torrent.verify(content_path, skip_file_on_first_error=False)
         # All file2 pieces after index 3 are corrupt and it's possible that
         # latter pieces are processed first
@@ -257,7 +257,7 @@ def test_verify_content__file_is_bigger(tmpdir, create_torrent):
         content_file2.write_binary(data_file2_corrupt)
 
         # Without callback
-        with pytest.raises(torf.ContentError) as excinfo:
+        with pytest.raises(torf.VerifyContentError) as excinfo:
             torrent.verify(content_path, skip_file_on_first_error=False)
         # All file2 pieces after index 3 are corrupt and it's possible that
         # latter pieces are processed first
@@ -333,7 +333,7 @@ def test_verify_content__file_is_same_size_but_corrupt(tmpdir, create_torrent):
         content_file2.write_binary(data_file2_corrupt)
 
         # Without callback
-        with pytest.raises(torf.ContentError) as excinfo:
+        with pytest.raises(torf.VerifyContentError) as excinfo:
             torrent.verify(content_path, skip_file_on_first_error=False)
         assert excinfo.match(f'^Corruption in piece 3 in {content_file2}')
 
@@ -530,7 +530,7 @@ def test_verify_content__path_is_directory_and_torrent_contains_single_file(tmpd
         assert os.path.isdir(content_path)
 
         # Without callback
-        with pytest.raises(torf.IsDirectoryError) as excinfo:
+        with pytest.raises(torf.VerifyNotDirectoryError) as excinfo:
             torrent.verify(content_path)
         assert excinfo.match(f'^{content_path}: Is a directory$')
 
@@ -563,7 +563,7 @@ def test_verify_content__path_is_single_file_and_torrent_contains_directory(tmpd
         assert os.path.isfile(content_path)
 
         # Without callback
-        with pytest.raises(torf.NotDirectoryError) as excinfo:
+        with pytest.raises(torf.VerifyIsDirectoryError) as excinfo:
             torrent.verify(content_path)
         assert excinfo.match(f'^{content_path}: Not a directory$')
 
@@ -664,7 +664,7 @@ def test_verify_content__corruption_in_singlefile_torrent(tmpdir, create_torrent
                 corrupt_piece_index = int(offset / piece_size)
 
                 # Without callback
-                with pytest.raises(torf.ContentError) as excinfo:
+                with pytest.raises(torf.VerifyContentError) as excinfo:
                     torrent.verify(content_path, skip_file_on_first_error=False)
                 assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}$')
 
@@ -724,7 +724,7 @@ def test_verify_content__corruption_in_multifile_torrent_and_pieces_aligning_to_
                 assert 0 <= corrupt_piece_index <= 6
 
                 # Without callback
-                with pytest.raises(torf.ContentError) as excinfo:
+                with pytest.raises(torf.VerifyContentError) as excinfo:
                     torrent.verify(content_path, skip_file_on_first_error=False)
                 assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {file}$')
 
@@ -800,7 +800,7 @@ def test_verify_content__corruption_in_multifile_torrent_and_pieces_not_aligning
                 assert 0 <= corrupt_piece_index <= 7
 
                 # Without callback
-                with pytest.raises(torf.ContentError) as excinfo:
+                with pytest.raises(torf.VerifyContentError) as excinfo:
                     torrent.verify(content_path, skip_file_on_first_error=False)
                 if corrupt_piece_index == 0:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1} in {content_file1}$')
@@ -909,7 +909,7 @@ def test_verify_content_corruption_in_multifile_torrent_and_one_piece_covering_m
                 assert 0 <= corrupt_piece_index <= 3
 
                 # Without callback
-                with pytest.raises(torf.ContentError) as excinfo:
+                with pytest.raises(torf.VerifyContentError) as excinfo:
                     torrent.verify(content_path, skip_file_on_first_error=False)
                 if corrupt_piece_index == 0:
                     assert excinfo.match(f'^Corruption in piece {corrupt_piece_index+1}, '
