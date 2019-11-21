@@ -25,6 +25,7 @@ class TorfError(Exception):
     """Base exception for all exceptions raised by torf"""
     pass
 
+
 class URLError(TorfError):
     """Invalid URL"""
     def __init__(self, url):
@@ -220,9 +221,10 @@ class VerifyContentError(TorfError):
 
 class ReadError(TorfError):
     """Unreadable file or stream"""
-    def __init__(self, error_code, path=None):
+    def __init__(self, errno, path=None):
+        self._errno = errno
         self._path = path
-        msg = os.strerror(error_code) if error_code else 'Unable to read'
+        msg = os.strerror(errno) if errno else 'Unable to read'
         if path is None:
             super().__init__(f'{msg}')
         else:
@@ -232,13 +234,19 @@ class ReadError(TorfError):
     def path(self):
         """Path of the offending file or ``None``"""
         return self._path
+
+    @property
+    def errno(self):
+        """POSIX error number from errno.h"""
+        return self._errno
 
 
 class WriteError(TorfError):
     """Unwritable file or stream"""
-    def __init__(self, error_code, path=None):
+    def __init__(self, errno, path=None):
+        self._errno = errno
         self._path = path
-        msg = os.strerror(error_code) if error_code else 'Unable to write'
+        msg = os.strerror(errno) if errno else 'Unable to write'
         if path is None:
             super().__init__(f'{msg}')
         else:
@@ -248,3 +256,9 @@ class WriteError(TorfError):
     def path(self):
         """Path of the offending file or ``None``"""
         return self._path
+
+    @property
+    def errno(self):
+        """POSIX error number from errno.h"""
+        return self._errno
+
