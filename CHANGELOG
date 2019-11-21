@@ -7,13 +7,15 @@
   - Torrent.filetree now uses Torrent.File instances as leaf nodes instead of
     None.  Torrent.File is a namedtuple that provides the file name, path,
     directory and size.
-  - Torrent.read("path/to/some.torrent").verify("path/to/content") checks if
-    on-disk data is valid for a torrent file.
-  - The class attributes Torrent.piece_size_min and Torrent.piece_size_max can
-    now be used to quickly specify piece size limits.  Setting the piece_size
-    property to an out-of-bounds piece size or returning one with
+  - The new methods Torrent.verify_content() and Torrent.verify_filesize() check
+    if on-disk data matches a given torrent file.
+  - The new class attributes Torrent.piece_size_min and Torrent.piece_size_max
+    can now be used to quickly specify piece size limits.  Setting the
+    piece_size property to an out-of-bounds piece size or returning one with
     Torrent.calculate_piece_size() will raise PieceSizeError.
   - Torrent.validate() is now better at finding invalid stuff in the metainfo.
+  - Except ReadError and WriteError, exceptions no longer have an 'errno'
+    property.
 
 
 2019-07-01 2.1.0
