@@ -100,7 +100,7 @@ def test_file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torrent):
         # Without callback
         with pytest.raises(torf.VerifyFileSizeError) as excinfo:
             torrent.verify_filesize(content_path)
-        assert excinfo.match(f'^{content_path}: Unexpected file size: 14 instead of 9 bytes$')
+        assert excinfo.match(f'^{content_path}: Too big: 14 instead of 9 bytes$')
 
         # With callback
         cb = mock.MagicMock()
@@ -110,7 +110,7 @@ def test_file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torrent):
             assert t_path == os.path.basename(content_path)
             assert files_done == cb.call_count
             assert files_total == 1
-            assert str(exc) == f'{content_path}: Unexpected file size: 14 instead of 9 bytes'
+            assert str(exc) == f'{content_path}: Too big: 14 instead of 9 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
@@ -137,7 +137,7 @@ def test_file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent):
         # Without callback
         with pytest.raises(torf.VerifyFileSizeError) as excinfo:
             torrent.verify_filesize(content_path)
-        assert excinfo.match(f'^{content_file2}: Unexpected file size: 25 instead of 15 bytes$')
+        assert excinfo.match(f'^{content_file2}: Too big: 25 instead of 15 bytes$')
 
         # With callback
         cb = mock.MagicMock()
@@ -152,11 +152,11 @@ def test_file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent):
             elif cb.call_count == 2:
                 assert fs_path == str(content_file2)
                 assert t_path == os.sep.join(str(content_file2).split(os.sep)[-2:])
-                assert str(exc)  == f'{content_file2}: Unexpected file size: 25 instead of 15 bytes'
+                assert str(exc)  == f'{content_file2}: Too big: 25 instead of 15 bytes'
             elif cb.call_count == 3:
                 assert fs_path == str(content_file3)
                 assert t_path == os.sep.join(str(content_file3).split(os.sep)[-2:])
-                assert str(exc) == f'{content_file3}: Unexpected file size: 24 instead of 14 bytes'
+                assert str(exc) == f'{content_file3}: Too big: 24 instead of 14 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
