@@ -257,19 +257,20 @@ def test_verify_content__file_is_bigger(tmpdir, create_torrent):
         content_file2.write_binary(data_file2_corrupt)
 
         # Without callback
-        with pytest.raises(torf.VerifyContentError) as excinfo:
+        with pytest.raises(torf.TorfError) as excinfo:
             torrent.verify(content_path, skip_file_on_first_error=False)
-        # All file2 pieces after index 3 are corrupt and it's possible that
-        # latter pieces are processed first
-        assert (str(excinfo.value) == (f'Corruption in piece 3 in {content_file2}') or
-                str(excinfo.value) == (f'Corruption in piece 4, at least one of these files is corrupt: '
-                                       f'{content_file2}, {content_file3}'))
+        assert ((isinstance(excinfo.value, torf.VerifyFileSizeError) and
+                 str(excinfo.value) == f'{content_file2}: Too big: 32978 instead of 32968 bytes') or
+                (isinstance(excinfo.value, torf.VerifyContentError) and
+                 str(excinfo.value) == f'Corruption in piece 3 in {content_file2}') or
+                (isinstance(excinfo.value, torf.VerifyContentError) and
+                 str(excinfo.value) == f'Corruption in piece 4 in {content_file3}'))
 
         # With callback
         # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
         exp_piece_indexes = [
             0,  # file1[0:16384]: ok
-            1,  # file1[-100:] + file2[:16284]: ok
+            1,  # file1[-100:] + file2[:16284]: corrupt because file2 has wrong size
             2,  # file2[16284:16284+16384]: corrupt, additional bytes at file2[piece_size:piece_size+10]
             3,  # file2[-300:] + file3[:16084]: still corrupt because of file2
             4,  # file3[-600:]: ok
@@ -288,7 +289,7 @@ def test_verify_content__file_is_bigger(tmpdir, create_torrent):
             elif piece_index == 1:
                 assert str(path) == str(content_file2)
                 assert type(piece_hash) is bytes and len(piece_hash) == 20
-                assert exc is None
+                assert str(exc) == f'{content_file2}: Too big: 32978 instead of 32968 bytes'
             elif piece_index == 2:
                 assert str(path) == str(content_file2)
                 assert type(piece_hash) is bytes and len(piece_hash) == 20
@@ -309,6 +310,80 @@ def test_verify_content__file_is_bigger(tmpdir, create_torrent):
         assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
         assert cb.call_count == exp_call_count
         assert len(exp_piece_indexes) == 0, exp_piece_indexes
+
+
+def test_verify_content__file_is_ok_but_has_extra_bytes_at_the_end(tmpdir, create_torrent):
+    piece_size = torf.Torrent.piece_size_min
+    content_path = tmpdir.mkdir('content')
+    content_file1 = content_path.join('file1.jpg')
+    content_file2 = content_path.join('file2.jpg')
+    content_file3 = content_path.join('file3.jpg')
+    content_file1.write_binary(os.urandom(piece_size+100))
+    data_file2 = os.urandom((piece_size*2)+200)
+    content_file2.write_binary(data_file2)
+    content_file3.write_binary(os.urandom(piece_size+300))
+
+    with create_torrent(path=content_path) as torrent_file:
+        torrent = torf.Torrent.read(torrent_file)
+
+        corruption_offset = piece_size
+        data_file2_corrupt = data_file2 + os.urandom(10)
+        assert len(data_file2_corrupt) == len(data_file2) + 10
+        content_file2.write_binary(data_file2_corrupt)
+
+        # Without callback
+        with pytest.raises(torf.VerifyFileSizeError) as excinfo:
+            torrent.verify(content_path, skip_file_on_first_error=False)
+        assert str(excinfo.value) == f'{content_file2}: Too big: 32978 instead of 32968 bytes'
+
+        # With callback
+        # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
+        exp_piece_indexes = [
+            0,  # file1[0:16384]: ok
+            1,  # file1[-100:] + file2[:16284]: corrupt because file2 has wrong size
+            2,  # file2[16284:16284+16384]: ok
+            3,  # file2[-300:] + file3[:16084]: ok
+            4,  # file3[-600:]: ok
+        ]
+        exp_call_count = len(exp_piece_indexes)
+        exp_reported_errors = []
+        cb = mock.MagicMock()
+        def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+            assert t == torrent
+            assert pieces_total == torrent.pieces
+            assert 0 <= pieces_done <= pieces_total
+            if exc:
+                exp_reported_errors.append(exc)
+            if piece_index == 0:
+                assert str(path) == str(content_file1)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 1:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert (str(exc) == f'{content_file2}: Too big: 32978 instead of 32968 bytes'
+                        or exc is None)
+            elif piece_index == 2:
+                assert str(path) == str(content_file2)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert (str(exc) == f'{content_file2}: Too big: 32978 instead of 32968 bytes'
+                        or exc is None)
+            elif piece_index == 3:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            elif piece_index == 4:
+                assert str(path) == str(content_file3)
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert exc is None
+            exp_piece_indexes.remove(piece_index)
+            return None
+        cb.side_effect = assert_call
+        assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+        assert cb.call_count == exp_call_count
+        assert len(exp_piece_indexes) == 0, exp_piece_indexes
+        assert len(exp_reported_errors) == 1
+        assert str(exp_reported_errors[0]) == f'{content_file2}: Too big: 32978 instead of 32968 bytes'
 
 
 def test_verify_content__file_is_same_size_but_corrupt(tmpdir, create_torrent):
