@@ -714,7 +714,7 @@ class Torrent():
             3. The number of pieces that have been hashed (:class:`int`)
             4. The total number of pieces (:class:`int`)
 
-        If `callback` returns anything that is not None, hashing is stopped.
+        If `callback` returns anything that is not ``None``, hashing is stopped.
 
         :raises PathEmptyError: if :attr:`path` contains only empty
             files/directories
