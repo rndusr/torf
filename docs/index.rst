@@ -26,13 +26,16 @@
 .. autoexception:: torf.PathEmptyError
    :members:
 
-.. autoexception:: torf.IsDirectoryError
+.. autoexception:: torf.VerifyContentError
    :members:
 
-.. autoexception:: torf.FileSizeError
+.. autoexception:: torf.VerifyFileSizeError
    :members:
 
-.. autoexception:: torf.ContentError
+.. autoexception:: torf.VerifyIsDirectoryError
+   :members:
+
+.. autoexception:: torf.VerifyNotDirectoryError
    :members:
 
 .. autoexception:: torf.ReadError
