@@ -702,11 +702,19 @@ class Torrent():
 
         :param threads int: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
-        :param callable callback: Callable with signature ``(torrent, filepath,
-            pieces_done, pieces_total)``; if `callback` returns anything else
-            than None, hashing is canceled
+        :param callable callback: Callable to report progress and/or abort (see
+            below)
         :param float interval: Minimum number of seconds between calls to
-            `callback` (if 0, `callback` is called once per piece)
+            `callback`; if 0, `callback` is called once per hashed piece
+
+        `callback` must accept four positional arguments:
+
+            1. The Torrent instance (:class:`Torrent`)
+            2. The path of the file that is currently hashed (:class:`str`)
+            3. The number of pieces that have been hashed (:class:`int`)
+            4. The total number of pieces (:class:`int`)
+
+        If `callback` returns anything that is not None, hashing is stopped.
 
         :raises PathEmptyError: if :attr:`path` contains only empty
             files/directories
