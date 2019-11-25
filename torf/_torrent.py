@@ -700,7 +700,7 @@ class Torrent():
         This method sets ``pieces`` in :attr:`metainfo`\ ``['info']`` if all
         pieces are hashed successfully.
 
-        :param threads int: How many threads to use for hashing pieces or
+        :param int threads: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
         :param callable callback: Callable to report progress and/or abort (see
             below)
