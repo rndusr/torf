@@ -3,6 +3,7 @@ from torf import _utils as utils
 
 import pytest
 import os
+import errno
 from collections import OrderedDict
 
 
@@ -16,10 +17,13 @@ def test_read_chunks__unreadable_file(tmpdir):
 def test_read_chunks__readable_file(tmpdir):
     filepath = tmpdir.join('some_file')
     filepath.write(ALPHABET[:16])
+
     chunks = tuple(utils.read_chunks(filepath, 4))
     assert chunks == (b'abcd', b'efgh', b'ijkl', b'mnop')
+
     chunks = tuple(utils.read_chunks(filepath, 5))
     assert chunks == (b'abcde', b'fghij', b'klmno', b'p')
+
     chunks = tuple(utils.read_chunks(filepath, 5))
     assert chunks == (b'abcde', b'fghij', b'klmno', b'p')
 
@@ -31,39 +35,72 @@ def test_read_chunks__fixed_size__unreadable_file(tmpdir):
 def test_read_chunks__fixed_size__file_smaller_than_wanted_size(tmpdir):
     filepath = tmpdir.join('some_file')
     filepath.write(ALPHABET[:10])
+
     chunks = tuple(utils.read_chunks(filepath, 3, 15))
     assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00')
+
+    chunks = tuple(utils.read_chunks(filepath, 5, 15))
+    assert chunks == (b'abcde', b'fghij', b'\x00'*5)
+
     chunks = tuple(utils.read_chunks(filepath, 3, 16))
     assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00', b'\x00')
+
+    chunks = tuple(utils.read_chunks(filepath, 2, 16))
+    assert chunks == (b'ab', b'cd', b'ef', b'gh', b'ij', b'\x00\x00', b'\x00\x00', b'\x00\x00')
 
 def test_read_chunks__fixed_size__file_larger_than_wanted_size(tmpdir):
     filepath = tmpdir.join('some_file')
     filepath.write(ALPHABET[:15])
+
     chunks = tuple(utils.read_chunks(filepath, 4, 8))
     assert chunks == (b'abcd', b'efgh')
+
     chunks = tuple(utils.read_chunks(filepath, 4, 10))
     assert chunks == (b'abcd', b'efgh', b'ij')
+
+    chunks = tuple(utils.read_chunks(filepath, 5, 8))
+    assert chunks == (b'abcde', b'fgh')
+
+    chunks = tuple(utils.read_chunks(filepath, 5, 10))
+    assert chunks == (b'abcde', b'fghij')
 
 def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(tmpdir):
     filepath = tmpdir.join('some_file')
     filepath.write(ALPHABET[:12])
+
     chunks = tuple(utils.read_chunks(filepath, 3, 12))
     assert chunks == (b'abc', b'def', b'ghi', b'jkl')
+
     chunks = tuple(utils.read_chunks(filepath, 4, 12))
     assert chunks == (b'abcd', b'efgh', b'ijkl')
+
+    chunks = tuple(utils.read_chunks(filepath, 5, 15))
+    assert chunks == (b'abcde', b'fghij', b'kl\x00\x00\x00')
+
+    chunks = tuple(utils.read_chunks(filepath, 5, 6))
+    assert chunks == (b'abcde', b'f')
 
 def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(tmpdir):
     filepath = tmpdir.join('some_file')
     filepath.write(ALPHABET[:13])
+
     chunks = tuple(utils.read_chunks(filepath, 3, 13))
     assert chunks == (b'abc', b'def', b'ghi', b'jkl', b'm')
+
     chunks = tuple(utils.read_chunks(filepath, 3, 14))
     assert chunks == (b'abc', b'def', b'ghi', b'jkl', b'm\x00')
+
+    chunks = tuple(utils.read_chunks(filepath, 3, 11))
+    assert chunks == (b'abc', b'def', b'ghi', b'jk')
 
 def test_read_chunks__fixed_size__file_smaller_than_chunk_size(tmpdir):
     filepath = tmpdir.join('some_file')
     filepath.write(ALPHABET[:5])
+
     chunks = tuple(utils.read_chunks(filepath, 10, 5))
+    assert chunks == (b'abcde',)
+
+    chunks = tuple(utils.read_chunks(filepath, 7, 5))
     assert chunks == (b'abcde',)
 
 

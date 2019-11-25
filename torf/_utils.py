@@ -73,7 +73,8 @@ class _FixedSizeFile():
         except OSError as e:
             raise error.ReadError(e.errno, filepath)
         self.name = str(filepath)
-        self._size = size
+        self._spec_size = size
+        self._real_size = os.path.getsize(self.name)
         self._pos = 0
 
     def __enter__(self):
@@ -85,15 +86,11 @@ class _FixedSizeFile():
 
     def read(self, length):
         oldpos = self._pos
-        filesize = self._size
-
-        # Report EOF at specified size
-        if oldpos >= filesize:
-            return bytes()
-
-        max_chunk_len = min(length, filesize - oldpos)
+        spec_size = self._spec_size
+        real_size = self._real_size
+        len_chunk_max = min(length, spec_size - oldpos)
         try:
-            chunk = self._stream.read(max_chunk_len)
+            chunk = self._stream.read(len_chunk_max)
         except OSError as e:
             raise error.ReadError(e.errno, self.name)
 
@@ -101,14 +98,12 @@ class _FixedSizeFile():
         self._pos += len_chunk
         newpos = self._pos
 
-        # Pad with null bytes if we hit EOF before reading `self._size` bytes
-        if len_chunk < max_chunk_len and newpos < filesize:
-            nulls = max_chunk_len - len_chunk
+        # Pad chunk with null bytes if we haven't reached expected EOF
+        if len_chunk < len_chunk_max and newpos < spec_size:
+            nulls = len_chunk_max - len_chunk
             chunk += b'\x00' * nulls
             self._pos += nulls
-            return chunk
 
-        assert len_chunk == max_chunk_len
         return chunk
 
 def read_chunks(filepath, chunksize, filesize=None):
