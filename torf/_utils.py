@@ -95,7 +95,7 @@ class _FixedSizeFile():
         try:
             chunk = self._stream.read(max_chunk_len)
         except OSError as e:
-            raise error.ReadError(e.errno, filepath)
+            raise error.ReadError(e.errno, self.name)
 
         len_chunk = len(chunk)
         self._pos += len_chunk
