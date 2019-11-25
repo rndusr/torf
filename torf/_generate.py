@@ -238,7 +238,8 @@ class Reader():
                 debug(f'reader: Read {len(self._piece_buffer)} trailing bytes '
                       f'from {filepath}: {self._piece_buffer}')
         except OSError:
-            # Pretend we read and buffered the last bytes from `filepath`.
+            # Pretend we have read and buffered the last bytes from `filepath`.
+            # This will keep the offsets of pieces correct.
             self._piece_buffer.extend(b'\x00' * trailing_bytes_len)
             debug(f'reader: Pretending to have read {len(self._piece_buffer)} trailing bytes '
                   f'from {filepath}: {self._piece_buffer}')
