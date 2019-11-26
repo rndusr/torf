@@ -707,7 +707,7 @@ class Torrent():
         :param float interval: Minimum number of seconds between calls to
             `callback`; if 0, `callback` is called once per hashed piece
 
-        `callback` must accept four positional arguments:
+        `callback` must accept 4 positional arguments:
 
             1. The Torrent instance (:class:`Torrent`)
             2. The path of the file that is currently hashed (:class:`str`)
