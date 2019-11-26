@@ -158,8 +158,7 @@ class Torrent():
         # Unset path and remove related metainfo
         if hasattr(self, '_path'):
             delattr(self, '_path')
-        for key in ('piece length', 'pieces', 'name', 'length', 'files'):
-            info.pop(key, None)
+        info.pop('pieces', None)
 
         if value is not None:
             # Set new path and update related metainfo
@@ -174,8 +173,15 @@ class Torrent():
                     files.append({'length': os.path.getsize(filepath),
                                   'path'  : filepath.split(os.sep)[len(basepath):]})
                 info['files'] = files
+                # If this was previously a singlefile torrent, we must remove
+                # the relevant keys from metainfo
+                info.pop('length', None)
+                info.pop('md5sum', None)
             else:
                 info['length'] = os.path.getsize(path)
+                # If this was previously a multifile torrent, we must remove the
+                # relevant keys from metainfo
+                info.pop('files', None)
 
             if self.size < 1:
                 raise error.PathEmptyError(path)
@@ -186,7 +192,9 @@ class Torrent():
                 elif path == '..':
                     self.name = os.path.basename(os.path.abspath('..'))
                 else:
-                    self.name  # Set default name in metainfo dict
+                    # Set default name
+                    info.pop('name', None)
+                    self.name
                 self.piece_size = None
 
     @property
