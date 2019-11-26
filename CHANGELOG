@@ -16,6 +16,9 @@
   - Torrent.validate() is now better at finding invalid stuff in the metainfo.
   - Except ReadError and WriteError, exceptions no longer have an 'errno'
     property.
+  - When setting the Torrent.path property to None, only "pieces" is removed
+    from the metainfo.  "piece length", "pieces", "length" and "files" are kept.
+    "name" is only changed when a new path is set.
 
 
 2019-07-01 2.1.0
