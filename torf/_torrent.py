@@ -910,7 +910,7 @@ class Torrent():
         :param str path: Directory or file to check
         :param bool skip_file_on_first_error: Whether to stop hashing pieces
             from file if a piece from it is corrupt
-        :param threads int: How many threads to use for hashing pieces or
+        :param int threads: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
         :param callable callback: Callable to report progress and/or abort
 
