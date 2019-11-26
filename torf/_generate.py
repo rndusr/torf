@@ -117,6 +117,7 @@ class Reader():
     def __init__(self, filepaths, piece_size, queue_size,
                  file_sizes=defaultdict(lambda: None), error_callback=None):
         self._filepaths = tuple(filepaths)
+        assert self._filepaths, 'No file paths given'
         self._file_sizes = file_sizes
         self._piece_size = piece_size
         self._error_callback = error_callback
