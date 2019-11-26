@@ -912,17 +912,27 @@ class Torrent():
             from file if a piece from it is corrupt
         :param threads int: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
-        :param callable callback: Callable with signature ``(torrent, filepath,
-            pieces_done, pieces_total, piece_index, piece_hash, exception)``; if
-            `callback` returns anything else than ``None``, verification is
-            stopped
+        :param callable callback: Callable to report progress and/or abort
+
+            `callback` must accept 7 positional arguments:
+
+                1. Torrent instance (:class:`Torrent`)
+                2. File path in file system (:class:`str`)
+                3. Number of checked pieces (:class:`int`)
+                4. Total number of pieces (:class:`int`)
+                5. Index of the current piece (:class:`int`)
+                6. SHA1 hash of the current piece (:class:`bytes`)
+                7. Exception (:class:`TorfError`) or ``None``
+
+            If `callback` returns anything that is not ``None``, verification is
+            stopped.
+
         :param float interval: Minimum number of seconds between calls to
             `callback` (if 0, `callback` is called once per piece); this is
             ignored in case of error
 
         If a callback is specified, exceptions are not raised but passed to
-        `callback` instead, which can then handle the error and maybe stop the
-        verification by returning non-``None``.
+        `callback` instead.
 
         :raises VerifyContentError: if a file contains unexpected data
         :raises ReadError: if a file is not readable
