@@ -822,19 +822,18 @@ class Torrent():
 
             `callback` must accept 6 positional arguments:
 
-                1. The Torrent instance (:class:`Torrent`)
-                2. The file path in the file system (:class:`str`)
-                3. The file path in the torrent (:class:`str`)
-                4. The number of files that have been checked (:class:`int`)
-                5. The total number of files (:class:`int`)
-                6. An exception (:class:`TorfError`) or ``None``
+                1. Torrent instance (:class:`Torrent`)
+                2. File path in file system (:class:`str`)
+                3. File path in torrent (:class:`str`)
+                4. Number of checked files (:class:`int`)
+                5. Total number of files (:class:`int`)
+                6. Exception (:class:`TorfError`) or ``None``
 
             If `callback` returns anything that is not ``None``, verification is
             stopped.
 
-            If a callback is specified, exceptions are not raised but passed to
-            `callback` instead, which can then handle the error and maybe stop the
-            verification by returning non-``None``.
+        If a callback is specified, exceptions are not raised but passed to
+        `callback` instead.
 
         :raises VerifyFileSizeError: if a file has an unexpected size
         :raises VerifyNotDirectoryError: if `path` is a directory and this
