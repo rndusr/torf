@@ -908,7 +908,7 @@ class Torrent():
         ``['pieces']``.
 
         :param str path: Directory or file to check
-        :param skip_file_on_first_error bool: Whether to stop hashing pieces
+        :param bool skip_file_on_first_error: Whether to stop hashing pieces
             from file if a piece from it is corrupt
         :param threads int: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
