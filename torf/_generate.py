@@ -65,13 +65,13 @@ class ExhaustQueueMixin():
                 return super().get(timeout=0.01)
             except queue.Empty:
                 if self.__is_exhausted:
-                    debug(f'{self} is exhausted')
+                    # debug(f'{self} is exhausted')
                     raise QueueExhausted()
 
     def exhausted(self):
         if not self.__is_exhausted:
             self.__is_exhausted = True
-            debug(f'Marked {self} as exhausted')
+            # debug(f'Marked {self} as exhausted')
 
     @property
     def is_exhausted(self):
@@ -102,9 +102,9 @@ class Worker():
         try:
             self._worker()
         except BaseException as e:
-            debug(f'{self.name}: Setting exception: {e!r}')
+            # debug(f'{self.name}: Setting exception: {e!r}')
             self._exception = e
-        debug(f'{self.name}: Bye')
+        # debug(f'{self.name}: Bye')
 
     def join(self):
         self._thread.join()
@@ -133,10 +133,10 @@ class Reader():
         try:
             for filepath in self._filepaths:
                 if self._stop:
-                    debug(f'reader: Stopped reading after {self._calc_piece_index()} pieces')
+                    # debug(f'reader: Stopped reading after {self._calc_piece_index()} pieces')
                     break
                 elif filepath in self._skip_files:
-                    debug(f'reader: Found {filepath} in {self._skip_files} before opening it')
+                    # debug(f'reader: Found {filepath} in {self._skip_files} before opening it')
                     self._fake_read_file(filepath, self._file_sizes[filepath])
                     continue
                 else:
@@ -147,13 +147,13 @@ class Reader():
             if (not self._stop and
                 filepath not in self._skip_files and
                 len(self._piece_buffer) > 0):
-                debug(f'Left over bytes in buffer: {len(self._piece_buffer)}')
+                # debug(f'Left over bytes in buffer: {len(self._piece_buffer)}')
                 # Piece index is only incremented if the buffered bytes don't
                 # fit in the current piece
                 piece_index = self._calc_piece_index()
                 if self._bytes_read + len(self._piece_buffer) > self._piece_size:
                     piece_index += 1
-                debug(f'reader: Sending last piece {piece_index} to {self._piece_queue}')
+                # debug(f'reader: Sending last piece {piece_index} to {self._piece_queue}')
                 self._piece_queue.put((piece_index, bytes(self._piece_buffer), filepath))
         finally:
             self._piece_queue.exhausted()
@@ -169,13 +169,13 @@ class Reader():
             # expected number of bytes.  Otherwise a shorter/longer file would
             # shift piece offsets of following files and make the whole stream
             # look corrupted even if it isn't.
-            debug(f'reader: Reading {filepath}')
+            # debug(f'reader: Reading {filepath}')
             chunks = utils.read_chunks(filepath, piece_size, filesize=spec_filesize)
             for chunk in chunks:
                 if self._stop:
                     return
                 elif filepath in self._skip_files:
-                    debug(f'reader: Found {filepath} in {self._skip_files} while chunking')
+                    # debug(f'reader: Found {filepath} in {self._skip_files} while chunking')
                     self._fake_read_file(filepath, spec_filesize)
                     return
 
@@ -183,24 +183,24 @@ class Reader():
                 # enough for a new piece
                 piece_buffer.extend(chunk)
                 bytes_read += len(chunk)
-                debug(f'reader: Read {len(chunk)} bytes, {bytes_read} bytes in total')
+                # debug(f'reader: Read {len(chunk)} bytes, {bytes_read} bytes in total')
                 if len(piece_buffer) >= piece_size:
                     piece = piece_buffer[:piece_size]
                     del piece_buffer[:piece_size]
 
                     piece_index = self._calc_piece_index(self._bytes_read + bytes_read)
-                    debug(f'reader: Sending piece {piece_index} of {os.path.basename(filepath)} to {self._piece_queue}: '
-                          f'{bytes(piece[:10])} .. {bytes(piece[-10:])}')
+                    # debug(f'reader: Sending piece {piece_index} of {os.path.basename(filepath)} to {self._piece_queue}: '
+                    #       f'{bytes(piece[:10])} .. {bytes(piece[-10:])}')
                     self._piece_queue.put((piece_index, piece, filepath))
 
-                debug(f'Piece buffer contains {len(piece_buffer)} bytes')
+                # debug(f'Piece buffer contains {len(piece_buffer)} bytes')
 
             if spec_filesize:
                 assert bytes_read == spec_filesize
             self._bytes_read += bytes_read
 
         except Exception as e:
-            debug(f'reader: {e!r}')
+            # debug(f'reader: {e!r}')
             if spec_filesize is None:
                 # We cannot calculate piece_index unless we know file's size,
                 # and there's no point in going on if we don't know where a
@@ -221,8 +221,8 @@ class Reader():
         # skipping files
         if spec_filesize is None:
             raise RuntimeError(f'Unable to fake reading {filepath} without file size')
-        debug(f'reader: Pretending to have read {self._bytes_read} + {spec_filesize} '
-              f'= {self._bytes_read+spec_filesize} bytes in total')
+        # debug(f'reader: Pretending to have read {self._bytes_read} + {spec_filesize} '
+        #       f'= {self._bytes_read+spec_filesize} bytes in total')
         self._bytes_read += spec_filesize
 
         # Unless all previous files were divisible by piece_size, the missing
@@ -236,21 +236,21 @@ class Reader():
             with open(filepath, 'rb') as f:
                 f.seek(-trailing_bytes_len, os.SEEK_END)
                 self._piece_buffer.extend(f.read(trailing_bytes_len))
-                debug(f'reader: Read {len(self._piece_buffer)} trailing bytes '
-                      f'from {filepath}: {self._piece_buffer}')
+                # debug(f'reader: Read {len(self._piece_buffer)} trailing bytes '
+                #       f'from {filepath}: {self._piece_buffer}')
         except OSError:
             # Pretend we have read and buffered the last bytes from `filepath`.
             # This will keep the offsets of pieces correct.
             self._piece_buffer.extend(b'\x00' * trailing_bytes_len)
-            debug(f'reader: Pretending to have read {len(self._piece_buffer)} trailing bytes '
-                  f'from {filepath}: {self._piece_buffer}')
+            # debug(f'reader: Pretending to have read {len(self._piece_buffer)} trailing bytes '
+            #       f'from {filepath}: {self._piece_buffer}')
 
     @property
     def skipped_files(self):
         return self._skip_files
 
     def skip_file(self, filepath):
-        debug(f'Skipping {filepath}')
+        # debug(f'Skipping {filepath}')
         self._skip_files.append(filepath)
 
     def _calc_piece_index(self, bytes_read=None):
@@ -265,7 +265,7 @@ class Reader():
             raise exc
 
     def stop(self):
-        debug(f'reader: Setting stop flag')
+        # debug(f'reader: Setting stop flag')
         self._stop = True
         return self
 
@@ -299,31 +299,31 @@ class HashWorkerPool():
             try:
                 piece_index, piece, filepath = piece_queue.get()
             except QueueExhausted:
-                debug(f'{name}: {piece_queue} is exhausted')
+                # debug(f'{name}: {piece_queue} is exhausted')
                 break
             else:
                 piece_hash = sha1(piece).digest()
                 if file_was_skipped is None or not file_was_skipped(filepath):
-                    debug(f'{name}: Sending hash of piece {piece_index} to {hash_queue}')
+                    # debug(f'{name}: Sending hash of piece {piece_index} to {hash_queue}')
                     hash_queue.put((piece_index, piece_hash, filepath))
-                else:
-                    debug(f'{name}: Skipping hash of piece {piece_index} to {hash_queue}')
+                # else:
+                #     debug(f'{name}: Skipping hash of piece {piece_index} to {hash_queue}')
             if self._stop:
-                debug(f'{name}: Stop flag found')
+                # debug(f'{name}: Stop flag found')
                 break
-        debug(f'{name}: Bye')
+        # debug(f'{name}: Bye')
 
     def stop(self):
-        debug(f'hasherpool: Stopping hasher pool')
+        # debug(f'hasherpool: Stopping hasher pool')
         self._stop = True
         return self
 
     def join(self):
-        debug(f'hasherpool: Joining {self._workers_count} workers')
+        # debug(f'hasherpool: Joining {self._workers_count} workers')
         self._pool.close()
         self._pool.join()
         self._hash_queue.exhausted()
-        debug(f'hasherpool: All workers joined')
+        # debug(f'hasherpool: All workers joined')
         return self
 
     @property
@@ -350,24 +350,24 @@ class CollectorWorker(Worker):
                 # debug(f'collector: Getting from {hash_queue}')
                 piece_index, piece_hash, filepath = hash_queue.get()
             except QueueExhausted:
-                debug(f'collector: {hash_queue} is exhausted')
+                # debug(f'collector: {hash_queue} is exhausted')
                 break
             else:
                 if file_was_skipped is None or not file_was_skipped(filepath):
-                    debug(f'collector: Collected piece hash of piece {piece_index} of {filepath}')
+                    # debug(f'collector: Collected piece hash of piece {piece_index} of {filepath}')
                     hashes_unsorted.append((piece_index, piece_hash))
                     if callback:
                         callback(filepath, len(hashes_unsorted), piece_index, piece_hash)
-                else:
-                    debug(f'collector: Skipping piece hash of piece {piece_index} of {filepath}')
+                # else:
+                #     debug(f'collector: Skipping piece hash of piece {piece_index} of {filepath}')
             if self._stop:
-                debug(f'collector: Stop flag found while getting piece hash')
+                # debug(f'collector: Stop flag found while getting piece hash')
                 break
         # Sort hashes by piece_index and concatenate them
         self._hashes = b''.join(hash for index,hash in sorted(hashes_unsorted))
 
     def stop(self):
-        debug(f'collector: Setting stop flag')
+        # debug(f'collector: Setting stop flag')
         self._stop = True
         return self
 
