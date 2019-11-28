@@ -1082,10 +1082,10 @@ class Torrent():
             for j,_ in enumerate(md['announce-list'][i]):
                 utils.assert_type(md, ('announce-list', i, j), (str,), check=utils.is_url)
 
-        if len(md['info']['pieces']) == 0:
+        if len(info['pieces']) == 0:
             raise error.MetainfoError("['info']['pieces'] is empty")
 
-        elif len(md['info']['pieces']) % 20 != 0:
+        elif len(info['pieces']) % 20 != 0:
             raise error.MetainfoError("length of ['info']['pieces'] is not divisible by 20")
 
         elif info.get('private') and not md.get('announce') and not md.get('announce-list'):
