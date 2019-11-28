@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 def test_non_bencoded_data():
     fo = io.BytesIO(b'not valid bencoded data')
-    with pytest.raises(torf.ParseError) as excinfo:
+    with pytest.raises(torf.BdecodeError) as excinfo:
         torf.Torrent.read_stream(fo)
     assert excinfo.match(f'^Invalid metainfo format$')
 
@@ -124,7 +124,7 @@ def test_read_from_invalid_file(tmpdir):
     f = tmpdir.join('a.torrent')
     f.write_binary(b'this is not metainfo')
 
-    with pytest.raises(torf.ParseError) as excinfo:
+    with pytest.raises(torf.BdecodeError) as excinfo:
         torf.Torrent.read(str(f))
     assert excinfo.match(f'^{str(f)}: Invalid torrent file format$')
 

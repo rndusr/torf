@@ -17,7 +17,7 @@
 .. autoexception:: torf.MetainfoError
    :members:
 
-.. autoexception:: torf.ParseError
+.. autoexception:: torf.BdecodeError
    :members:
 
 .. autoexception:: torf.PathNotFoundError

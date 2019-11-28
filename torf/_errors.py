@@ -71,8 +71,8 @@ class MetainfoError(TorfError):
         super().__init__(f'Invalid metainfo: {msg}')
 
 
-class ParseError(TorfError):
-    """Invalid bencoded metainfo"""
+class BdecodeError(TorfError):
+    """Failed to decode bencoded byte sequence"""
     def __init__(self, filepath=None):
         self._filepath = filepath
         if filepath is None:

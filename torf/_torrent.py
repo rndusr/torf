@@ -1290,8 +1290,8 @@ class Torrent():
             object
 
         :raises ReadError: if reading from `stream` fails
-        :raises ParseError: if `stream` does not produce a valid bencoded byte
-            string
+        :raises BdecodeError: if `stream` does not produce a valid bencoded byte
+            sequence
         :raises MetainfoError: if `validate` is `True` and the read metainfo is
             invalid
 
@@ -1305,7 +1305,7 @@ class Torrent():
             try:
                 metainfo_enc = bdecode(content)
             except BTFailure as e:
-                raise error.ParseError()
+                raise error.BdecodeError()
 
             if validate:
                 if b'info' not in metainfo_enc:
@@ -1315,7 +1315,7 @@ class Torrent():
                 elif b'pieces' not in metainfo_enc[b'info']:
                     raise error.MetainfoError("Missing 'pieces' in ['info']")
 
-            # Extract 'pieces' from metainfo because it's the only byte string
+            # Extract 'pieces' from metainfo because it's the only byte sequence
             # that isn't supposed to be decoded to unicode.
             if b'info' in metainfo_enc and b'pieces' in metainfo_enc[b'info']:
                 pieces = metainfo_enc[b'info'].pop(b'pieces')
@@ -1352,8 +1352,8 @@ class Torrent():
             object
 
         :raises ReadError: if reading from `filepath` fails
-        :raises ParseError: if `filepath` does not contain a valid bencoded byte
-            string
+        :raises BdecodeError: if `filepath` does not contain a valid bencoded byte
+            sequence
         :raises MetainfoError: if `validate` is `True` and the read metainfo is
             invalid
 
@@ -1364,8 +1364,8 @@ class Torrent():
                 return cls.read_stream(f)
         except (OSError, error.ReadError) as e:
             raise error.ReadError(e.errno, filepath)
-        except error.ParseError:
-            raise error.ParseError(filepath)
+        except error.BdecodeError:
+            raise error.BdecodeError(filepath)
 
     def copy(self):
         """
