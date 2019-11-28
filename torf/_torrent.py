@@ -450,6 +450,9 @@ class Torrent():
         Default to last item in :attr:`path` or ``None`` if :attr:`path` is
         ``None``.
 
+        If this property is set to ``None`` and :attr:`path` is not ``None``, it
+        is set to the default name, i.e. the last item in :attr:`path`.
+
         Setting this property sets or removes ``name`` in :attr:`metainfo`\
         ``['info']``.
         """
