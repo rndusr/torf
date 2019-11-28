@@ -19,8 +19,8 @@
 # SOFTWARE.
 
 from bencoder import bencode, bdecode, BTFailure
-from base64 import b32encode
-from hashlib import sha1
+import base64
+import hashlib
 from datetime import datetime
 import os
 import math
@@ -662,15 +662,23 @@ class Torrent():
     def infohash(self):
         """SHA1 info hash"""
         self.validate()
-        info = self.convert()[b'info']
-        return sha1(bencode(info)).hexdigest()
+        try:
+            info = utils.encode_dict(self.metainfo['info'])
+        except ValueError as e:
+            raise error.MetainfoError(str(e))
+        else:
+            return hashlib.sha1(bencode(info)).hexdigest()
 
     @property
     def infohash_base32(self):
-        """Base32 encoded SHA1 info hash"""
+        """Base 32 encoded SHA1 info hash"""
         self.validate()
-        info = self.convert()[b'info']
-        return b32encode(sha1(bencode(info)).digest())
+        try:
+            info = utils.encode_dict(self.metainfo['info'])
+        except ValueError as e:
+            raise error.MetainfoError(str(e))
+        else:
+            return base64.b32encode(hashlib.sha1(bencode(info)).digest())
 
     @property
     def randomize_infohash(self):
