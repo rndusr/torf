@@ -45,7 +45,10 @@ def test_pieces_is_empty(generated_singlefile_torrent):
 
 def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
     t = generated_singlefile_torrent
+    t.path = None
+    t.metainfo['info']['piece length'] = 512 * 1024
     for i in range(1, 10):
+        t.metainfo['info']['length'] = i * t.metainfo['info']['piece length']
         t.metainfo['info']['pieces'] = bytes(os.urandom(i*20))
         t.validate()
 
