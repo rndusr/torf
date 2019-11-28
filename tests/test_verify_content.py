@@ -264,7 +264,8 @@ def test_verify_content__file_is_bigger(tmpdir, create_torrent):
                 (isinstance(excinfo.value, torf.VerifyContentError) and
                  str(excinfo.value) == f'Corruption in piece 3 in {content_file2}') or
                 (isinstance(excinfo.value, torf.VerifyContentError) and
-                 str(excinfo.value) == f'Corruption in piece 4 in {content_file3}'))
+                 str(excinfo.value) == ('Corruption in piece 4, at least one of these files is corrupt: '
+                                        f'{content_file2}, {content_file3}')))
 
         # With callback
         # 1+2+1 + 1 (for the 100+200+300 extra bytes) = 5 pieces (max_piece_index=4)
