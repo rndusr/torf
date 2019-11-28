@@ -59,6 +59,45 @@ def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
             assert str(excinfo.value) == ("Invalid metainfo: length of ['info']['pieces'] "
                                           "is not divisible by 20")
 
+def test_singlefile__unexpected_number_of_bytes_in_pieces(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    t.path = None  # Don't complain about wrong file size
+    t.metainfo['info']['length'] = 1024*1024
+    t.metainfo['info']['piece length'] = int(1024*1024 / 8)
+
+    t.metainfo['info']['pieces'] = os.urandom(20*9)
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == 'Invalid metainfo: Expected 8 pieces but there are 9'
+
+    t.metainfo['info']['pieces'] = os.urandom(20*7)
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == 'Invalid metainfo: Expected 8 pieces but there are 7'
+
+def test_multifile__unexpected_number_of_bytes_in_pieces(generated_multifile_torrent):
+    t = generated_multifile_torrent
+    t.path = None  # Don't complain about wrong file size
+
+    total_size = 0
+    for i,file in enumerate(t.metainfo['info']['files'], start=1):
+        file['length'] = 1024*1024 * i + 123
+        total_size += file['length']
+
+    import math
+    t.metainfo['info']['piece length'] = int(1024*1024 / 8)
+    piece_count = math.ceil(total_size / t.metainfo['info']['piece length'])
+
+    t.metainfo['info']['pieces'] = os.urandom(20 * (piece_count + 1))
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == 'Invalid metainfo: Expected 49 pieces but there are 50'
+
+    t.metainfo['info']['pieces'] = os.urandom(20 * (piece_count - 1))
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == 'Invalid metainfo: Expected 49 pieces but there are 48'
+
 
 def test_no_announce_is_ok(generated_singlefile_torrent):
     t = generated_singlefile_torrent

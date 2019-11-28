@@ -1102,6 +1102,12 @@ class Torrent():
             utils.assert_type(md, ('info', 'length'), (int, float), must_exist=True)
             utils.assert_type(md, ('info', 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
 
+            # Validate expected number of pieces
+            piece_count = int(len(info['pieces']) / 20)
+            exp_piece_count = math.ceil(info['length'] / info['piece length'])
+            if piece_count != exp_piece_count:
+                raise error.MetainfoError(f'Expected {exp_piece_count} pieces but there are {piece_count}')
+
             if self.path is not None:
                 # Check if filepath actually points to a file
                 if not os.path.isfile(self.path):
@@ -1123,6 +1129,14 @@ class Torrent():
                 utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
                 for j,item in enumerate(fileinfo['path']):
                     utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
+
+            # - validate() should ensure that ['info']['pieces'] is math.ceil(self.size /
+            #   self.piece_size) bytes long.
+            piece_count = int(len(info['pieces']) / 20)
+            exp_piece_count = math.ceil(sum(fileinfo['length'] for fileinfo in info['files'])
+                                        / info['piece length'])
+            if piece_count != exp_piece_count:
+                raise error.MetainfoError(f'Expected {exp_piece_count} pieces but there are {piece_count}')
 
             if self.path is not None:
                 # Check if filepath actually points to a directory
