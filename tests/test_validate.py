@@ -249,7 +249,7 @@ def assert_missing_metainfo(torrent, *keys):
         md = md[key]
     del md[keys[-1]]
     with pytest.raises(torf.MetainfoError) as excinfo:
-        torrent.dump()
+        torrent.validate()
     assert excinfo.match(rf"Invalid metainfo: Missing {keys[-1]!r} in \['info'\]")
 
 def test_singlefile_missing_info_path(generated_singlefile_torrent):
