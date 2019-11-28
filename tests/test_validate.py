@@ -283,27 +283,35 @@ def test_multifile_missing_info_files_2_path(generated_multifile_torrent):
     assert_missing_metainfo(generated_multifile_torrent, 'info', 'files', 2, 'path')
 
 
-def assert_mismatching_filesizes(torrent, *args):
-    value = args[-1]
-    keys = args[:-1]
-    md = torrent.metainfo
-    for key in keys[:-1]:
-        md = md[key]
-    orig_value = md[keys[-1]]
-    md[keys[-1]] = value
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        torrent.dump()
-    assert excinfo.match(r"Invalid metainfo: Mismatching file sizes in metainfo \(\d+\) "
-                         rf"and file system \(\d+\): '{torrent.path}")
+def assert_mismatching_filesizes(torrent):
+    torrent.validate()  # Should validate
 
-    # It's OK if `torrent` doesn't know a local file system path
-    torrent._path = None
-    torrent.dump()
+    for torrent_path, fs_path in zip(torrent.files, torrent.filepaths):
+        # Remember file content
+        with open(fs_path, 'rb') as f:
+            orig_fs_path_content = f.read()
+
+        # Change file size
+        with open(fs_path, 'ab') as f:
+            f.write(b'foo')
+
+        # Expect validation error
+        mi_size = torrent.partial_size(torrent_path)
+        fs_size = os.path.getsize(fs_path)
+        assert fs_size == mi_size + len('foo')
+        with pytest.raises(torf.MetainfoError) as excinfo:
+            torrent.validate()
+        assert str(excinfo.value) == (f'Invalid metainfo: Mismatching file sizes in metainfo ({mi_size}) '
+                                      f'and file system ({fs_size}): {repr(fs_path)}')
+
+        # Restore original file content
+        with open(fs_path, 'wb') as f:
+            f.write(orig_fs_path_content)
+
+    torrent.validate()  # Should validate again
 
 def test_singlefile_mismatching_filesize(generated_singlefile_torrent):
-    assert_mismatching_filesizes(generated_singlefile_torrent,
-                                 'info', 'length', 12345)
+    assert_mismatching_filesizes(generated_singlefile_torrent)
 
 def test_multifile_mismatching_filesize(generated_multifile_torrent):
-    assert_mismatching_filesizes(generated_multifile_torrent,
-                                 'info', 'files', 1, 'length', 12345)
+    assert_mismatching_filesizes(generated_multifile_torrent)
