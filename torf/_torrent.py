@@ -1245,7 +1245,7 @@ class Torrent():
 
     def magnet(self, name=True, size=True, trackers=True, tracker=False, validate=True):
         """
-        BTIH Magnet URI
+        BTIH magnet URI
 
         :param bool name: Whether to include the name
         :param bool size: Whether to include the size
@@ -1253,6 +1253,9 @@ class Torrent():
         :param bool tracker: Whether to include only the first tracker of the
             first tier (overrides `trackers`)
         :param bool validate: Whether to run :meth:`validate` first
+
+        :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
+            contains invalid data
         """
         if validate:
             self.validate()
