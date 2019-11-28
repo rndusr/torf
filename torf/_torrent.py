@@ -672,13 +672,7 @@ class Torrent():
     @property
     def infohash_base32(self):
         """Base 32 encoded SHA1 info hash"""
-        self.validate()
-        try:
-            info = utils.encode_dict(self.metainfo['info'])
-        except ValueError as e:
-            raise error.MetainfoError(str(e))
-        else:
-            return base64.b32encode(hashlib.sha1(bencode(info)).digest())
+        return base64.b32encode(base64.b16decode(self.infohash.upper()))
 
     @property
     def randomize_infohash(self):
