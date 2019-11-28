@@ -1161,7 +1161,6 @@ class Torrent():
         else:
             raise error.MetainfoError("Missing 'length' or 'files' in metainfo")
 
-    utils.ENCODE_CONVERTERS[datetime] = lambda dt: int(dt.timestamp())
     def convert(self):
         """
         Return :attr:`metainfo` with all keys encoded to :class:`bytes` and all

@@ -28,6 +28,7 @@ from collections import abc, OrderedDict
 import re
 import errno
 import io
+from datetime import datetime
 
 from . import _errors as error
 
@@ -340,6 +341,7 @@ ENCODE_CONVERTERS = {
     float: int,
     bool: int,
     bytearray: bytes,
+    datetime: lambda dt: int(dt.timestamp()),
     abc.Mapping: encode_dict,
     abc.Iterable: encode_list,
 }
