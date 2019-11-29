@@ -19,6 +19,7 @@
   - When setting the Torrent.path property to None, only "pieces" is removed
     from the metainfo.  "piece length", "pieces", "length" and "files" are kept.
     "name" is only changed when a new path is set.
+  - The license was changed to GPLv3.
 
 
 2019-07-01 2.1.0
