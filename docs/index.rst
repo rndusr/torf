@@ -20,6 +20,9 @@
 .. autoexception:: torf.BdecodeError
    :members:
 
+.. autoexception:: torf.MagnetError
+   :members:
+
 .. autoexception:: torf.PathNotFoundError
    :members:
 

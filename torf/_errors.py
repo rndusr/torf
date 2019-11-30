@@ -80,6 +80,21 @@ class BdecodeError(TorfError):
         return self._filepath
 
 
+class MagnetError(TorfError):
+    """Failed to parse magnet URI"""
+    def __init__(self, uri, reason=None):
+        self._uri = uri
+        if reason is not None:
+            super().__init__(f'{uri}: {reason}')
+        else:
+            super().__init__(f'{uri}: Invalid magnet URI')
+
+    @property
+    def uri(self):
+        """Invalid URI"""
+        return self._uri
+
+
 class PathNotFoundError(TorfError):
     """Path does not exist"""
     def __init__(self, path):
