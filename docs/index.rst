@@ -5,6 +5,10 @@
    :members:
    :member-order: bysource
 
+.. autoclass:: torf.Magnet
+   :members:
+   :member-order: bysource
+
 .. autoexception:: torf.TorfError
    :members:
 

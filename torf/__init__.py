@@ -29,3 +29,4 @@ def debug(msg):
 from ._version import __version__
 from ._errors import *
 from ._torrent import Torrent
+from ._magnet import Magnet
