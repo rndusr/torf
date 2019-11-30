@@ -660,13 +660,24 @@ class Torrent():
     @property
     def infohash(self):
         """SHA1 info hash"""
-        self.validate()
         try:
-            info = utils.encode_dict(self.metainfo['info'])
-        except ValueError as e:
-            raise error.MetainfoError(str(e))
-        else:
-            return hashlib.sha1(bencode(info)).hexdigest()
+            # Try to calculate infohash
+            self.validate()
+            try:
+                info = utils.encode_dict(self.metainfo['info'])
+            except ValueError as e:
+                raise error.MetainfoError(str(e))
+            else:
+                return hashlib.sha1(bencode(info)).hexdigest()
+        except error.MetainfoError as e:
+            # If we can't calculate infohash, see if it was explicitly specifed.
+            # This is necessary to create a Torrent from a Magnet because
+            # Magnets don't have
+            try:
+                return self._infohash
+            except AttributeError:
+                raise e
+
 
     @property
     def infohash_base32(self):
