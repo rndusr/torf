@@ -242,7 +242,7 @@ class Magnet():
                                     ('kt', 'kt', 'keyword topic', lambda s: s.split(','))):
             if param in query:
                 if len(query[param]) > 1:
-                    raise error.MagnetError(uri, 'Multiple {name}s ("{param}")')
+                    raise error.MagnetError(uri, f'Multiple {name}s ("{param}")')
                 else:
                     setattr(self, attr, typ(query[param][0]))
 
