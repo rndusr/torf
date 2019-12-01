@@ -25,14 +25,18 @@ class Magnet():
     """
     Magnet URI
 
-    :param str dn: Display Name: Filename to display to the user
     :param str xt: eXact Topic: Info hash (Base 16 or 32)
+    :param str dn: Display Name: Filename to display to the user
     :param int xl: eXact Length: Size in bytes
     :param list tr: TRacker: Iterable of Tracker URLs
     :param str xs: eXact Source: Torrent file URL
-    :param str as: Acceptable Source: Fallback torrent file URL
+    :param str as_: Acceptable Source: Fallback torrent file URL
     :param list ws: WebSeeds: Iterable of webseed URLs (see BEP19)
     :param list kt: Keyword Topic: List of search keywords
+
+    All keyword arguments that start with "x_" go into the :attr:`x` dictionary
+    with the part after the underscore as the key.  They appear as "x.<name>" in
+    the rendered URI.
 
     References:
         https://www.bittorrent.org/beps/bep_0009.html
