@@ -678,7 +678,6 @@ class Torrent():
             except AttributeError:
                 raise e
 
-
     @property
     def infohash_base32(self):
         """Base 32 encoded SHA1 info hash"""
