@@ -220,9 +220,7 @@ class Magnet():
 
     @classmethod
     def from_string(cls, uri):
-        """
-        Create a :class:`Magnet` URI from a string
-        """
+        """Create :class:`Magnet` URI from string"""
         info = urllib.parse.urlparse(uri, scheme='magnet', allow_fragments=False)
         if not info.scheme == 'magnet':
             raise error.MagnetError(uri, 'Not a magnet URI')
