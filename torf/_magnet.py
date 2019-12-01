@@ -218,6 +218,7 @@ class Magnet():
                 base64.b32decode(self.infohash)).decode('utf-8').lower()
         return torrent
 
+    _KNOWN_PARAMETERS = ('xt', 'dn', 'xl', 'tr', 'xs', 'as', 'ws', 'kt')
     @classmethod
     def from_string(cls, uri):
         """Create :class:`Magnet` URI from string"""
@@ -226,6 +227,11 @@ class Magnet():
             raise error.MagnetError(uri, 'Not a magnet URI')
         else:
             query = urllib.parse.parse_qs(info.query)
+
+        # Check for unknown parameters
+        for key in query:
+            if key not in cls._KNOWN_PARAMETERS and not key.startswith('x_'):
+                raise error.MagnetError(uri, f'{key}: Unknown parameter')
 
         if 'xt' not in query:
             raise error.MagnetError(uri, 'Missing exact topic ("xt")')
