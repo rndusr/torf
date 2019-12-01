@@ -164,3 +164,60 @@ def test_from_string(hash32):
     assert m.as_ == 'http://asource.example.com/'
     assert m.ws == ['http://webseed1.example.com/', 'http://webseed2.example.com/']
     assert m.kt == ['one', 'two', 'three']
+
+def test_from_string_with_wrong_scheme(xt, hash16, hash32):
+    uri = f'http:?xt=urn:btih:{hash32(b"asdf")}'
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Not a magnet URI'
+
+def test_from_string_with_unknown_parameter(xt, hash16, hash32):
+    uri = (f'magnet:?xt=urn:btih:{hash32(b"asdf")}'
+           '&dn=Some+Name'
+           '&ab=foo')
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: ab: Unknown parameter'
+
+def test_from_string_with_multiple_xt_parameters(xt, hash16, hash32):
+    uri = (f'magnet:?xt=urn:btih:{hash32(b"asdf")}'
+           f'&xt=urn:btih:{hash16(b"fdsa")}')
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Multiple exact topics ("xt")'
+
+def test_from_string_with_multiple_dn_parameters(xt, hash16, hash32):
+    uri = f'magnet:?xt={xt}&dn=Foo&dn=Foo'
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Multiple display names ("dn")'
+
+def test_from_string_with_multiple_xl_parameters(xt, hash16, hash32):
+    uri = f'magnet:?xt={xt}&xl=1234&xl=2345'
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Multiple exact lengths ("xl")'
+
+def test_from_string_with_multiple_xs_parameters(xt, hash16, hash32):
+    uri = (f'magnet:?xt={xt}'
+           '&xs=http%3A%2F%2Ffoo.bar%2Fbaz.torrent'
+           '&xs=http%3A%2F%2Fbar.foo%2Fbaz.torrent')
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Multiple exact sources ("xs")'
+
+def test_from_string_with_multiple_as_parameters(xt, hash16, hash32):
+    uri = (f'magnet:?xt={xt}'
+           '&as=http%3A%2F%2Ffoo.bar%2Fbaz.torrent'
+           '&as=http%3A%2F%2Fbar.foo%2Fbaz.torrent')
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Multiple acceptable sources ("as")'
+
+def test_from_string_with_multiple_kt_parameters(xt, hash16, hash32):
+    uri = (f'magnet:?xt={xt}'
+           '&kt=a,b,c'
+           '&kt=1,2,5')
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'{uri}: Multiple keyword topics ("kt")'
