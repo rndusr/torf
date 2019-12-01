@@ -84,6 +84,7 @@ class MagnetError(TorfError):
     """Failed to parse magnet URI"""
     def __init__(self, uri, reason=None):
         self._uri = uri
+        self._reason = reason
         if reason is not None:
             super().__init__(f'{uri}: {reason}')
         else:
@@ -91,8 +92,13 @@ class MagnetError(TorfError):
 
     @property
     def uri(self):
-        """Invalid URI"""
+        """The invalid URI"""
         return self._uri
+
+    @property
+    def reason(self):
+        """Why URI is invalid"""
+        return self._reason
 
 
 class PathNotFoundError(TorfError):
