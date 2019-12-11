@@ -119,9 +119,11 @@ def generate_random_Torrent_args():
     return f
 
 @pytest.fixture
-def torrent(generate_random_Torrent_args):
-    return torf.Torrent(**generate_random_Torrent_args())
-
+def mktorrent(generate_random_Torrent_args):
+    def _mktorrent(**kwargs):
+        return torf.Torrent(**{**generate_random_Torrent_args(),
+                               **kwargs})
+    return _mktorrent
 
 @pytest.fixture(scope='session')
 def singlefile_content_empty(tmpdir_factory):
