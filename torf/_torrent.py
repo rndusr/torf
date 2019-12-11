@@ -90,7 +90,7 @@ class Torrent():
 
     def __init__(self, path=None, name=None,
                  exclude=(), trackers=(), webseeds=(), httpseeds=(),
-                 private=False, comment=None, source=None,
+                 private=None, comment=None, source=None,
                  creation_date=None, created_by='%s/%s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
         self._metainfo = {}
@@ -542,15 +542,17 @@ class Torrent():
         """
         Whether torrent should use trackers exclusively for peer discovery
 
-        Setting this property sets or removes ``private`` in :attr:`metainfo`\ ``['info']``.
+        Setting this property sets or removes ``private`` in :attr:`metainfo`\
+        ``['info']``.  Setting it to ``None`` removes ``private`` from
+        :attr:`metainfo`\ ``['info']``.
         """
         return bool(self.metainfo['info'].get('private', False))
     @private.setter
     def private(self, value):
-        if value:
-            self.metainfo['info']['private'] = True
-        else:
+        if value is None:
             self.metainfo['info'].pop('private', None)
+        else:
+            self.metainfo['info']['private'] = bool(value)
 
     @property
     def comment(self):
