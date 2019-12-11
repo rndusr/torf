@@ -331,14 +331,36 @@ def test_trackers(mktorrent):
         assert excinfo.match(f'^{invalid_url}: Invalid URL$')
 
 
-def test_private(torrent):
+def test_leaving_private_unset_does_not_include_it_in_metainfo(mktorrent):
+    torrent = mktorrent()
+    assert torrent.private is False
+    assert 'private' not in torrent.metainfo['info']
+
+def test_setting_private_always_includes_it_in_metainfo(mktorrent):
+    torrent = mktorrent()
+    for private in (True, False):
+        torrent = mktorrent(private=private)
+        assert torrent.private is private
+        assert 'private' in torrent.metainfo['info']
+
+def test_setting_private_to_None_removes_it_from_metainfo(mktorrent):
+    torrent = mktorrent()
+    for private in (True, False):
+        torrent = mktorrent(private=private)
+        assert torrent.private is private
+        torrent.private = None
+        assert torrent.private is False
+        assert 'private' not in torrent.metainfo['info']
+
+def test_setting_private_enforces_boolean_values(mktorrent):
+    torrent = mktorrent()
     torrent.private = 'this evaluates to True'
     assert torrent.private is True
     assert torrent.metainfo['info']['private'] is True
 
-    torrent.private = 0  # This evaluates to False
+    torrent.private = []  # This evaluates to False
     assert torrent.private is False
-    assert 'private' not in torrent.metainfo['info']
+    assert torrent.metainfo['info']['private'] is False
 
 
 def test_comment(mktorrent):
