@@ -1,4 +1,5 @@
 2019-??-?? 3.0.0
+  - Depend on flatbencode instead of bencoder.pyx
   - Bug fixed: Setting the "private" property to False removed the flag from the
     metainfo which could potentially change the info hash if a torrent file had
     the flag explicitly disabled.
