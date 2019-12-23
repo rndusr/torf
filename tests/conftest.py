@@ -202,13 +202,15 @@ def multifile_content(tmpdir_factory):
 
 
 @pytest.fixture
-def generated_singlefile_torrent(torrent, singlefile_content):
+def generated_singlefile_torrent(mktorrent, singlefile_content):
+    torrent = mktorrent()
     torrent.path = singlefile_content.path
     torrent.generate()
     return torrent
 
 @pytest.fixture
-def generated_multifile_torrent(torrent, multifile_content):
+def generated_multifile_torrent(mktorrent, multifile_content):
+    torrent = mktorrent()
     torrent.path = multifile_content.path
     torrent.generate()
     return torrent
