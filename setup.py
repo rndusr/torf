@@ -12,6 +12,7 @@ setup(
     name               = 'torf',
     version            = __version__,
     packages           = find_packages(),
+    python_requires    = '>=3.6, ==3.*',
     install_requires   = ['flatbencode==0.2.*'],
 
     author             = 'Random User',
