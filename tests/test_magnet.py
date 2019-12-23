@@ -3,6 +3,8 @@ import torf
 import pytest
 import base64
 import hashlib
+from urllib.parse import quote_plus
+
 
 @pytest.fixture
 def hash16():
@@ -221,3 +223,36 @@ def test_from_string_with_multiple_kt_parameters(xt, hash16, hash32):
     with pytest.raises(torf.MagnetError) as excinfo:
         torf.Magnet.from_string(uri)
     assert str(excinfo.value) == f'{uri}: Multiple keyword topics ("kt")'
+
+def test_from_torrent(singlefile_content, multifile_content):
+    for content in singlefile_content, multifile_content:
+        t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
+        t.generate()
+        assert str(t.magnet()) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                   f'&dn={quote_plus(t.name)}'
+                                   f'&xl={t.size}'
+                                   f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
+
+def test_from_torrent_without_name(singlefile_content, multifile_content):
+    for content in singlefile_content, multifile_content:
+        t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
+        t.generate()
+        assert str(t.magnet(name=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                             f'&xl={t.size}'
+                                             f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
+
+def test_from_torrent_without_size(singlefile_content, multifile_content):
+    for content in singlefile_content, multifile_content:
+        t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
+        t.generate()
+        assert str(t.magnet(size=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                             f'&dn={quote_plus(t.name)}'
+                                             f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
+
+def test_from_torrent_without_trackers(singlefile_content, multifile_content):
+    for content in singlefile_content, multifile_content:
+        t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
+        t.generate()
+        assert str(t.magnet(trackers=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                 f'&dn={quote_plus(t.name)}'
+                                                 f'&xl={t.size}')
