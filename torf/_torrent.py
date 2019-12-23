@@ -17,7 +17,7 @@
 
 # TODO: Import mostly top-level modules
 
-from bencoder import bencode, bdecode, BTFailure
+import flatbencode
 import base64
 import hashlib
 from datetime import datetime
@@ -670,7 +670,7 @@ class Torrent():
             except ValueError as e:
                 raise error.MetainfoError(str(e))
             else:
-                return hashlib.sha1(bencode(info)).hexdigest()
+                return hashlib.sha1(flatbencode.encode(info)).hexdigest()
         except error.MetainfoError as e:
             # If we can't calculate infohash, see if it was explicitly specifed.
             # This is necessary to create a Torrent from a Magnet because
@@ -1197,7 +1197,7 @@ class Torrent():
         """
         if validate:
             self.validate()
-        return bencode(self.convert())
+        return flatbencode.encode(self.convert())
 
     def write_stream(self, stream, validate=True):
         """
@@ -1319,8 +1319,8 @@ class Torrent():
             raise error.ReadError(e.errno)
         else:
             try:
-                metainfo_enc = bdecode(content)
-            except BTFailure as e:
+                metainfo_enc = flatbencode.decode(content)
+            except flatbencode.DecodingError as e:
                 raise error.BdecodeError()
 
             if validate:

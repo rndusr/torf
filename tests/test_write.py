@@ -2,7 +2,7 @@ import torf
 
 import pytest
 import io
-from bencoder import bdecode
+import flatbencode
 import time
 import os
 from unittest.mock import MagicMock
@@ -23,7 +23,7 @@ def test_write_with_creation_date(generated_singlefile_torrent, tmpdir):
     now = int(time.time())
     generated_singlefile_torrent.creation_date = now
     generated_singlefile_torrent.write(str(f))
-    metainfo = bdecode(open(str(f), 'rb').read())
+    metainfo = flatbencode.decode(open(str(f), 'rb').read())
     assert metainfo[b'creation date'] == now
 
 
