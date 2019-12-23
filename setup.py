@@ -19,7 +19,7 @@ setup(
     author_email       = 'rndusr@posteo.de',
     description        = 'High-level Python 3 module for creating and parsing torrent files',
     long_description   = long_description,
-    keywords           = 'bittorrent torrent bencode magnet',
+    keywords           = 'bittorrent torrent magnet',
     url                = 'https://github.com/rndusr/torf',
 
     classifiers        = [
