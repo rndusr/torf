@@ -1,26 +1,29 @@
 torf
 ====
 
-torf provides a ``Torrent`` class that represents the metainfo of a
-torrent. This project started as a fork of `dottorrent
-<https://github.com/kz26/dottorrent>`_ but turned into a rewrite with more
-features.
+torf provides a ``Torrent`` and a ``Magnet`` class.
 
 `torf-cli <https://github.com/rndusr/torf-cli>`_ is a command line tool that
 makes use of torf.
 
+This project started as a fork of `dottorrent
+<https://github.com/kz26/dottorrent>`_ but turned into a rewrite.
+
 Features
 --------
 
-- Create a ``Torrent`` instance from a file system path or by reading an
-  existing ``.torrent`` file
+- Create a ``Torrent`` instance from a path to the torrent's content or by
+  reading an existing ``.torrent`` file
 - High-level access to standard metainfo fields via properties
-- Low-level access to any metainfo fields via ``metainfo`` property
-- Optional metainfo validation after reading and before creating torrents
-- Generate a ``.torrent`` file or a `BTIH magnet link
-  <https://en.wikipedia.org/wiki/Magnet_link#BitTorrent_info_hash_(BTIH)>`_
+- Low-level access to arbitrary metainfo fields via ``metainfo`` property
+- Optional metainfo validation with helpful error messages after reading and
+  before creating torrents
+- Generate a ``.torrent`` file from a `BTIH magnet link
+  <https://en.wikipedia.org/wiki/Magnet_link#BitTorrent_info_hash_(BTIH)>`_ and
+  vice versa
 - Check if a file system path contains everything an existing ``.torrent`` file
   needs
+- Use multiple CPU cores to compute piece hashes
 - Randomize the metainfo hash to help with cross-seeding
 
 Example
