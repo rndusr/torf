@@ -1273,21 +1273,24 @@ class Torrent():
         if validate:
             self.validate()
 
-        parts = [f'xt=urn:btih:{self.infohash}']
+        kwargs = {'xt': 'urn:btih:' + self.infohash}
         if name:
-            parts.append(f'dn={utils.urlquote(self.name)}')
+            kwargs['dn'] = self.name
         if size:
-            parts.append(f'xl={self.size}')
-
+            kwargs['xl'] = self.size
         if self.trackers is not None:
             if tracker:
-                parts.append(f'tr={utils.urlquote(self.trackers[0][0])}')
+                kwargs['tr'] = (self.trackers[0][0],)
             elif trackers:
-                for tier in self.trackers:
-                    for url in tier:
-                        parts.append(f'tr={utils.urlquote(url)}')
+                kwargs['tr'] = (url
+                                for tier in self.trackers
+                                for url in tier)
+        if self.webseeds is not None:
+            kwargs['ws'] = self.webseeds
 
-        return 'magnet:?' + '&'.join(parts)
+        # Prevent circular import issues
+        from ._magnet import Magnet
+        return Magnet(**kwargs)
 
     # Maximum number of bytes that read() reads from torrent files.  This limit
     # exists because we don't want to read gigabytes before raising an error.

@@ -226,12 +226,15 @@ def test_from_string_with_multiple_kt_parameters(xt, hash16, hash32):
 
 def test_from_torrent(singlefile_content, multifile_content):
     for content in singlefile_content, multifile_content:
-        t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
+        t = torf.Torrent(content.path,
+                         trackers=['http://foo', 'http://bar'],
+                         webseeds=['http://qux', 'http://quux'])
         t.generate()
         assert str(t.magnet()) == (f'magnet:?xt=urn:btih:{t.infohash}'
                                    f'&dn={quote_plus(t.name)}'
                                    f'&xl={t.size}'
-                                   f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
+                                   '&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar'
+                                   '&ws=http%3A%2F%2Fqux&ws=http%3A%2F%2Fquux')
 
 def test_from_torrent_without_name(singlefile_content, multifile_content):
     for content in singlefile_content, multifile_content:
