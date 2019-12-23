@@ -205,6 +205,8 @@ class Magnet():
         """
         :class:`Torrent` instance
         """
+        # Prevent circular import issues
+        from ._torrent import Torrent
         torrent = Torrent()
         torrent.name = self.dn
         torrent.trackers = self.tr
