@@ -12,11 +12,6 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
-
-
-
-# TODO: Import mostly top-level modules
-
 import flatbencode
 import base64
 import hashlib
@@ -35,7 +30,6 @@ from . import _generate as generate
 from ._version import __version__
 _PACKAGE_NAME = __name__.split('.')[0]
 NCORES = len(os.sched_getaffinity(0))
-
 
 class Torrent():
     """
