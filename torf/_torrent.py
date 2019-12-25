@@ -246,7 +246,8 @@ class Torrent():
         :attr:`files` as a dictionary tree
 
         Parent nodes are dictionaries and leaf nodes are :attr:`File` instances.
-        The top node is always a dictionary with only one key: :attr:`name`
+        The top node is always a dictionary with the single key :attr:`name`.
+
         If :attr:`path` is ``None``, this is an empty ``dict``.
 
         Example:
