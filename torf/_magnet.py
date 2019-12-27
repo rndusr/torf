@@ -209,8 +209,10 @@ class Magnet():
         from ._torrent import Torrent
         torrent = Torrent()
         torrent.name = self.dn
-        torrent.trackers = self.tr
-        torrent.webseeds = self.ws
+        if self.tr:
+            torrent.trackers = self.tr
+        if self.ws:
+            torrent.webseeds = self.ws
         torrent._metainfo['info']['length'] = self.xl
         if len(self.infohash) == 40:
             torrent._infohash = self.infohash
