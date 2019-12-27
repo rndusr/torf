@@ -29,7 +29,7 @@ from . import _errors as error
 
 def flatten(items):
     for item in items:
-        if not isinstance(item, str) and isinstance(item, collections.abc.Iterable):
+        if isinstance(item, Iterable):
             yield from flatten(item)
         else:
             yield item
