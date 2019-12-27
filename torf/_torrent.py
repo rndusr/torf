@@ -1273,12 +1273,14 @@ class Torrent():
             kwargs['dn'] = self.name
         if size:
             kwargs['xl'] = self.size
-        if self.trackers is not None:
-            if tracker:
-                kwargs['tr'] = (self.trackers[0][0],)
-            elif trackers:
+
+        if tracker:
+            if 'announce' in self.metainfo:
+                kwargs['tr'] = (self.metainfo['announce'],)
+        elif trackers:
+            if 'announce-list' in self.metainfo:
                 kwargs['tr'] = (url
-                                for tier in self.trackers
+                                for tier in self.metainfo['announce-list']
                                 for url in tier)
         if self.webseeds is not None:
             kwargs['ws'] = self.webseeds
