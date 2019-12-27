@@ -464,44 +464,70 @@ class Torrent():
     @property
     def trackers(self):
         """
-        List of tiers of announce URLs or ``None`` for no trackers
+        List of tiers (lists) of announce URLs
 
-        A tier is either a single announce URL (:class:`str`) or an
-        :class:`~collections.abc.Iterable` (e.g. :class:`list`) of announce
-        URLs.
+        This is a smart list that ensures the proper list-of-lists structure,
+        validateion and deduplication.  You can set this property to a URL, a
+        list of URLs or a list of lists of URLs (i.e. list of tiers).
 
-        Setting this property sets or removes ``announce`` and ``announce-list``
-        in :attr:`metainfo`. ``announce`` is set to the first tracker of the
-        first tier.
+        This property also automatically sets :attr:`metainfo`\ ``['announce']``
+        and :attr:`metainfo`\ ``['announce-list']`` every time it set or the
+        returned list is manipulated according to these rules:
+
+        - If it contains a single URL, :attr:`metainfo`\ ``['announce']`` is set
+          and :attr:`metainfo`\ ``['announce-list']`` is removed if it exists.
+
+        - If it contains an iterable of URLs, :attr:`metainfo`\ ``['announce']``
+          is set to the first URL and :attr:`metainfo`\ ``['announce-list']`` is
+          set to a list of tiers, one tier for each URL.
+
+        - If set to an iterable of iterables of URLs, :attr:`metainfo`\
+          ``['announce']`` is set to the first URL of the first iterable and
+          :attr:`metainfo`\ ``['announce-list']`` is set to a list of tiers, one
+          tier for each iterable of URLs.
+
+        You can manage :attr:`metainfo`\ ``['announce']`` and :attr:`metainfo`\
+        ``['announce-list']`` manually as long as you never touch this property.
 
         :raises URLError: if any of the announce URLs is invalid
+        :raises ValueError: if set to anything that isn't an Iterable and not a
+            string
         """
-        announce_list = self.metainfo.get('announce-list', None)
-        if not announce_list:
-            announce = self.metainfo.get('announce', None)
-            if announce:
-                return [[announce]]
-        else:
-            return announce_list
+        announce = self.metainfo.get('announce', None)
+        announce_list = self.metainfo.get('announce-list', ())
+        # First, we must compare "announce-list" and "announce" with
+        # self._trackers in case metainfo was manually changed.
+        trackers = utils.Trackers(None, *announce_list)
+        if announce and announce not in trackers.flat:
+            trackers.insert(0, [announce])
+        if getattr(self, '_trackers') != trackers:
+            self._trackers = trackers
+            self._trackers._callback = self._trackers_changed
+        return self._trackers
+
     @trackers.setter
     def trackers(self, value):
-        if not value:
-            self.metainfo.pop('announce-list', None)
-            self.metainfo.pop('announce', None)
+        # We store the list of tiers in self._trackers because because we
+        # automatically add/remove "announce" and "announce-list" to/from
+        # metainfo whenever it changes (see _trackers_changed callback.)
+        if isinstance(value, str):
+            self._trackers = utils.Trackers(self._trackers_changed, value)
+        elif isinstance(value, abc.Iterable):
+            self._trackers = utils.Trackers(self._trackers_changed, *value)
         else:
-            self.metainfo['announce-list'] = []
-            for item in value:
-                if isinstance(item, str):
-                    tier = [utils.validated_url(str(item))]
-                else:
-                    tier = []
-                    for url in item:
-                        tier.append(utils.validated_url(str(url)))
-                self.metainfo['announce-list'].append(tier)
+            raise ValueError(f'Must be Iterable or str, not {type(value).__name__}: {value}')
 
-            # First tracker is also available via 'announce'
-            if self.metainfo['announce-list']:
-                self.metainfo['announce'] = self.metainfo['announce-list'][0][0]
+    def _trackers_changed(self, announce_list):
+        # Automatically use first tracker of first tier as "announce"
+        try:
+            self.metainfo['announce'] = announce_list[0][0]
+        except IndexError:
+            self.metainfo.pop('announce', None)
+
+        if len(announce_list.flat) <= 1:
+            self.metainfo.pop('announce-list', None)
+        elif announce_list and announce_list != self.metainfo.get('announce-list'):
+            self.metainfo['announce-list'] = announce_list
 
     @property
     def webseeds(self):

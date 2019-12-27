@@ -1,4 +1,5 @@
 import torf
+from torf import _utils as utils
 
 import pytest
 from unittest.mock import patch
@@ -308,27 +309,116 @@ def test_calculate_piece_size():
     assert torf.Torrent().calculate_piece_size(2**1000)     == 16 * 2**20  #  16 MiB is max
 
 
-def test_trackers(mktorrent):
+def test_trackers__correct_type(mktorrent):
     torrent = mktorrent()
-    first_tracker = 'http://foo:123/announce'
-    other_trackers = ['http://bar:456/', 'http://baz:789']
-    torrent.trackers = [first_tracker,
-                        (other_trackers[0], other_trackers[1])]
-    exp = [[first_tracker],
-           [other_trackers[0], other_trackers[1]]]
+    assert isinstance(torrent.trackers, utils.Trackers)
+    torrent.trackers = ('http://foo', ('http://bar', 'http://baz'))
+    assert isinstance(torrent.trackers, utils.Trackers)
+
+def test_trackers__set_to_invalid_type(mktorrent):
+    torrent = mktorrent()
+    with pytest.raises(ValueError) as e:
+        torrent.trackers = 17
+    assert str(e.value) == 'Must be Iterable or str, not int: 17'
+
+def test_trackers__metainfo_is_updated(mktorrent):
+    torrent = mktorrent()
+    orig_id = id(torrent.trackers)
+    torrent.trackers = ('http://foo', 'http://bar')
+    new_id = id(torrent.trackers)
+    assert id(torrent.trackers) != orig_id
+    assert torrent.trackers == [['http://foo'], ['http://bar']]
+    assert torrent.metainfo['announce'] == 'http://foo'
+    assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar']]
+    torrent.trackers.append('http://asdf')
+    assert id(torrent.trackers) == new_id
+    assert torrent.trackers == [['http://foo'], ['http://bar'], ['http://asdf']]
+    assert torrent.metainfo['announce'] == 'http://foo'
+    assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar'], ['http://asdf']]
+    torrent.trackers[0].insert(0, 'http://quux')
+    assert id(torrent.trackers) == new_id
+    assert torrent.trackers == [['http://quux', 'http://foo'], ['http://bar'], ['http://asdf']]
+    assert torrent.metainfo['announce'] == 'http://quux'
+    assert torrent.metainfo['announce-list'] == [['http://quux', 'http://foo'], ['http://bar'], ['http://asdf']]
+    torrent.trackers[1].remove('http://bar')
+    assert id(torrent.trackers) == new_id
+    assert torrent.trackers == [['http://quux', 'http://foo'], ['http://asdf']]
+    assert torrent.metainfo['announce'] == 'http://quux'
+    assert torrent.metainfo['announce-list'] == [['http://quux', 'http://foo'], ['http://asdf']]
+    del torrent.trackers[0]
+    assert id(torrent.trackers) == new_id
+    assert torrent.trackers == [['http://asdf']]
+    assert torrent.metainfo['announce'] == 'http://asdf'
+    assert 'announce-list' not in torrent.metainfo
+    del torrent.trackers[0]
+    assert id(torrent.trackers) == new_id
+    assert torrent.trackers == []
+    assert 'announce' not in torrent.metainfo
+    assert 'announce-list' not in torrent.metainfo
+
+def test_trackers__announce_in_metainfo_is_automatically_included_in_announce_list(mktorrent):
+    torrent = mktorrent()
+    torrent.metainfo['announce'] = 'http://foo:123'
+    torrent.metainfo['announce-list'] = [['http://bar:456', 'http://baz:789'],
+                                         ['http://quux']]
+    assert torrent.trackers == [['http://foo:123'], ['http://bar:456', 'http://baz:789'], ['http://quux']]
+    assert torrent.metainfo['announce-list'] == [['http://bar:456', 'http://baz:789'], ['http://quux']]
+    assert torrent.metainfo['announce'] == 'http://foo:123'
+
+def test_trackers__announce_in_metainfo_is_not_duplicated(mktorrent):
+    torrent = mktorrent()
+    torrent.metainfo['announce'] = 'http://foo:123'
+    torrent.metainfo['announce-list'] = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
+    exp = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
     assert torrent.trackers == exp
     assert torrent.metainfo['announce-list'] == exp
-    assert torrent.metainfo['announce'] == first_tracker
+    assert torrent.metainfo['announce'] == 'http://foo:123'
 
-    torrent.trackers = []
-    assert torrent.trackers == None
+    torrent.metainfo['announce-list'] = [['http://foo:123', 'http://bar:456', 'http://baz:789']]
+    exp = [['http://foo:123', 'http://bar:456', 'http://baz:789']]
+    assert torrent.trackers == exp
+    assert torrent.metainfo['announce-list'] == exp
+    assert torrent.metainfo['announce'] == 'http://foo:123'
+
+    torrent.metainfo['announce-list'] = [['http://bar:456', 'http://foo:123', 'http://baz:789']]
+    exp = [['http://bar:456', 'http://foo:123', 'http://baz:789']]
+    assert torrent.trackers == exp
+    assert torrent.metainfo['announce-list'] == exp
+    assert torrent.metainfo['announce'] == 'http://foo:123'
+
+def test_trackers__single_url_only_sets_announce_in_metainfo(mktorrent):
+    torrent = mktorrent()
+    torrent.trackers = 'http://foo:123'
+    assert torrent.trackers == [['http://foo:123']]
+    assert 'announce-list' not in torrent.metainfo
+    assert torrent.metainfo['announce'] == 'http://foo:123'
+
+def test_trackers__multiple_urls_sets_announce_and_announcelist_in_metainfo(mktorrent):
+    torrent = mktorrent()
+    torrent.trackers = ['http://foo:123', 'http://bar:456', 'http://baz:789']
+    exp = [['http://foo:123'], ['http://bar:456'], ['http://baz:789']]
+    assert torrent.trackers == exp
+    assert torrent.metainfo['announce-list'] == exp
+    assert torrent.metainfo['announce'] == 'http://foo:123'
+
+def test_trackers__multiple_lists_of_urls_sets_announce_and_announcelist_in_metainfo(mktorrent):
+    torrent = mktorrent()
+    torrent.trackers = [['http://foo:123', 'http://bar:456'],
+                        ['http://asdf'],
+                        ['http://a', 'http://b', 'http://c']]
+    exp = [['http://foo:123', 'http://bar:456'],
+           ['http://asdf'],
+           ['http://a', 'http://b', 'http://c']]
+    assert torrent.trackers == exp
+    assert torrent.metainfo['announce-list'] == exp
+    assert torrent.metainfo['announce'] == 'http://foo:123'
+
+def test_trackers__no_trackers(mktorrent):
+    torrent = mktorrent()
+    torrent.trackers = ()
+    assert torrent.trackers == []
     assert 'announce-list' not in torrent.metainfo
     assert 'announce' not in torrent.metainfo
-
-    for invalid_url in ('foo', 'http://localhost:70000/announce'):
-        with pytest.raises(torf.URLError) as excinfo:
-            torrent.trackers = [invalid_url]
-        assert excinfo.match(f'^{invalid_url}: Invalid URL$')
 
 
 def test_leaving_private_unset_does_not_include_it_in_metainfo(mktorrent):
