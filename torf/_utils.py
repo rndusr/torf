@@ -399,7 +399,11 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
             raise error.MetainfoError(f"Missing {key!r} in {keychain_str}")
 
     elif not isinstance(obj[key], exp_types):
-        exp_types_str = ' or '.join(t.__name__ for t in exp_types)
+        if len(exp_types) > 2:
+            exp_types_str = ', '.join(t.__name__ for t in exp_types[:-1])
+            exp_types_str += ' or ' + exp_types[-1].__name__
+        else:
+            exp_types_str = ' or '.join(t.__name__ for t in exp_types)
         type_str = type(obj[key]).__name__
         raise error.MetainfoError(f"{keychain_str}[{key!r}] must be {exp_types_str}, "
                                   f"not {type_str}: {obj[key]!r}")
