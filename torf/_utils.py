@@ -17,7 +17,7 @@ import math
 from fnmatch import fnmatch
 from urllib.parse import urlparse
 from urllib.parse import quote_plus as urlquote
-from collections import abc, OrderedDict
+import collections
 import re
 import errno
 import io
@@ -28,7 +28,7 @@ from . import _errors as error
 
 def flatten(items):
     for item in items:
-        if not isinstance(item, str) and isinstance(item, abc.Iterable):
+        if not isinstance(item, str) and isinstance(item, collections.abc.Iterable):
             yield from flatten(item)
         else:
             yield item
@@ -232,7 +232,7 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
 
         return sorted(filepaths, key=lambda fp: fp.casefold())
 
-class URLs(abc.MutableSequence):
+class URLs(collections.abc.MutableSequence):
     """Auto-flattening list of announce URLs with change callback"""
     def __init__(self, callback, urls, _get_known_urls=lambda: ()):
         self._callback = None
@@ -276,7 +276,7 @@ class URLs(abc.MutableSequence):
     def __eq__(self, other):
         if isinstance(other, type(self)):
             return frozenset(other._urls) == frozenset(self._urls)
-        elif isinstance(other, abc.Iterable):
+        elif isinstance(other, collections.abc.Iterable):
             return (len(other) == len(self._urls) and
                     all(url in self._urls for url in other))
         else:
@@ -289,7 +289,7 @@ class URLs(abc.MutableSequence):
         return repr(self._urls)
 
 
-class Trackers(abc.MutableSequence):
+class Trackers(collections.abc.MutableSequence):
     """List of deduplicated :class:`URLs` instances with change callback"""
     def __init__(self, callback, *tiers):
         self._callback = None
@@ -342,7 +342,7 @@ class Trackers(abc.MutableSequence):
     def __eq__(self, other):
         if isinstance(other, type(self)):
             return other._tiers == self._tiers
-        elif isinstance(other, abc.Iterable):
+        elif isinstance(other, collections.abc.Iterable):
             return list(other) == self._tiers
         else:
             return False
@@ -356,9 +356,9 @@ class Trackers(abc.MutableSequence):
 
 def key_exists_in_list_or_dict(key, lst_or_dct):
     """True if `lst_or_dct[key]` does not raise an Exception"""
-    if isinstance(lst_or_dct, abc.Mapping) and key in lst_or_dct:
+    if isinstance(lst_or_dct, collections.abc.Mapping) and key in lst_or_dct:
         return True
-    elif isinstance(lst_or_dct, abc.Sequence):
+    elif isinstance(lst_or_dct, collections.abc.Sequence):
         min_i, max_i = 0, len(lst_or_dct)
         if min_i <= key < max_i:
             return True
@@ -413,11 +413,11 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
 
 
 def decode_value(value):
-    if isinstance(value, abc.ByteString):
+    if isinstance(value, collections.abc.ByteString):
         return bytes.decode(value, encoding='utf-8', errors='replace')
-    elif isinstance(value, abc.Sequence):
+    elif isinstance(value, collections.abc.Sequence):
         return decode_list(value)
-    elif isinstance(value, abc.Mapping):
+    elif isinstance(value, collections.abc.Mapping):
         return decode_dict(value)
     else:
         return value
@@ -453,7 +453,7 @@ def encode_list(lst):
     return lst_enc
 
 def encode_dict(dct):
-    dct_enc = OrderedDict()
+    dct_enc = collections.OrderedDict()
     for key,value in sorted(dct.items()):
         if not isinstance(key, str):
             raise ValueError(f'Invalid key: {key!r}')
@@ -467,9 +467,9 @@ ENCODE_CONVERTERS = {
     str: lambda val: str(val).encode(encoding='utf-8', errors='replace'),
     float: int,
     bool: int,
-    abc.ByteString: bytes,
-    abc.Mapping: encode_dict,
-    abc.Sequence: encode_list,
-    abc.Collection: encode_list,
+    collections.abc.ByteString: bytes,
+    collections.abc.Mapping: encode_dict,
+    collections.abc.Sequence: encode_list,
+    collections.abc.Collection: encode_list,
     datetime: lambda dt: int(dt.timestamp()),
 }
