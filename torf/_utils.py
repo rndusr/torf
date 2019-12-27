@@ -289,6 +289,70 @@ class URLs(abc.MutableSequence):
         return repr(self._urls)
 
 
+class Trackers(abc.MutableSequence):
+    """List of deduplicated :class:`URLs` instances with change callback"""
+    def __init__(self, callback, *tiers):
+        self._callback = None
+        self._tiers = []
+        for urls in tiers:
+            self.append(urls)
+        self._callback = callback
+        if self._callback is not None:
+            callback(self)
+
+    @property
+    def flat(self):
+        """Tuple of all URLs of all tiers"""
+        return tuple(flatten(self._tiers))
+
+    def _tier_changed(self, tier):
+        # Auto-remove empty tiers
+        if len(tier) == 0:
+            self._tiers.remove(tier)
+        if self._callback is not None:
+            self._callback(self)
+
+    def __getitem__(self, item):
+        return self._tiers[item]
+
+    def __setitem__(self, item, value):
+        tier = URLs(self._tier_changed, value,
+                    _get_known_urls=lambda self=self: self.flat)
+        if len(tier) > 0 and tier not in self._tiers:
+            self._tiers[item] = tier
+        if self._callback is not None:
+            self._callback(self)
+
+    def __delitem__(self, item):
+        del self._tiers[item]
+        if self._callback is not None:
+            self._callback(self)
+
+    def insert(self, index, value):
+        tier = URLs(self._tier_changed, value,
+                    _get_known_urls=lambda self=self: self.flat)
+        if len(tier) > 0 and tier not in self._tiers:
+            self._tiers.insert(index, tier)
+        if self._callback is not None:
+            self._callback(self)
+
+    def __len__(self):
+        return len(self._tiers)
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return other._tiers == self._tiers
+        elif isinstance(other, abc.Iterable):
+            return list(other) == self._tiers
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return repr(self._tiers)
+
 
 def key_exists_in_list_or_dict(key, lst_or_dct):
     """True if `lst_or_dct[key]` does not raise an Exception"""
