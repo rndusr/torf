@@ -54,6 +54,7 @@ def is_url(url):
 
 def validated_url(url):
     """Return url if valid, raise URLError otherwise"""
+    url = str(url)
     if is_url(url):
         return url
     else:
