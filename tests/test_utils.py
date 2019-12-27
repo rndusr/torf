@@ -3,7 +3,6 @@ from torf import _utils as utils
 
 import pytest
 import os
-import errno
 from collections import OrderedDict
 
 
