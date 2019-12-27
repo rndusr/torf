@@ -232,6 +232,63 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
 
         return sorted(filepaths, key=lambda fp: fp.casefold())
 
+class URLs(abc.MutableSequence):
+    """Auto-flattening list of announce URLs with change callback"""
+    def __init__(self, callback, urls, _get_known_urls=lambda: ()):
+        self._callback = None
+        self._get_known_urls = _get_known_urls
+        if isinstance(urls, str):
+            urls = [urls]
+        self._urls = []
+        for url in flatten(urls):
+            self.append(url)
+        self._callback = callback
+
+    def _filtered_url(self, url):
+        if url not in self._urls and url not in self._get_known_urls():
+            return url
+
+    def __getitem__(self, item):
+        return self._urls[item]
+
+    def __setitem__(self, item, value):
+        url = self._filtered_url(validated_url(value))
+        if url is not None:
+            self._urls[item] = url
+        if self._callback is not None:
+            self._callback(self)
+
+    def __delitem__(self, item):
+        del self._urls[item]
+        if self._callback is not None:
+            self._callback(self)
+
+    def insert(self, index, value):
+        url = self._filtered_url(validated_url(value))
+        if url is not None:
+            self._urls.insert(index, url)
+        if self._callback is not None:
+            self._callback(self)
+
+    def __len__(self):
+        return len(self._urls)
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return frozenset(other._urls) == frozenset(self._urls)
+        elif isinstance(other, abc.Iterable):
+            return (len(other) == len(self._urls) and
+                    all(url in self._urls for url in other))
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return repr(self._urls)
+
+
 
 def key_exists_in_list_or_dict(key, lst_or_dct):
     """True if `lst_or_dct[key]` does not raise an Exception"""
