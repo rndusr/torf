@@ -1085,11 +1085,11 @@ class Torrent():
         # Check values shared by singlefile and multifile torrents
         utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True)
-        utils.assert_type(md, ('info', 'pieces'), (bytes, bytearray), must_exist=True)
+        utils.assert_type(md, ('info', 'pieces'), (abc.ByteString,), must_exist=True)
         utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)
-        utils.assert_type(md, ('announce-list',), (list,), must_exist=False)
+        utils.assert_type(md, ('announce-list',), (utils.Iterable,), must_exist=False)
         for i,_ in enumerate(md.get('announce-list', ())):
-            utils.assert_type(md, ('announce-list', i), (list,))
+            utils.assert_type(md, ('announce-list', i), (utils.Iterable,))
             for j,_ in enumerate(md['announce-list'][i]):
                 utils.assert_type(md, ('announce-list', i, j), (str,), check=utils.is_url)
 
@@ -1129,11 +1129,11 @@ class Torrent():
 
         elif 'files' in info:
             # Validate info as multifile torrent
-            utils.assert_type(md, ('info', 'files'), (list,), must_exist=True)
+            utils.assert_type(md, ('info', 'files'), (utils.Iterable,), must_exist=True)
             for i,fileinfo in enumerate(info['files']):
-                utils.assert_type(md, ('info', 'files', i), (dict,), must_exist=True)
+                utils.assert_type(md, ('info', 'files', i), (abc.Mapping,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'length'), (int, float), must_exist=True)
-                utils.assert_type(md, ('info', 'files', i, 'path'), (list,), must_exist=True)
+                utils.assert_type(md, ('info', 'files', i, 'path'), (utils.Iterable,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
                 for j,item in enumerate(fileinfo['path']):
                     utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))

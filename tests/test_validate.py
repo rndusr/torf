@@ -34,7 +34,7 @@ def test_wrong_pieces_type(generated_singlefile_torrent):
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['pieces'] "
-                                  "must be bytes or bytearray, not str: 'many'")
+                                  "must be ByteString, not str: 'many'")
 
 def test_pieces_is_empty(generated_singlefile_torrent):
     t = generated_singlefile_torrent
@@ -132,16 +132,16 @@ def test_wrong_announce_list_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
 
     # announce-list must be a list
-    for typ in (bytearray, str):
-        t.metainfo['announce-list'] = typ()
+    for value in (3, 'foo', None, lambda: None):
+        t.metainfo['announce-list'] = value
         with pytest.raises(torf.MetainfoError) as excinfo:
             t.validate()
         assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'] "
-                                      f"must be list, not {typ.__qualname__}: {t.metainfo['announce-list']!r}")
+                                      f"must be Iterable, not {type(value).__qualname__}: "
+                                      f"{t.metainfo['announce-list']!r}")
 
     # Each item in announce-list must be a list
-    for typ in (bytearray, set):
-        tier = typ()
+    for tier in (3, 'foo', None, lambda: None):
         for lst in ([tier],
                     [tier, []],
                     [[], tier],
@@ -151,7 +151,7 @@ def test_wrong_announce_list_type(generated_singlefile_torrent):
                 t.validate()
             tier_index = lst.index(tier)
             assert str(excinfo.value) == (f"Invalid metainfo: ['announce-list'][{tier_index}] "
-                                          f"must be list, not {typ.__qualname__}: {tier!r}")
+                                          f"must be Iterable, not {type(tier).__qualname__}: {tier!r}")
 
     # Each item in each list in announce-list must be a string
     for typ in (bytearray, set):
@@ -241,7 +241,7 @@ def test_multifile_wrong_files_type(generated_multifile_torrent):
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'] "
-                                  "must be list, not str: 'foo'")
+                                  "must be Iterable, not str: 'foo'")
 
 def test_multifile_wrong_path_type(generated_multifile_torrent):
     t = generated_multifile_torrent
@@ -250,7 +250,7 @@ def test_multifile_wrong_path_type(generated_multifile_torrent):
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][0]['path'] "
-                                  "must be list, not str: 'foo/bar/baz'")
+                                  "must be Iterable, not str: 'foo/bar/baz'")
 
 def test_multifile_wrong_path_item_type(generated_multifile_torrent):
     t = generated_multifile_torrent

@@ -356,9 +356,9 @@ class Trackers(abc.MutableSequence):
 
 def key_exists_in_list_or_dict(key, lst_or_dct):
     """True if `lst_or_dct[key]` does not raise an Exception"""
-    if isinstance(lst_or_dct, dict) and key in lst_or_dct:
+    if isinstance(lst_or_dct, abc.Mapping) and key in lst_or_dct:
         return True
-    elif isinstance(lst_or_dct, list):
+    elif isinstance(lst_or_dct, abc.Sequence):
         min_i, max_i = 0, len(lst_or_dct)
         if min_i <= key < max_i:
             return True
@@ -409,13 +409,13 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
 
 
 def decode_value(value):
-    if isinstance(value, list):
+    if isinstance(value, abc.ByteString):
+        return bytes.decode(value, encoding='utf-8', errors='replace')
+    elif isinstance(value, abc.Sequence):
         return decode_list(value)
     elif isinstance(value, abc.Mapping):
         return decode_dict(value)
     else:
-        if isinstance(value, bytes):
-            return bytes.decode(value, encoding='utf-8', errors='replace')
         return value
 
 def decode_list(lst):
@@ -463,8 +463,9 @@ ENCODE_CONVERTERS = {
     str: lambda val: str(val).encode(encoding='utf-8', errors='replace'),
     float: int,
     bool: int,
-    bytearray: bytes,
-    datetime: lambda dt: int(dt.timestamp()),
+    abc.ByteString: bytes,
     abc.Mapping: encode_dict,
-    abc.Iterable: encode_list,
+    abc.Sequence: encode_list,
+    abc.Collection: encode_list,
+    datetime: lambda dt: int(dt.timestamp()),
 }
