@@ -138,12 +138,12 @@ def test_x(xt):
 def test_as_torrent(hash16, hash32):
     m = torf.Magnet(xt='urn:btih:' + hash16(b'some string'),
                     dn='foo', xl=1e6,
-                    tr=('http://foo.bar/baz', 'http://foo.bar/baz'),
+                    tr=('http://foo.bar/baz', 'http://asdf'),
                     ws=('http://x/y', 'http://z'))
     t = m.as_torrent
     assert t.name == 'foo'
     assert t.size == 1e6
-    assert t.trackers == [['http://foo.bar/baz'], ['http://foo.bar/baz']]
+    assert t.trackers == [['http://foo.bar/baz'], ['http://asdf']]
     assert t.webseeds == ['http://x/y', 'http://z']
     assert t.infohash == hash16(b'some string')
     m = torf.Magnet(xt='urn:btih:' + hash32(b'some string'))
