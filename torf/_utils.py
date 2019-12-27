@@ -26,6 +26,14 @@ from datetime import datetime
 from . import _errors as error
 
 
+def flatten(items):
+    for item in items:
+        if not isinstance(item, str) and isinstance(item, abc.Iterable):
+            yield from flatten(item)
+        else:
+            yield item
+
+
 _md5sum_regex = re.compile(r'^[0-9a-fA-F]{32}$')
 def is_md5sum(value):
     return bool(_md5sum_regex.match(value))
