@@ -1,9 +1,11 @@
 import torf
 from torf import _utils as utils
+from torf import _errors as errors
 
 import pytest
 import os
 from collections import OrderedDict
+from unittest import mock
 
 
 ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
@@ -258,3 +260,100 @@ def test_encoding():
         }
     }
     assert utils.encode_dict(decoded) == encoded
+
+
+def test_URLs_accepts_string_or_iterable():
+    urls = utils.URLs(None, 'http://foo:123')
+    assert urls == utils.URLs(None, ('http://foo:123',))
+    assert urls == utils.URLs(None, ['http://foo:123'])
+
+def test_URLs_deduplicates_when_initializing():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456', 'http://foo:123'))
+    assert urls == ['http://foo:123', 'http://bar:456']
+
+def test_URLs_deduplicates_when_setting():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls.append('http://foo:123')
+    urls.append('http://bar:456')
+    urls.extend(('http://foo:123', 'http://bar:456'))
+    assert urls == ['http://foo:123', 'http://bar:456']
+
+def test_URLs_deduplicates_when_inserting():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls.insert(1, 'http://foo:123')
+    urls.insert(0, 'http://bar:456')
+    urls.insert(0, 'http://foo:123')
+    urls.insert(1, 'http://bar:456')
+    assert urls == ['http://foo:123', 'http://bar:456']
+
+def test_URLs_validates_initial_urls():
+    with pytest.raises(errors.URLError) as e:
+        utils.URLs(None, ('http://foo:123', 'http://bar:456:789'))
+    assert str(e.value) == 'http://bar:456:789: Invalid URL'
+
+def test_URLs_validates_appended_urls():
+    urls = utils.URLs(None, 'http://foo:123')
+    with pytest.raises(errors.URLError) as e:
+        urls.append('http://bar:456:789')
+    assert str(e.value) == 'http://bar:456:789: Invalid URL'
+
+def test_URLs_validates_changed_urls():
+    urls = utils.URLs(None, 'http://foo:123')
+    with pytest.raises(errors.URLError) as e:
+        urls[0] = 'http://bar:456:789'
+    assert str(e.value) == 'http://bar:456:789: Invalid URL'
+
+def test_URLs_validates_inserted_urls():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    with pytest.raises(errors.URLError) as e:
+        urls.insert(1, 'http://baz:789:abc')
+    assert str(e.value) == 'http://baz:789:abc: Invalid URL'
+
+def test_URLs_is_equal_to_URLs_instances():
+    t1 = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    t2 = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    assert t1 == t2
+    t2 = utils.URLs(None, ('http://foo:123', 'http://baz:789'))
+    assert t1 != t2
+
+def test_URLs_is_equal_to_iterables():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    assert urls == ['http://foo:123', 'http://bar:456']
+    assert urls == ('http://foo:123', 'http://bar:456')
+
+def test_URLs_is_equal_to_any_combination_of_the_same_urls():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456', 'http://baz:789'))
+    assert urls == ('http://foo:123', 'http://bar:456', 'http://baz:789')
+    assert urls == ('http://bar:456', 'http://foo:123', 'http://baz:789')
+    assert urls == ('http://bar:456', 'http://foo:123', 'http://baz:789')
+    assert urls == ('http://foo:123', 'http://baz:789', 'http://bar:456')
+
+def test_URLs_calls_callback_after_appending():
+    cb = mock.MagicMock()
+    urls = utils.URLs(cb, ('http://foo:123', 'http://bar:456'))
+    cb.reset_mock()
+    urls.append('http://baz:789')
+    cb.assert_called_once_with(urls)
+
+def test_URLs_calls_callback_after_removing():
+    cb = mock.MagicMock()
+    urls = utils.URLs(cb, ('http://foo:123', 'http://bar:456'))
+    cb.reset_mock()
+    urls.remove('http://bar:456')
+    cb.assert_called_once_with(urls)
+
+def test_URLs_calls_callback_after_inserting():
+    cb = mock.MagicMock()
+    urls = utils.URLs(cb, ('http://foo:123', 'http://bar:456'))
+    cb.reset_mock()
+    urls.insert(0, 'http://baz:789')
+    cb.assert_called_once_with(urls)
+
+def test_URLs_equality():
+    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    assert urls == ('http://foo:123', 'http://bar:456')
+    assert urls == ['http://foo:123', 'http://bar:456']
+    assert urls != ['http://foo:124', 'http://bar:456']
+    assert urls != 'http://bar:456'
+    assert urls != 5
+    assert urls != None
