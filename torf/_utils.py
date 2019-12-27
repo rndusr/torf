@@ -18,6 +18,7 @@ from fnmatch import fnmatch
 from urllib.parse import urlparse
 from urllib.parse import quote_plus as urlquote
 import collections
+import abc
 import re
 import errno
 import io
@@ -352,6 +353,26 @@ class Trackers(collections.abc.MutableSequence):
 
     def __repr__(self):
         return repr(self._tiers)
+
+
+class Iterable(abc.ABC):
+    """
+    Iterable that is not a :class:`str`
+
+    This allows you to write
+
+        isinstance(x, Iterable)
+
+    instead of
+
+        isinstance(x, collections.abc.Iterable) and not isinstance(x, str)
+    """
+    @classmethod
+    def __subclasshook__(cls, C):
+        if cls is Iterable:
+            if issubclass(C, collections.abc.Iterable) and not issubclass(C, str):
+                return True
+        return False
 
 
 def key_exists_in_list_or_dict(key, lst_or_dct):
