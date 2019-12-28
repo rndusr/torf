@@ -3,8 +3,7 @@
   - Bug fixed: Setting the "private" property to False removed the flag from the
     metainfo which could potentially change the info hash if a torrent file had
     the flag explicitly disabled.
-  - Hashing pieces now uses multiple threads resulting in massive performance
-    gains.
+  - Hashing pieces now uses multiple threads for better performance.
   - Support for the "md5sum" field was dropped.  Calculating MD5 hashes besides
     the SHA1 hashes is no longer reasonably possible due to multithreading and
     it's unclear to me if/how this field is even useful.
@@ -13,12 +12,15 @@
     directory and size.
   - The new methods Torrent.verify_content() and Torrent.verify_filesize() check
     if on-disk data matches a given torrent file.
+  - The Torrent properties "trackers", "webseeds" and "httpseeds" are now
+    special lists that automatically update the metainfo whenever they are
+    changed.
   - The new class attributes Torrent.piece_size_min and Torrent.piece_size_max
     can now be used to quickly specify piece size limits.  Setting the
     piece_size property to an out-of-bounds piece size or returning one with
     Torrent.calculate_piece_size() will raise PieceSizeError.
   - Torrent.validate() is now better at finding invalid stuff in the metainfo.
-  - Except ReadError and WriteError, exceptions no longer have an 'errno'
+  - Except for ReadError and WriteError, exceptions no longer have an 'errno'
     property.
   - When setting the Torrent.path property to None, only "pieces" is removed
     from the metainfo.  "piece length", "pieces", "length" and "files" are kept.
