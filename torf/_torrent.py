@@ -83,11 +83,12 @@ class Torrent():
     """
 
     def __init__(self, path=None, name=None,
-                 exclude=(), trackers=(), webseeds=(), httpseeds=(),
+                 exclude=(), trackers=None, webseeds=None, httpseeds=None,
                  private=None, comment=None, source=None,
                  creation_date=None, created_by='%s/%s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
         self._metainfo = {}
+        self._trackers = utils.Trackers(callback=self._trackers_changed)
         self.trackers = trackers
         self.webseeds = webseeds
         self.httpseeds = httpseeds
@@ -467,12 +468,12 @@ class Torrent():
         List of tiers (lists) of announce URLs
 
         This is a smart list that ensures the proper list-of-lists structure,
-        validateion and deduplication.  You can set this property to a URL, a
-        list of URLs or a list of lists of URLs (i.e. list of tiers).
+        validation and deduplication.  You can set this property to a URL, an
+        iterable of URLs or an iterable of iterables of URLs (or "tiers").
 
         This property also automatically sets :attr:`metainfo`\ ``['announce']``
-        and :attr:`metainfo`\ ``['announce-list']`` every time it set or the
-        returned list is manipulated according to these rules:
+        and :attr:`metainfo`\ ``['announce-list']`` every time it set or
+        manipulated according to these rules:
 
         - If it contains a single URL, :attr:`metainfo`\ ``['announce']`` is set
           and :attr:`metainfo`\ ``['announce-list']`` is removed if it exists.
@@ -481,7 +482,7 @@ class Torrent():
           is set to the first URL and :attr:`metainfo`\ ``['announce-list']`` is
           set to a list of tiers, one tier for each URL.
 
-        - If set to an iterable of iterables of URLs, :attr:`metainfo`\
+        - If it contains an iterable of iterables of URLs, :attr:`metainfo`\
           ``['announce']`` is set to the first URL of the first iterable and
           :attr:`metainfo`\ ``['announce-list']`` is set to a list of tiers, one
           tier for each iterable of URLs.
@@ -493,29 +494,37 @@ class Torrent():
         :raises ValueError: if set to anything that isn't an Iterable and not a
             string
         """
-        announce = self.metainfo.get('announce', None)
-        announce_list = self.metainfo.get('announce-list', ())
-        # First, we must compare "announce-list" and "announce" with
-        # self._trackers in case metainfo was manually changed.
-        trackers = utils.Trackers(None, *announce_list)
-        if announce and announce not in trackers.flat:
-            trackers.insert(0, [announce])
-        if getattr(self, '_trackers') != trackers:
-            self._trackers = trackers
-            self._trackers._callback = self._trackers_changed
+        self._sync_trackers_from_metainfo()
         return self._trackers
 
     @trackers.setter
     def trackers(self, value):
-        # We store the list of tiers in self._trackers because because we
-        # automatically add/remove "announce" and "announce-list" to/from
-        # metainfo whenever it changes (see _trackers_changed callback.)
+        # We store the list of tiers in self._trackers because we automatically
+        # add/remove "announce" and "announce-list" to/from metainfo whenever it
+        # changes (see _trackers_changed callback.)
         if isinstance(value, str):
-            self._trackers = utils.Trackers(self._trackers_changed, value)
+            self._trackers.replace((value,))
         elif isinstance(value, abc.Iterable):
-            self._trackers = utils.Trackers(self._trackers_changed, *value)
+            # We need to change `value`'s identity, otherwise this clears all
+            # trackers: t.trackers += ['http://foo']
+            self._trackers.replace(tuple(value))
+        elif value is None:
+            if self._trackers:
+                self._trackers.clear()
         else:
-            raise ValueError(f'Must be Iterable or str, not {type(value).__name__}: {value}')
+            raise ValueError(f'Must be Iterable, str or None, not {type(value).__name__}: {value}')
+
+    def _sync_trackers_from_metainfo(self):
+        # If URLs in metainfo differ from self._trackers, update self._trackers
+        self._trackers._callback = None
+        announce = self.metainfo.get('announce', None)
+        announce_list = self.metainfo.get('announce-list', ())
+        trackers = utils.Trackers(*announce_list)
+        if announce and announce not in trackers.flat:
+            trackers.insert(0, [announce])
+        if self._trackers != trackers:
+            self._trackers.replace(trackers)
+        self._trackers._callback = self._trackers_changed
 
     def _trackers_changed(self, announce_list):
         # Automatically use first tracker of first tier as "announce"
