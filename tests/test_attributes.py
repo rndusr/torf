@@ -1,5 +1,6 @@
 import torf
 from torf import _utils as utils
+from torf import _errors as errors
 
 import pytest
 from unittest.mock import patch
@@ -419,6 +420,79 @@ def test_trackers__no_trackers(mktorrent):
     assert torrent.trackers == []
     assert 'announce-list' not in torrent.metainfo
     assert 'announce' not in torrent.metainfo
+
+
+
+def test_webseeds__correct_type(mktorrent):
+    torrent = mktorrent()
+    for value in ((), 'http://foo', ['http://foo', 'http://bar'], None):
+        torrent.webseeds = value
+        assert isinstance(torrent.webseeds, utils.URLs)
+
+def test_webseeds__metainfo_is_updated_automatically(mktorrent):
+    torrent = mktorrent(webseeds=())
+    assert torrent.webseeds == []
+    assert 'url-list' not in torrent.metainfo
+    torrent.webseeds = ['http://foo']
+    assert torrent.webseeds == ['http://foo']
+    assert torrent.metainfo['url-list'] ==  ['http://foo']
+    torrent.webseeds.clear()
+    assert torrent.webseeds == []
+    assert 'url-list' not in torrent.metainfo
+
+def test_webseeds__urls_are_validated(mktorrent):
+    torrent = mktorrent()
+    with pytest.raises(errors.URLError) as e:
+        torrent.webseeds = ['http://foo', 'http://foo:bar']
+    assert str(e.value) == 'http://foo:bar: Invalid URL'
+
+def test_webseeds__non_iterable(mktorrent):
+    torrent = mktorrent()
+    with pytest.raises(ValueError) as e:
+        torrent.webseeds = 23
+    assert str(e.value) == 'Must be Iterable, str or None, not int: 23'
+
+def test_webseeds__addition(mktorrent):
+    torrent = mktorrent()
+    torrent.webseeds = ['http://foo']
+    torrent.webseeds += ['http://bar']
+    assert torrent.webseeds == ['http://foo', 'http://bar']
+
+
+def test_httpseeds__correct_type(mktorrent):
+    torrent = mktorrent()
+    for value in ((), 'http://foo', ['http://foo', 'http://bar'], None):
+        torrent.httpseeds = value
+        assert isinstance(torrent.httpseeds, utils.URLs)
+
+def test_httpseeds__metainfo_is_updated_automatically(mktorrent):
+    torrent = mktorrent(httpseeds=())
+    assert torrent.httpseeds == []
+    assert 'httpseeds' not in torrent.metainfo
+    torrent.httpseeds = ['http://foo']
+    assert torrent.httpseeds == ['http://foo']
+    assert torrent.metainfo['httpseeds'] ==  ['http://foo']
+    torrent.httpseeds.clear()
+    assert torrent.httpseeds == []
+    assert 'httpseeds' not in torrent.metainfo
+
+def test_httpseeds__urls_are_validated(mktorrent):
+    torrent = mktorrent()
+    with pytest.raises(errors.URLError) as e:
+        torrent.httpseeds = ['http://foo', 'http://foo:bar']
+    assert str(e.value) == 'http://foo:bar: Invalid URL'
+
+def test_httpseeds__non_iterable(mktorrent):
+    torrent = mktorrent()
+    with pytest.raises(ValueError) as e:
+        torrent.httpseeds = 23
+    assert str(e.value) == 'Must be Iterable, str or None, not int: 23'
+
+def test_httpseeds__addition(mktorrent):
+    torrent = mktorrent()
+    torrent.httpseeds = ['http://foo']
+    torrent.httpseeds += ['http://bar']
+    assert torrent.httpseeds == ['http://foo', 'http://bar']
 
 
 def test_leaving_private_unset_does_not_include_it_in_metainfo(mktorrent):

@@ -89,6 +89,8 @@ class Torrent():
                  piece_size=None, randomize_infohash=False):
         self._metainfo = {}
         self._trackers = utils.Trackers(callback=self._trackers_changed)
+        self._webseeds = utils.URLs((), callback=self._webseeds_changed)
+        self._httpseeds = utils.URLs((), callback=self._httpseeds_changed)
         self.trackers = trackers
         self.webseeds = webseeds
         self.httpseeds = httpseeds
@@ -540,17 +542,43 @@ class Torrent():
 
     @property
     def webseeds(self):
-        """List of webseed URLs or ``None`` for no webseeds
+        """
+        List of webseed URLs or ``None`` for no webseeds
 
         http://bittorrent.org/beps/bep_0019.html
+
+        Setting or manipulating this property automatically sets or removes
+        ``url-list`` in :attr:`metainfo`. You can manage :attr:`metainfo`\
+        ``['url-list']`` yourself if you never touch this property.
+
+        :raises URLError: if any URL is invalid
+        :raises ValueError: if set to any non-iterable
         """
-        return self.metainfo.get('url-list', None)
+        webseeds = self.metainfo.get('url-list', ())
+        if not isinstance(webseeds, utils.URLs):
+            webseeds = utils.URLs(webseeds, callback=self._webseeds_changed)
+        if self._webseeds != webseeds:
+            self._webseeds.replace(webseeds)
+        return self._webseeds
+
     @webseeds.setter
     def webseeds(self, value):
-        if not value:
-            self.metainfo.pop('url-list', None)
+        if isinstance(value, str):
+            self._webseeds.replace((value,))
+        elif isinstance(value, abc.Iterable):
+            self._webseeds.replace(tuple(value))
+        elif value is None:
+            self._webseeds.clear()
         else:
-            self.metainfo['url-list'] = [utils.validated_url(url) for url in value]
+            raise ValueError(f'Must be Iterable, str or None, not {type(value).__name__}: {value}')
+
+    def _webseeds_changed(self, webseeds):
+        if webseeds:
+            self.metainfo['url-list'] = webseeds
+        else:
+            self.metainfo.pop('url-list', None)
+
+
 
     @property
     def httpseeds(self):
@@ -558,14 +586,37 @@ class Torrent():
         List of httpseed URLs or ``None`` for no httpseeds
 
         http://bittorrent.org/beps/bep_0017.html
+
+        Setting or manipulating this property automatically sets or removes
+        ``httpseeds`` in :attr:`metainfo`. You can manage :attr:`metainfo`\
+        ``['httpseeds']`` yourself if you never touch this property.
+
+        :raises URLError: if any URL is invalid
+        :raises ValueError: if set to any non-iterable
         """
-        return self.metainfo.get('httpseeds', None)
+        httpseeds = self.metainfo.get('httpseeds', ())
+        if not isinstance(httpseeds, utils.URLs):
+            httpseeds = utils.URLs(httpseeds, callback=self._httpseeds_changed)
+        if self._httpseeds != httpseeds:
+            self._httpseeds.replace(httpseeds)
+        return self._httpseeds
+
     @httpseeds.setter
     def httpseeds(self, value):
-        if not value:
-            self.metainfo.pop('httpseeds', None)
+        if isinstance(value, str):
+            self._httpseeds.replace((value,))
+        elif isinstance(value, abc.Iterable):
+            self._httpseeds.replace(tuple(value))
+        elif value is None:
+            self._httpseeds.clear()
         else:
-            self.metainfo['httpseeds'] = [utils.validated_url(url) for url in value]
+            raise ValueError(f'Must be Iterable, str or None, not {type(value).__name__}: {value}')
+
+    def _httpseeds_changed(self, httpseeds):
+        if httpseeds:
+            self.metainfo['httpseeds'] = httpseeds
+        else:
+            self.metainfo.pop('httpseeds', None)
 
     @property
     def private(self):
