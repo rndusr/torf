@@ -361,6 +361,14 @@ def test_URLs_equality():
     assert urls != 5
     assert urls != None
 
+def test_URLs_replace():
+    cb = mock.MagicMock()
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
+                      callback=cb)
+    urls.replace(['http://asdf', 'http://quux'])
+    assert urls == ['http://asdf', 'http://quux']
+    assert cb.call_args_list == [mock.call(urls)]
+
 
 def test_Trackers_ensures_tiers_when_initializing():
     for args in (('http://foo:123', 'http://bar:456'),
@@ -469,3 +477,11 @@ def test_Trackers_deduplicates_urls_automatically_when_inserting():
 def test_Trackers_flat_property():
     tiers = utils.Trackers(['http://foo:123'], ['http://bar:456'])
     assert tiers.flat == ('http://foo:123', 'http://bar:456')
+
+def test_Trackers_replace():
+    cb = mock.MagicMock()
+    tiers = utils.Trackers(['http://foo:123'], ['http://bar:456'], callback=cb)
+    cb.reset_mock()
+    tiers.replace(('http://asdf', ('http://qux', 'http://quux'), 'http://qaax'))
+    assert tiers == (['http://asdf'], ['http://qux', 'http://quux'], ['http://qaax'])
+    assert cb.call_args_list == [mock.call(tiers)]

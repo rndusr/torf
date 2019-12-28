@@ -271,6 +271,15 @@ class URLs(collections.abc.MutableSequence):
         if self._callback is not None:
             self._callback(self)
 
+    def replace(self, urls):
+        if not isinstance(urls, Iterable):
+            raise ValueError(f'Not an Iterable: {urls!r}')
+        self._urls.clear()
+        for url in urls:
+            self._urls.append(validated_url(url))
+        if self._callback is not None:
+            self._callback(self)
+
     def __len__(self):
         return len(self._urls)
 
@@ -334,6 +343,18 @@ class Trackers(collections.abc.MutableSequence):
                     _get_known_urls=lambda self=self: self.flat)
         if len(tier) > 0 and tier not in self._tiers:
             self._tiers.insert(index, tier)
+        if self._callback is not None:
+            self._callback(self)
+
+    def replace(self, tiers):
+        if not isinstance(tiers, Iterable):
+            raise ValueError(f'Not an iterable: {tiers!r}')
+        cb = self._callback
+        self._callback = None
+        self._tiers.clear()
+        for urls in tiers:
+            self.append(urls)
+        self._callback = cb
         if self._callback is not None:
             self._callback(self)
 
