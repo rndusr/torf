@@ -1427,9 +1427,6 @@ class Torrent():
         cp._metainfo = deepcopy(self._metainfo)
         return cp
 
-    def __deepcopy__(self, _):
-        return self.copy()
-
     def __repr__(self):
         sig = inspect.signature(self.__init__)
         args = []
