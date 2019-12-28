@@ -263,23 +263,23 @@ def test_encoding():
 
 
 def test_URLs_accepts_string_or_iterable():
-    urls = utils.URLs(None, 'http://foo:123')
-    assert urls == utils.URLs(None, ('http://foo:123',))
-    assert urls == utils.URLs(None, ['http://foo:123'])
+    urls = utils.URLs('http://foo:123')
+    assert urls == utils.URLs(('http://foo:123',))
+    assert urls == utils.URLs(['http://foo:123'])
 
 def test_URLs_deduplicates_when_initializing():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456', 'http://foo:123'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456', 'http://foo:123'))
     assert urls == ['http://foo:123', 'http://bar:456']
 
 def test_URLs_deduplicates_when_setting():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     urls.append('http://foo:123')
     urls.append('http://bar:456')
     urls.extend(('http://foo:123', 'http://bar:456'))
     assert urls == ['http://foo:123', 'http://bar:456']
 
 def test_URLs_deduplicates_when_inserting():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     urls.insert(1, 'http://foo:123')
     urls.insert(0, 'http://bar:456')
     urls.insert(0, 'http://foo:123')
@@ -288,41 +288,41 @@ def test_URLs_deduplicates_when_inserting():
 
 def test_URLs_validates_initial_urls():
     with pytest.raises(errors.URLError) as e:
-        utils.URLs(None, ('http://foo:123', 'http://bar:456:789'))
+        utils.URLs(('http://foo:123', 'http://bar:456:789'))
     assert str(e.value) == 'http://bar:456:789: Invalid URL'
 
 def test_URLs_validates_appended_urls():
-    urls = utils.URLs(None, 'http://foo:123')
+    urls = utils.URLs('http://foo:123')
     with pytest.raises(errors.URLError) as e:
         urls.append('http://bar:456:789')
     assert str(e.value) == 'http://bar:456:789: Invalid URL'
 
 def test_URLs_validates_changed_urls():
-    urls = utils.URLs(None, 'http://foo:123')
+    urls = utils.URLs('http://foo:123')
     with pytest.raises(errors.URLError) as e:
         urls[0] = 'http://bar:456:789'
     assert str(e.value) == 'http://bar:456:789: Invalid URL'
 
 def test_URLs_validates_inserted_urls():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     with pytest.raises(errors.URLError) as e:
         urls.insert(1, 'http://baz:789:abc')
     assert str(e.value) == 'http://baz:789:abc: Invalid URL'
 
 def test_URLs_is_equal_to_URLs_instances():
-    t1 = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
-    t2 = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    t1 = utils.URLs(('http://foo:123', 'http://bar:456'))
+    t2 = utils.URLs(('http://foo:123', 'http://bar:456'))
     assert t1 == t2
-    t2 = utils.URLs(None, ('http://foo:123', 'http://baz:789'))
+    t2 = utils.URLs(('http://foo:123', 'http://baz:789'))
     assert t1 != t2
 
 def test_URLs_is_equal_to_iterables():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     assert urls == ['http://foo:123', 'http://bar:456']
     assert urls == ('http://foo:123', 'http://bar:456')
 
 def test_URLs_is_equal_to_any_combination_of_the_same_urls():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456', 'http://baz:789'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456', 'http://baz:789'))
     assert urls == ('http://foo:123', 'http://bar:456', 'http://baz:789')
     assert urls == ('http://bar:456', 'http://foo:123', 'http://baz:789')
     assert urls == ('http://bar:456', 'http://foo:123', 'http://baz:789')
@@ -330,27 +330,30 @@ def test_URLs_is_equal_to_any_combination_of_the_same_urls():
 
 def test_URLs_calls_callback_after_appending():
     cb = mock.MagicMock()
-    urls = utils.URLs(cb, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
+                      callback=cb)
     cb.reset_mock()
     urls.append('http://baz:789')
     cb.assert_called_once_with(urls)
 
 def test_URLs_calls_callback_after_removing():
     cb = mock.MagicMock()
-    urls = utils.URLs(cb, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
+                      callback=cb)
     cb.reset_mock()
     urls.remove('http://bar:456')
     cb.assert_called_once_with(urls)
 
 def test_URLs_calls_callback_after_inserting():
     cb = mock.MagicMock()
-    urls = utils.URLs(cb, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
+                      callback=cb)
     cb.reset_mock()
     urls.insert(0, 'http://baz:789')
     cb.assert_called_once_with(urls)
 
 def test_URLs_equality():
-    urls = utils.URLs(None, ('http://foo:123', 'http://bar:456'))
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     assert urls == ('http://foo:123', 'http://bar:456')
     assert urls == ['http://foo:123', 'http://bar:456']
     assert urls != ['http://foo:124', 'http://bar:456']
@@ -364,7 +367,7 @@ def test_Trackers_ensures_tiers_when_initializing():
                  (['http://foo:123'], 'http://bar:456'),
                  ('http://foo:123', ['http://bar:456']),
                  (['http://foo:123'], ['http://bar:456'])):
-        tiers = utils.Trackers(None, *args)
+        tiers = utils.Trackers(*args)
         for tier in tiers:
             assert isinstance(tier, utils.URLs)
         assert tiers == [['http://foo:123'], ['http://bar:456']]
@@ -374,13 +377,13 @@ def test_Trackers_ensures_tiers_when_setting():
                  (['http://foo:123'], 'http://bar:456'),
                  ('http://foo:123', ['http://bar:456']),
                  (['http://foo:123'], ['http://bar:456'])):
-        tiers = utils.Trackers(None, 'http://quux')
+        tiers = utils.Trackers('http://quux')
         tiers.extend(args)
         for tier in tiers:
             assert isinstance(tier, utils.URLs)
         assert tiers == [['http://quux'], ['http://foo:123'], ['http://bar:456']]
 
-        tiers = utils.Trackers(None, 'http://quux')
+        tiers = utils.Trackers('http://quux')
         tiers.append(args)
         for tier in tiers:
             assert isinstance(tier, utils.URLs)
@@ -391,22 +394,22 @@ def test_Trackers_ensures_tiers_when_inserting():
                  (['http://foo:123'], 'http://bar:456'),
                  ('http://foo:123', ['http://bar:456']),
                  (['http://foo:123'], ['http://bar:456'])):
-        tiers = utils.Trackers(None, 'http://quux')
+        tiers = utils.Trackers('http://quux')
         tiers.insert(1, args)
         for tier in tiers:
             assert isinstance(tier, utils.URLs)
         assert tiers == [['http://quux'], ['http://foo:123', 'http://bar:456']]
 
 def test_Trackers_equality():
-    urls = utils.Trackers(None, 'http://foo:123', 'http://bar:456')
-    assert urls == utils.Trackers(None, 'http://foo:123', 'http://bar:456')
-    assert urls != utils.Trackers(None, 'http://foo:123', 'http://bar:4567')
-    assert urls == utils.Trackers(lambda _: None, 'http://foo:123', 'http://bar:456')
+    urls = utils.Trackers('http://foo:123', 'http://bar:456')
+    assert urls == utils.Trackers('http://foo:123', 'http://bar:456')
+    assert urls != utils.Trackers('http://foo:123', 'http://bar:4567')
+    assert urls == utils.Trackers('http://foo:123', 'http://bar:456', callback=lambda _: None)
     assert urls == [['http://foo:123'], ('http://bar:456',)]
     assert urls != [['http://foo:123'], 'http://bar:456']
     assert urls == (('http://foo:123',), ['http://bar:456'])
     assert urls != (('http://foo:123',), [['http://bar:456']])
-    urls_ = utils.Trackers(None, 'http://foo:123')
+    urls_ = utils.Trackers('http://foo:123')
     assert urls != urls_
     urls_.append('http://bar:456')
     assert urls == urls_
@@ -416,7 +419,7 @@ def test_Trackers_callback():
     def assert_type(arg):
         assert type(arg) is utils.Trackers
     cb.side_effect = assert_type
-    tiers = utils.Trackers(cb, 'http://foo:123', 'http://bar:456')
+    tiers = utils.Trackers('http://foo:123', 'http://bar:456', callback=cb)
     assert cb.call_args_list == [mock.call(tiers)]
     tiers.append('http://baz:789')
     assert cb.call_args_list == [mock.call(tiers)] * 2
@@ -430,14 +433,13 @@ def test_Trackers_callback():
     assert cb.call_args_list == [mock.call(tiers)] * 6
 
 def test_Trackers_removes_empty_tier_automatically():
-    tiers = utils.Trackers(None, 'http://foo:123', 'http://bar:456')
+    tiers = utils.Trackers('http://foo:123', 'http://bar:456')
     assert tiers == [['http://foo:123'], ['http://bar:456']]
     tiers[0].remove('http://foo:123')
     assert tiers == [['http://bar:456']]
 
 def test_Trackers_deduplicates_urls_automatically_when_initializing():
-    tiers = utils.Trackers(None,
-                           ['http://foo:123', 'http://bar:456', 'http://baz:789'],
+    tiers = utils.Trackers(['http://foo:123', 'http://bar:456', 'http://baz:789'],
                            ['http://quux', 'http://foo:123', 'http://asdf'],
                            ['http://asdf', 'http://baz:789', 'http://flim'])
     assert tiers == [['http://foo:123', 'http://bar:456', 'http://baz:789'],
@@ -445,8 +447,7 @@ def test_Trackers_deduplicates_urls_automatically_when_initializing():
                      ['http://flim']]
 
 def test_Trackers_deduplicates_urls_automatically_when_setting():
-    tiers = utils.Trackers(None,
-                           ['http://foo:123', 'http://bar:456', 'http://baz:789'])
+    tiers = utils.Trackers(['http://foo:123', 'http://bar:456', 'http://baz:789'])
     tiers.append(['http://quux', 'http://foo:123'])
     assert tiers == [['http://foo:123', 'http://bar:456', 'http://baz:789'],
                      ['http://quux']]
@@ -456,17 +457,15 @@ def test_Trackers_deduplicates_urls_automatically_when_setting():
                      ['http://quux']]
 
 def test_Trackers_deduplicates_urls_automatically_when_inserting():
-    tiers = utils.Trackers(None,
-                           ['http://foo:123', 'http://bar:456', 'http://baz:789'])
+    tiers = utils.Trackers(['http://foo:123', 'http://bar:456', 'http://baz:789'])
     tiers.insert(0, ['http://asdf', 'http://baz:789', 'http://quux', 'http://foo:123'])
     assert tiers == [['http://asdf', 'http://quux'],
                      ['http://foo:123', 'http://bar:456', 'http://baz:789']]
-    tiers = utils.Trackers(None,
-                           ['http://foo:123', 'http://bar:456', 'http://baz:789'])
+    tiers = utils.Trackers(['http://foo:123', 'http://bar:456', 'http://baz:789'])
     tiers.insert(1, ['http://asdf', 'http://baz:789', 'http://quux', 'http://foo:123'])
     assert tiers == [['http://foo:123', 'http://bar:456', 'http://baz:789'],
                      ['http://asdf', 'http://quux']]
 
 def test_Trackers_flat_property():
-    tiers = utils.Trackers(None, ['http://foo:123'], ['http://bar:456'])
+    tiers = utils.Trackers(['http://foo:123'], ['http://bar:456'])
     assert tiers.flat == ('http://foo:123', 'http://bar:456')

@@ -235,7 +235,7 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
 
 class URLs(collections.abc.MutableSequence):
     """Auto-flattening list of announce URLs with change callback"""
-    def __init__(self, callback, urls, _get_known_urls=lambda: ()):
+    def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
         self._callback = None
         self._get_known_urls = _get_known_urls
         if isinstance(urls, str):
@@ -292,14 +292,14 @@ class URLs(collections.abc.MutableSequence):
 
 class Trackers(collections.abc.MutableSequence):
     """List of deduplicated :class:`URLs` instances with change callback"""
-    def __init__(self, callback, *tiers):
+    def __init__(self, *tiers, callback=None):
         self._callback = None
         self._tiers = []
         for urls in tiers:
             self.append(urls)
         self._callback = callback
         if self._callback is not None:
-            callback(self)
+            self._callback(self)
 
     @property
     def flat(self):
@@ -317,7 +317,7 @@ class Trackers(collections.abc.MutableSequence):
         return self._tiers[item]
 
     def __setitem__(self, item, value):
-        tier = URLs(self._tier_changed, value,
+        tier = URLs(value, callback=self._tier_changed,
                     _get_known_urls=lambda self=self: self.flat)
         if len(tier) > 0 and tier not in self._tiers:
             self._tiers[item] = tier
@@ -330,7 +330,7 @@ class Trackers(collections.abc.MutableSequence):
             self._callback(self)
 
     def insert(self, index, value):
-        tier = URLs(self._tier_changed, value,
+        tier = URLs(value, callback=self._tier_changed,
                     _get_known_urls=lambda self=self: self.flat)
         if len(tier) > 0 and tier not in self._tiers:
             self._tiers.insert(index, tier)
