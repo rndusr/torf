@@ -754,8 +754,7 @@ class Torrent():
                 return hashlib.sha1(flatbencode.encode(info)).hexdigest()
         except error.MetainfoError as e:
             # If we can't calculate infohash, see if it was explicitly specifed.
-            # This is necessary to create a Torrent from a Magnet because
-            # Magnets don't have
+            # This is necessary to create a Torrent from a Magnet URI.
             try:
                 return self._infohash
             except AttributeError:
