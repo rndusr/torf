@@ -320,39 +320,47 @@ def test_trackers__set_to_invalid_type(mktorrent):
     torrent = mktorrent()
     with pytest.raises(ValueError) as e:
         torrent.trackers = 17
-    assert str(e.value) == 'Must be Iterable or str, not int: 17'
+    assert str(e.value) == 'Must be Iterable, str or None, not int: 17'
+
+def test_trackers__set_to_None(mktorrent):
+    torrent = mktorrent()
+    torrent.trackers = ('http://foo', ('http://bar', 'http://baz'))
+    trackers_id = id(torrent.trackers)
+    torrent.trackers = None
+    assert torrent.trackers == []
+    assert 'announce' not in torrent.metainfo
+    assert 'announce-list' not in torrent.metainfo
 
 def test_trackers__metainfo_is_updated(mktorrent):
     torrent = mktorrent()
-    orig_id = id(torrent.trackers)
+    trackers_id = id(torrent.trackers)
     torrent.trackers = ('http://foo', 'http://bar')
-    new_id = id(torrent.trackers)
-    assert id(torrent.trackers) != orig_id
+    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://foo'], ['http://bar']]
     assert torrent.metainfo['announce'] == 'http://foo'
     assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar']]
     torrent.trackers.append('http://asdf')
-    assert id(torrent.trackers) == new_id
+    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://foo'], ['http://bar'], ['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://foo'
     assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar'], ['http://asdf']]
     torrent.trackers[0].insert(0, 'http://quux')
-    assert id(torrent.trackers) == new_id
+    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://quux', 'http://foo'], ['http://bar'], ['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://quux'
     assert torrent.metainfo['announce-list'] == [['http://quux', 'http://foo'], ['http://bar'], ['http://asdf']]
     torrent.trackers[1].remove('http://bar')
-    assert id(torrent.trackers) == new_id
+    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://quux', 'http://foo'], ['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://quux'
     assert torrent.metainfo['announce-list'] == [['http://quux', 'http://foo'], ['http://asdf']]
     del torrent.trackers[0]
-    assert id(torrent.trackers) == new_id
+    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://asdf'
     assert 'announce-list' not in torrent.metainfo
     del torrent.trackers[0]
-    assert id(torrent.trackers) == new_id
+    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == []
     assert 'announce' not in torrent.metainfo
     assert 'announce-list' not in torrent.metainfo
@@ -421,6 +429,13 @@ def test_trackers__no_trackers(mktorrent):
     assert 'announce-list' not in torrent.metainfo
     assert 'announce' not in torrent.metainfo
 
+def test_trackers__addition(mktorrent):
+    torrent = mktorrent()
+    torrent.trackers = 'http://foo'
+    torrent.trackers += ('http://bar',)
+    assert torrent.trackers == [['http://foo'], ['http://bar']]
+    assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar']]
+    assert torrent.metainfo['announce'] == 'http://foo'
 
 
 def test_webseeds__correct_type(mktorrent):
