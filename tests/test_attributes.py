@@ -124,6 +124,14 @@ def test_files_with_no_path(mktorrent):
     torrent = mktorrent()
     assert tuple(torrent.files) == ()
 
+def test_files_with_no_name(mktorrent, multifile_content):
+    torrent = mktorrent(path=multifile_content.path)
+    torrent.path = None
+    del torrent.metainfo['info']['name']
+    with pytest.raises(RuntimeError) as e:
+        tuple(torrent.files)
+    assert str(e.value) == 'Torrent has no name'
+
 
 def test_filepaths_singlefile(mktorrent, singlefile_content):
     torrent = mktorrent()

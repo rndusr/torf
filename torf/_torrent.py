@@ -220,6 +220,8 @@ class Torrent():
             yield info['name']
         elif self.mode == 'multifile':
             rootdir = self.name
+            if rootdir is None:
+                raise RuntimeError('Torrent has no name')
             for fileinfo in info['files']:
                 yield os.path.join(rootdir, os.path.join(*fileinfo['path']))
 
