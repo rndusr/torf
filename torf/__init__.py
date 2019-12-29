@@ -13,7 +13,7 @@
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-High-level, flexible torrent file and magnet link handling
+Create and parse torrent files and magnet URIs
 """
 import logging
 import threading

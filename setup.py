@@ -17,7 +17,7 @@ setup(
 
     author             = 'Random User',
     author_email       = 'rndusr@posteo.de',
-    description        = 'High-level and low-leve Python 3 module for creating and parsing torrent files',
+    description        = 'Python 3 module for creating and parsing torrent files and magnet URIs',
     long_description   = long_description,
     keywords           = 'bittorrent torrent magnet',
     url                = 'https://github.com/rndusr/torf',
