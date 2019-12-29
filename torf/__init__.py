@@ -15,6 +15,13 @@
 """
 Create and parse torrent files and magnet URIs
 """
+
+__version__ = '3.0.0'
+
+from ._errors import *
+from ._torrent import Torrent
+from ._magnet import Magnet
+
 import logging
 import threading
 _debug_lock = threading.Lock()
@@ -26,7 +33,3 @@ def debug(msg):
     with _debug_lock:
         logging.debug(msg)
 
-from ._version import __version__
-from ._errors import *
-from ._torrent import Torrent
-from ._magnet import Magnet
