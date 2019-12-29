@@ -13,7 +13,7 @@
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import _utils as utils
-from . import debug
+# from . import debug
 
 from hashlib import sha1
 import threading
