@@ -12,6 +12,7 @@
     directory and size.
   - The new methods Torrent.verify_content() and Torrent.verify_filesize() check
     if on-disk data matches a given torrent file.
+  - Torrent.remove() removes individual files and directories.
   - The Torrent properties "trackers", "webseeds" and "httpseeds" are now
     special lists that automatically update the metainfo whenever they are
     changed.

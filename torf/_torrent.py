@@ -283,6 +283,56 @@ class Torrent():
                                           self.partial_size(path))
         return tree
 
+    def remove(self, *paths):
+        """
+        Remove files from :attr:`metainfo`\ ``['info']``\ ``['files']``
+
+        :param str paths: Iterable of relative paths to remove; each path must
+            start with :attr:`name`
+        :type path: str or iterable
+
+        Non-existing paths are silently ignored.
+
+        If files are removed after :meth:`generate` was called, it must be
+        called again.
+
+        :raises PathNotFoundError: if path is not specified in :attr:`metainfo`
+        :raises RuntimeError: if :attr:`mode` is not "multifile"
+        """
+        if self.mode == 'singlefile':
+            raise RuntimeError('Cannot remove files from single-file torrent')
+        elif self.mode is None:
+            raise RuntimeError('No files specified in torrent')
+
+        # Ensure we can edit file list in place
+        if not isinstance(self.metainfo['info']['files'], abc.MutableSequence):
+            self.metainfo['info']['files'] = list(self.metainfo['info']['files'])
+
+        files_removed = False
+        for path in paths:
+            if isinstance(path, str):
+                path = tuple(path.split(os.sep))
+            else:
+                path = tuple(path)
+
+            # Edit file list; to prevent KeyErrors when removing items in a
+            # loop, we use a generator expression instead
+            def keep(info):
+                path_ = (self.name,) + tuple(info['path'])
+                keep = not utils.iterable_startswith(path_, path)
+                if not keep:
+                    nonlocal files_removed
+                    files_removed = True
+                return keep
+            self.metainfo['info']['files'][:] = (
+                info
+                for i,info in enumerate(self.metainfo['info']['files'])
+                if keep(info)
+            )
+
+        if files_removed and 'pieces' in self.metainfo['info']:
+            del self.metainfo['info']['pieces']
+
     def partial_size(self, path):
         """
         Return size of one or more files as specified in :attr:`metainfo`
