@@ -43,9 +43,12 @@ Example
 Documentation
 -------------
 
-Documentation is in the docstrings. Read it locally by running ``pydoc3
-torf.Torrent`` after the installation. It's also available `online
-<https://torf.readthedocs.io/>`_.
+Everything should be explained in the docstrings. Read it with ``pydoc3
+torf.Torrent`` or ``pydoc3 torf.Magnet``.
+
+Documentation is also available at `torf.readthedocs.io
+<https://torf.readthedocs.io/>`_ or `torf.readthedocs.io/en/latest
+<https://torf.readthedocs.io/en/latest>`_ for the development version.
 
 Installation
 ------------
