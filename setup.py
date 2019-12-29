@@ -1,7 +1,12 @@
 from setuptools import setup, find_packages
 
-with open('torf/_version.py') as f:
-    exec(f.read())
+import re
+version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]",
+                          open('torf/__init__.py').read(), re.M)
+if version_match:
+    __version__ = version_match.group(1)
+else:
+    raise RuntimeError("Unable to find __version__")
 
 try:
     long_description = open('README.rst').read()
