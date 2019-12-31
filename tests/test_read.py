@@ -2,7 +2,7 @@ import torf
 
 import pytest
 import io
-import flatbencode
+import flatbencode as bencode
 from datetime import datetime
 from hashlib import sha1
 from collections import OrderedDict
@@ -27,21 +27,21 @@ def test_unreadable_stream(tmpdir):
 
 def test_validate_after_read(valid_singlefile_metainfo):
     del valid_singlefile_metainfo[b'info']
-    fo = io.BytesIO(flatbencode.encode(valid_singlefile_metainfo))
+    fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo)
     assert excinfo.match(f"^Invalid metainfo: Missing 'info'$")
 
 
 def test_successful_read(valid_singlefile_metainfo):
-    fo = io.BytesIO(flatbencode.encode(valid_singlefile_metainfo))
+    fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
     t = torf.Torrent.read_stream(fo)
     assert t.path is None
     assert tuple(t.files) == (str(valid_singlefile_metainfo[b'info'][b'name'], encoding='utf-8'),)
     assert tuple(t.filepaths) == ()
     assert t.name == str(valid_singlefile_metainfo[b'info'][b'name'], encoding='utf-8')
     assert t.size == valid_singlefile_metainfo[b'info'][b'length']
-    assert t.infohash == sha1(flatbencode.encode(valid_singlefile_metainfo[b'info'])).hexdigest()
+    assert t.infohash == sha1(bencode.encode(valid_singlefile_metainfo[b'info'])).hexdigest()
     assert t.comment == str(valid_singlefile_metainfo[b'comment'], encoding='utf-8')
     assert t.creation_date == datetime.fromtimestamp(valid_singlefile_metainfo[b'creation date'])
     assert t.created_by == str(valid_singlefile_metainfo[b'created by'], encoding='utf-8')
@@ -52,7 +52,7 @@ def test_successful_read(valid_singlefile_metainfo):
 def test_single_tracker(valid_singlefile_metainfo):
     valid_singlefile_metainfo[b'announce'] = b'http://lonelyhost/announce'
     valid_singlefile_metainfo.pop(b'announce-list', None)
-    fo = io.BytesIO(flatbencode.encode(valid_singlefile_metainfo))
+    fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
     t = torf.Torrent.read_stream(fo)
     assert t.trackers == [[str(valid_singlefile_metainfo[b'announce'], encoding='utf-8')]]
 
@@ -60,7 +60,7 @@ def test_multiple_trackers(valid_singlefile_metainfo, tmpdir):
     valid_singlefile_metainfo[b'announce-list'] = [[b'http://localhost', b'http://foohost'],
                                                    [b'http://bazhost']]
     valid_singlefile_metainfo.pop(b'announce', None)
-    fo = io.BytesIO(flatbencode.encode(valid_singlefile_metainfo))
+    fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
     t = torf.Torrent.read_stream(fo)
     assert t.trackers == [[str(url, encoding='utf-8') for url in tier] for tier
                           in valid_singlefile_metainfo[b'announce-list']]
@@ -70,7 +70,7 @@ def test_validate_missing_info():
     data = OrderedDict([
         (b'foo', b'bar'),
     ])
-    fo = io.BytesIO(flatbencode.encode(data))
+    fo = io.BytesIO(bencode.encode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
     assert excinfo.match("^Invalid metainfo: Missing 'info'$")
@@ -78,7 +78,7 @@ def test_validate_missing_info():
 
 def test_validate_info_not_a_dictionary():
     data = OrderedDict([(b'info', 1)])
-    fo = io.BytesIO(flatbencode.encode(data))
+    fo = io.BytesIO(bencode.encode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
     assert excinfo.match("^Invalid metainfo: 'info' is not a dictionary$")
@@ -86,7 +86,7 @@ def test_validate_info_not_a_dictionary():
 
 def test_validate_missing_pieces():
     data = OrderedDict([(b'info', {})])
-    fo = io.BytesIO(flatbencode.encode(data))
+    fo = io.BytesIO(bencode.encode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
     assert excinfo.match(r"^Invalid metainfo: Missing 'pieces' in \['info'\]$")
@@ -102,7 +102,7 @@ def test_read_nonstandard_data_without_validation():
             (b'no', 0),
         ]))
     ])
-    fo = io.BytesIO(flatbencode.encode(data))
+    fo = io.BytesIO(bencode.encode(data))
     t = torf.Torrent.read_stream(fo, validate=False)
     assert t.metainfo['foo'] == 'bar'
     assert t.metainfo['number'] == 17
@@ -112,7 +112,7 @@ def test_read_nonstandard_data_without_validation():
 
 def test_read_from_unreadable_file(valid_singlefile_metainfo, tmpdir):
     f = tmpdir.join('a.torrent')
-    f.write_binary(flatbencode.encode(valid_singlefile_metainfo))
+    f.write_binary(bencode.encode(valid_singlefile_metainfo))
     f.chmod(mode=0o222)
 
     with pytest.raises(torf.ReadError) as excinfo:
@@ -139,7 +139,7 @@ def test_read_from_nonexisting_file(tmpdir):
 
 def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmpdir):
     f = tmpdir.join('a.torrent')
-    f.write_binary(flatbencode.encode(valid_multifile_metainfo))
+    f.write_binary(bencode.encode(valid_multifile_metainfo))
     t = torf.Torrent.read(str(f))
     exp_info = valid_multifile_metainfo[b'info']
     assert t.path is None
@@ -148,7 +148,7 @@ def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmpdir):
     assert tuple(t.filepaths) == ()
     assert t.name == str(exp_info[b'name'], encoding='utf-8')
     assert t.size == sum(f[b'length'] for f in exp_info[b'files'])
-    assert t.infohash == sha1(flatbencode.encode(exp_info)).hexdigest()
+    assert t.infohash == sha1(bencode.encode(exp_info)).hexdigest()
     assert t.comment == str(valid_multifile_metainfo[b'comment'], encoding='utf-8')
     assert t.creation_date == datetime.fromtimestamp(valid_multifile_metainfo[b'creation date'])
     assert t.created_by == str(valid_multifile_metainfo[b'created by'], encoding='utf-8')

@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
-import flatbencode
+import flatbencode as bencode
 import base64
 import hashlib
 from datetime import datetime
@@ -803,7 +803,7 @@ class Torrent():
             except ValueError as e:
                 raise error.MetainfoError(str(e))
             else:
-                return hashlib.sha1(flatbencode.encode(info)).hexdigest()
+                return hashlib.sha1(bencode.encode(info)).hexdigest()
         except error.MetainfoError as e:
             # If we can't calculate infohash, see if it was explicitly specifed.
             # This is necessary to create a Torrent from a Magnet URI.
@@ -1329,7 +1329,7 @@ class Torrent():
         """
         if validate:
             self.validate()
-        return flatbencode.encode(self.convert())
+        return bencode.encode(self.convert())
 
     def write_stream(self, stream, validate=True):
         """
@@ -1453,8 +1453,8 @@ class Torrent():
             raise error.ReadError(e.errno)
         else:
             try:
-                metainfo_enc = flatbencode.decode(content)
-            except flatbencode.DecodingError as e:
+                metainfo_enc = bencode.decode(content)
+            except bencode.DecodingError as e:
                 raise error.BdecodeError()
 
             if validate:
