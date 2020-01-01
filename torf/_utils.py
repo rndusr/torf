@@ -23,6 +23,7 @@ import re
 import errno
 import io
 from datetime import datetime
+import itertools
 
 from . import _errors as error
 
@@ -295,6 +296,20 @@ class URLs(collections.abc.MutableSequence):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __add__(self, other):
+        if isinstance(other, type(self)):
+            urls = self._urls + other._urls
+        elif isinstance(other, str):
+            urls = self._urls + [other]
+        elif isinstance(other, collections.abc.Iterable):
+            urls = self._urls + list(other)
+        else:
+            return NotImplemented
+        # Do not provide known URLs right away so false duplicates are not detected
+        x = type(self)(urls, callback=self._callback)
+        x._get_known_urls = self._get_known_urls
+        return x
+
     def __repr__(self):
         return repr(self._urls)
 
@@ -371,6 +386,26 @@ class Trackers(collections.abc.MutableSequence):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __add__(self, other):
+        if isinstance(other, type(self)):
+            other_tiers = other._tiers
+        elif isinstance(other, collections.abc.Iterable):
+            other_tiers = other
+        new_tiers = []
+        for tier1,x in itertools.zip_longest(self._tiers, other_tiers):
+            if tier1 is None:
+                tier1 = []
+            if isinstance(x, str) and len(x) > 1:
+                new_tier = tier1 + [x]
+            elif isinstance(x, collections.abc.Iterable):
+                new_tier = tier1 + list(x)
+            elif x is not None:
+                return NotImplemented
+            else:
+                new_tier = tier1
+            new_tiers.append(new_tier)
+        return type(self)(*new_tiers, callback=self._callback)
 
     def __repr__(self):
         return repr(self._tiers)

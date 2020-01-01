@@ -361,6 +361,16 @@ def test_URLs_equality():
     assert urls != 5
     assert urls != None
 
+def test_URLs_can_be_added():
+    urls1 = utils.URLs(('http://foo:123', 'http://bar:456'))
+    urls2 = utils.URLs(('http://bar', 'http://baz'))
+    assert urls1 + urls2 == ('http://foo:123', 'http://bar:456',
+                             'http://bar', 'http://baz')
+    assert urls1 + ('http://bar',) == ('http://foo:123', 'http://bar:456',
+                                       'http://bar')
+    assert urls1 + 'http://baz' == ('http://foo:123', 'http://bar:456',
+                                    'http://baz')
+
 def test_URLs_replace():
     cb = mock.MagicMock()
     urls = utils.URLs(('http://foo:123', 'http://bar:456'),
@@ -421,6 +431,30 @@ def test_Trackers_equality():
     assert urls != urls_
     urls_.append('http://bar:456')
     assert urls == urls_
+
+def test_TrackersLs_can_be_added():
+    urls1 = utils.Trackers(('http://foo', 'http://bar'), 'http://baz')
+    urls2 = utils.Trackers('http://a', ('http://b', 'http://c'), 'http://d')
+    assert urls1 + urls2 == (('http://foo', 'http://bar', 'http://a'),
+                             ('http://baz', 'http://b', 'http://c'),
+                             ('http://d',))
+    assert urls1 + ('http://x',) == (('http://foo', 'http://bar', 'http://x'),
+                                     ('http://baz',))
+    assert urls2 + ('http://x',) == (('http://a','http://x'),
+                                     ('http://b', 'http://c'),
+                                     ('http://d',))
+    assert urls1 + (('http://x', 'http://y'),
+                    'http://z') == (('http://foo', 'http://bar', 'http://x', 'http://y'),
+                                    ('http://baz', 'http://z'))
+    assert urls2 + (('http://x', 'http://y'),
+                    'http://z') == (('http://a', 'http://x', 'http://y'),
+                                    ('http://b', 'http://c', 'http://z'),
+                                    ('http://d',))
+    assert urls1 + (('http://x',),
+                    'http://z',
+                    ('http://123', 'http://456')) == (('http://foo', 'http://bar', 'http://x'),
+                                                      ('http://baz', 'http://z'),
+                                                      ('http://123', 'http://456'))
 
 def test_Trackers_callback():
     cb = mock.MagicMock()
