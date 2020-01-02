@@ -281,6 +281,11 @@ class URLs(collections.abc.MutableSequence):
         if self._callback is not None:
             self._callback(self)
 
+    def clear(self):
+        self._urls.clear()
+        if self._callback is not None:
+            self._callback(self)
+
     def __len__(self):
         return len(self._urls)
 
@@ -370,6 +375,11 @@ class Trackers(collections.abc.MutableSequence):
         for urls in tiers:
             self.append(urls)
         self._callback = cb
+        if self._callback is not None:
+            self._callback(self)
+
+    def clear(self):
+        self._tiers.clear()
         if self._callback is not None:
             self._callback(self)
 

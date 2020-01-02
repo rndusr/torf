@@ -563,8 +563,7 @@ class Torrent():
             # trackers: t.trackers += ['http://foo']
             self._trackers.replace(tuple(value))
         elif value is None:
-            if self._trackers:
-                self._trackers.clear()
+            self._trackers.clear()
         else:
             raise ValueError(f'Must be Iterable, str or None, not {type(value).__name__}: {value}')
 

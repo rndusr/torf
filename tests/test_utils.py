@@ -352,6 +352,14 @@ def test_URLs_calls_callback_after_inserting():
     urls.insert(0, 'http://baz:789')
     cb.assert_called_once_with(urls)
 
+def test_URLs_calls_callback_after_clearing():
+    cb = mock.MagicMock()
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
+                      callback=cb)
+    cb.reset_mock()
+    urls.clear()
+    cb.assert_called_once_with(urls)
+
 def test_URLs_equality():
     urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     assert urls == ('http://foo:123', 'http://bar:456')
@@ -473,6 +481,8 @@ def test_Trackers_callback():
     assert cb.call_args_list == [mock.call(tiers)] * 5
     tiers[2].remove('http://baz:789')
     assert cb.call_args_list == [mock.call(tiers)] * 6
+    tiers.clear()
+    assert cb.call_args_list == [mock.call(tiers)] * 7
 
 def test_Trackers_removes_empty_tier_automatically():
     tiers = utils.Trackers('http://foo:123', 'http://bar:456')
