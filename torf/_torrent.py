@@ -1547,6 +1547,3 @@ class Torrent():
             return self._metainfo == other._metainfo
         else:
             return NotImplemented
-
-    def __hash__(self, other):
-        return hash(tuple(sorted(self._metainfo.items())))
