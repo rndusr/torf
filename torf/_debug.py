@@ -12,13 +12,14 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
-"""
-Create and parse torrent files and magnet URIs
-"""
+import logging
+import threading
+_debug_lock = threading.Lock()
+def enable_debugging(filepath=None):
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s',
+                        filename=filepath)
 
-__version__ = '3.0.0'
+def debug(msg):
+    with _debug_lock:
+        logging.debug(msg)
 
-from ._errors import *
-from ._torrent import Torrent
-from ._magnet import Magnet
-from ._debug import enable_debugging
