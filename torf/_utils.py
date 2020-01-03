@@ -93,22 +93,30 @@ class _FixedSizeFile():
         oldpos = self._pos
         spec_size = self._spec_size
         real_size = self._real_size
-        len_chunk_max = min(length, spec_size - oldpos)
         try:
-            chunk = self._stream.read(len_chunk_max)
+            chunk = self._stream.read(length)
         except OSError as e:
             raise error.ReadError(e.errno, self.name)
 
-        len_chunk = len(chunk)
-        self._pos += len_chunk
-        newpos = self._pos
+        exp_chunk_length = max(0, min(length, spec_size - oldpos))
+        chunk_length = len(chunk)
+        newpos = self._pos + chunk_length
 
-        # Pad chunk with null bytes if we haven't reached expected EOF
-        if len_chunk < len_chunk_max and newpos < spec_size:
-            nulls = len_chunk_max - len_chunk
+        if newpos > spec_size:
+            # We've read more bytes than we expected.  Shorten `chunk` so that
+            # we returned exactly `spec_size` bytes overall before raising
+            # ReadError on the next call because file size doesn't match.
+            chunk = chunk[:exp_chunk_length]
+            if not chunk:
+                raise error.ReadError(errno.EFBIG, self.name)
+
+        elif chunk_length < exp_chunk_length:
+            # File is shorter than `spec_size`.  Pad chunk with null bytes.
+            nulls = exp_chunk_length - chunk_length
             chunk += b'\x00' * nulls
-            self._pos += nulls
+            newpos += nulls
 
+        self._pos = newpos
         return chunk
 
 def read_chunks(filepath, chunksize, filesize=None):
