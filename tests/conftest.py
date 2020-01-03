@@ -11,6 +11,16 @@ import contextlib
 import functools
 import math
 
+@contextlib.contextmanager
+def _random_seed(seed):
+    random.seed(seed)
+    yield
+    random.seed()
+
+@pytest.fixture
+def random_seed():
+    return functools.partial(_random_seed)
+
 
 TESTDIR_BASE = 'test_files'
 
