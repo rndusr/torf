@@ -905,10 +905,12 @@ class Torrent():
         # hashes, and quickly offload the results to a hash queue
         hasher_threadpool = generate.HashWorkerPool(threads, reader.piece_queue)
 
-        # Pull from the hash queue; also call callback and maybe stop everything
-        def collector_callback(filepath, pieces_done, piece_index, piece_hash,
+        # Pull from the hash queue and call status/cancel callback
+        def collector_callback(filepath, pieces_done, piece_index, piece_hash, exc,
                                maybe_cancel=maybe_cancel, torrent=self, pieces_total=self.pieces):
-            if maybe_cancel is not None:
+            if exc is not None:
+                raise exc
+            elif maybe_cancel is not None:
                 maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total),
                              # Always call callback after the last piece was hashed
                              force_call=pieces_done >= pieces_total)

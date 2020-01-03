@@ -148,6 +148,7 @@ def test_callback_cancels(multifile_content):
 
 def test_callback_raises_exception(singlefile_content):
     with mock.patch('torf._generate.sha1') as sha1_mock:
+        sha1_mock.return_value.digest.return_value = b'\x00' * 20  # Mock hash
         cb = mock.MagicMock(side_effect=Exception('Argh!'))
         t = torf.Torrent(singlefile_content.path)
         with pytest.raises(Exception) as excinfo:
@@ -156,5 +157,32 @@ def test_callback_raises_exception(singlefile_content):
         cb.assert_called_once_with(t, singlefile_content.path, 1, singlefile_content.exp_attrs.pieces)
         # The pool of hashers should be stopped before all pieces are hashed
         assert sha1_mock.call_count < singlefile_content.exp_attrs.pieces
-        # TODO: Add a similar test for the reader.
         assert not t.is_ready
+
+def test_reader_raises_exception(tmpdir):
+    content_path = tmpdir.mkdir('Torrent')
+    content_file1 = content_path.join('file1')
+    content_file2 = content_path.join('file2')
+    content_file3 = content_path.join('file3')
+    content_file1.write_binary(os.urandom(int(torf.Torrent.piece_size_min * 3)))
+    content_file2.write_binary(os.urandom(int(torf.Torrent.piece_size_min * 4)))
+    content_file3.write_binary(os.urandom(int(torf.Torrent.piece_size_min * 5)))
+
+    t = torf.Torrent(content_path)
+    second_file = os.path.join(os.path.dirname(content_path),
+                               tuple(t.files)[1])
+    old_mode = os.stat(second_file).st_mode
+    try:
+        os.chmod(second_file, mode=0o222)
+
+        with mock.patch('torf._generate.sha1') as sha1_mock:
+            sha1_mock.return_value.digest.return_value = b'\x00' * 20  # Mock hash
+            cb = mock.MagicMock(return_value=None)
+            with pytest.raises(torf.ReadError) as excinfo:
+                t.generate(callback=cb)
+            assert excinfo.match(rf'^{second_file}: Permission denied$')
+            assert len(cb.call_args_list) < 4
+            assert sha1_mock.call_count < 4
+            assert not t.is_ready
+    finally:
+        os.chmod(second_file, mode=old_mode)
