@@ -229,12 +229,12 @@ class VerifyContentError(TorfError):
 
     @property
     def piece_size(self):
-        """Potentially corrupt files"""
+        """Size of the corrupt piece in bytes"""
         return self._piece_size
 
     @property
     def files(self):
-        """Size of the corrupt piece in bytes"""
+        """Potentially corrupt files"""
         return self._files
 
 
