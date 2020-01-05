@@ -210,6 +210,7 @@ def multifile_content(tmpdir_factory):
                            exp_metainfo=exp_metainfo,
                            exp_attrs=exp_attrs)
 
+
 def _write_content_file(filepath, spec):
     if isinstance(spec, (int, float)):
         filepath.write_bytes(bytes(random.getrandbits(8)
@@ -221,13 +222,27 @@ def _write_content_file(filepath, spec):
     else:
         raise RuntimeError(f'Invalid spec for {filepath}: {spec!r}')
 
+def _random_size(piece_size, min_pieces=1, max_pieces=10):
+    size = int(random.choice((
+        piece_size * random.randrange(1, max_pieces),
+        piece_size * (random.randrange(1, max_pieces) + random.random()),
+        piece_size * (random.randrange(0, max_pieces) + max(0.1, random.random())),
+    )))
+    if int(size / torf.Torrent.piece_size_min) < min_pieces:
+        size = min_pieces * torf.Torrent.piece_size_min
+    print('random size:', size, 'pieces:', size / torf.Torrent.piece_size_min)
+    return size
+
 def _create_content_file(tmp_path, filepath, spec):
     filepath = tmp_path / filepath
     _write_content_file(filepath, spec)
     return filepath
 @pytest.fixture
 def create_content_file(tmp_path):
-    return functools.partial(_create_content_file, tmp_path)
+    func = functools.partial(_create_content_file, tmp_path)
+    func.piece_size = torf.Torrent.piece_size_min
+    func.random_size = functools.partial(_random_size, func.piece_size)
+    return func
 
 def _create_content_dir(tmp_path, dirname, *files):
     content_path = tmp_path / dirname
@@ -244,7 +259,11 @@ def _create_content_dir(tmp_path, dirname, *files):
     return content_path
 @pytest.fixture
 def create_content_dir(tmp_path):
-    return functools.partial(_create_content_dir, tmp_path)
+    func = functools.partial(_create_content_dir, tmp_path)
+    func.piece_size = torf.Torrent.piece_size_min
+    func.random_size = functools.partial(_random_size, func.piece_size)
+    return func
+
 
 
 @pytest.fixture
