@@ -412,7 +412,8 @@ class Torrent():
                                            max=self.piece_size_max)
             self.metainfo['info']['piece length'] = piece_length
 
-    def calculate_piece_size(self, size):
+    @classmethod
+    def calculate_piece_size(cls, size):
         """
         Return the piece size for a total torrent size of ``size`` bytes
 
@@ -449,7 +450,7 @@ class Torrent():
             return 16 * 2**20      # 16 MiB (absolute maximum)
         # Math is magic!
         return max(1 << max(0, math.ceil(math.log(pieces, 2))),
-                   self.piece_size_min)
+                   cls.piece_size_min)
 
     piece_size_min = 16 * 1024  # 16 KiB
     """
