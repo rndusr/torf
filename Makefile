@@ -9,13 +9,13 @@ clean:
 
 venv:
 	python3 -m venv "$(VENV_PATH)"
-	"$(VENV_PATH)"/bin/pip install --upgrade pytest wheel
+	"$(VENV_PATH)"/bin/pip install --upgrade pytest pytest-xdist wheel
 	"$(VENV_PATH)"/bin/pip install --editable .
 	"$(VENV_PATH)"/bin/pip install --editable ../torf-cli
 
 test: venv
 	. "$(VENV_PATH)"/bin/activate ; \
-	"$(VENV_PATH)"/bin/pytest --exitfirst tests
+	"$(VENV_PATH)"/bin/pytest
 
 release:
 	pyrelease CHANGELOG ./torf/_version.py
