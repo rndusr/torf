@@ -233,8 +233,8 @@ def _random_size(piece_size, min_pieces=1, max_pieces=10):
     print('random size:', size, 'pieces:', size / torf.Torrent.piece_size_min)
     return size
 
-def _create_content_file(tmp_path, filepath, spec):
-    filepath = tmp_path / filepath
+def _create_content_file(tmp_path, filename, spec):
+    filepath = tmp_path / filename
     _write_content_file(filepath, spec)
     return filepath
 @pytest.fixture
