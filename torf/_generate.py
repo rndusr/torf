@@ -20,7 +20,7 @@ import threading
 from multiprocessing.pool import ThreadPool
 import queue
 import os
-import time
+from time import monotonic as time_monotonic
 from itertools import count as _count
 from collections import defaultdict
 
@@ -398,7 +398,7 @@ class CancelCallback():
         self._cancel_callbacks = []
 
     def __call__(self, cb_args, force_call=False):
-        now = time.monotonic()
+        now = time_monotonic()
         prev_call_time = self._prev_call_time
         if (force_call or                             # Special case (e.g. exception during Torrent.verify())
             prev_call_time is None or                 # This is the first call

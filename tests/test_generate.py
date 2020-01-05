@@ -186,8 +186,7 @@ def test_callback_is_called_with_multifile_torrent(file_size_a, file_size_b, cre
 
 def assert_callback_is_called_at_intervals(content_path, monkeypatch):
     t = torf.Torrent(content_path)
-    import time
-    monkeypatch.setattr(time, 'monotonic',
+    monkeypatch.setattr(torf._generate, 'time_monotonic',
                         mock.Mock(side_effect=range(100)))
 
     for interval in (1, 2, 3):
