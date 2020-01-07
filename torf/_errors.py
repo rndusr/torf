@@ -163,7 +163,7 @@ class VerifyFileSizeError(TorfError):
         elif actual_size < expected_size:
             super().__init__(f'{filepath}: Too small: {actual_size} instead of {expected_size} bytes')
         else:
-            raise RuntimeError(f'Unjustified: actual_size={actual_size} ==  expected_size={expected_size}')
+            raise RuntimeError(f'Unjustified: actual_size={actual_size} == expected_size={expected_size}')
 
     @property
     def filepath(self):
