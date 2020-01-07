@@ -10,48 +10,35 @@ from unittest import mock
 
 ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
 
-def test_read_chunks__unreadable_file(tmpdir):
+def test_read_chunks__unreadable_file():
     with pytest.raises(torf.ReadError) as excinfo:
         tuple(utils.read_chunks('no/such/file', 10))
     assert excinfo.match(r'^no/such/file: No such file or directory$')
 
-def test_read_chunks__readable_file(tmpdir):
-    filepath = tmpdir.join('some_file')
-    filepath.write(ALPHABET[:16])
-
-    chunks = tuple(utils.read_chunks(filepath, 4))
-    assert chunks == (b'abcd', b'efgh', b'ijkl', b'mnop')
-
-    chunks = tuple(utils.read_chunks(filepath, 5))
-    assert chunks == (b'abcde', b'fghij', b'klmno', b'p')
-
-    chunks = tuple(utils.read_chunks(filepath, 5))
-    assert chunks == (b'abcde', b'fghij', b'klmno', b'p')
-
-def test_read_chunks__fixed_size__unreadable_file(tmpdir):
+def test_read_chunks__fixed_size__unreadable_file(create_content_file):
     with pytest.raises(torf.ReadError) as excinfo:
-        tuple(utils.read_chunks('nonexisting/file', 10))
+        tuple(utils.read_chunks('nonexisting/file', 10, filesize=20))
     assert excinfo.match(r'^nonexisting/file: No such file or directory$')
 
-def test_read_chunks__fixed_size__file_smaller_than_wanted_size(tmpdir):
-    filepath = tmpdir.join('some_file')
-    filepath.write(ALPHABET[:10])
+def test_read_chunks__readable_file(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:16])
+    assert tuple(utils.read_chunks(filepath, 4)) == (b'abcd', b'efgh', b'ijkl', b'mnop')
+    assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde', b'fghij', b'klmno', b'p')
+    assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde', b'fghij', b'klmno', b'p')
 
+def test_read_chunks__fixed_size__file_smaller_than_wanted_size(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:10])
     chunks = tuple(utils.read_chunks(filepath, 3, filesize=15))
     assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00')
-
     chunks = tuple(utils.read_chunks(filepath, 5, filesize=15))
     assert chunks == (b'abcde', b'fghij', b'\x00'*5)
-
     chunks = tuple(utils.read_chunks(filepath, 3, filesize=16))
     assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00', b'\x00')
-
     chunks = tuple(utils.read_chunks(filepath, 2, filesize=16))
     assert chunks == (b'ab', b'cd', b'ef', b'gh', b'ij', b'\x00\x00', b'\x00\x00', b'\x00\x00')
 
-def test_read_chunks__fixed_size__file_larger_than_wanted_size(tmpdir):
-    filepath = tmpdir.join('some_file')
-    filepath.write(ALPHABET[:15])
+def test_read_chunks__fixed_size__file_larger_than_wanted_size(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:15])
 
     expected_chunks = [b'abcd', b'efgh']
     with pytest.raises(torf.ReadError) as err:
@@ -81,18 +68,12 @@ def test_read_chunks__fixed_size__file_larger_than_wanted_size(tmpdir):
     assert str(err.value) == f'{filepath}: File too large'
     assert expected_chunks == []
 
-def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(tmpdir):
-    filepath = tmpdir.join('some_file')
-    filepath.write(ALPHABET[:12])
+def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:12])
 
-    chunks = tuple(utils.read_chunks(filepath, 3, filesize=12))
-    assert chunks == (b'abc', b'def', b'ghi', b'jkl')
-
-    chunks = tuple(utils.read_chunks(filepath, 4, filesize=12))
-    assert chunks == (b'abcd', b'efgh', b'ijkl')
-
-    chunks = tuple(utils.read_chunks(filepath, 5, filesize=15))
-    assert chunks == (b'abcde', b'fghij', b'kl\x00\x00\x00')
+    assert tuple(utils.read_chunks(filepath, 3, filesize=12)) == (b'abc', b'def', b'ghi', b'jkl')
+    assert tuple(utils.read_chunks(filepath, 4, filesize=12)) == (b'abcd', b'efgh', b'ijkl')
+    assert tuple(utils.read_chunks(filepath, 5, filesize=15)) == (b'abcde', b'fghij', b'kl\x00\x00\x00')
 
     expected_chunks = [b'abcde', b'f']
     with pytest.raises(torf.ReadError) as err:
@@ -101,15 +82,11 @@ def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(tmpdir):
     assert str(err.value) == f'{filepath}: File too large'
     assert expected_chunks == []
 
-def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(tmpdir):
-    filepath = tmpdir.join('some_file')
-    filepath.write(ALPHABET[:13])
+def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:13])
 
-    chunks = tuple(utils.read_chunks(filepath, 3, filesize=13))
-    assert chunks == (b'abc', b'def', b'ghi', b'jkl', b'm')
-
-    chunks = tuple(utils.read_chunks(filepath, 3, filesize=14))
-    assert chunks == (b'abc', b'def', b'ghi', b'jkl', b'm\x00')
+    assert tuple(utils.read_chunks(filepath, 3, filesize=13)) == (b'abc', b'def', b'ghi', b'jkl', b'm')
+    assert tuple(utils.read_chunks(filepath, 3, filesize=14)) == (b'abc', b'def', b'ghi', b'jkl', b'm\x00')
 
     expected_chunks = [b'abc', b'def', b'ghi', b'jk']
     with pytest.raises(torf.ReadError) as err:
@@ -118,15 +95,12 @@ def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(tmpdir):
     assert str(err.value) == f'{filepath}: File too large'
     assert expected_chunks == []
 
-def test_read_chunks__fixed_size__file_smaller_than_chunk_size(tmpdir):
-    filepath = tmpdir.join('some_file')
-    filepath.write(ALPHABET[:5])
+def test_read_chunks__fixed_size__file_smaller_than_chunk_size(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:5])
+    assert tuple(utils.read_chunks(filepath, 10, filesize=5)) == (b'abcde',)
+    assert tuple(utils.read_chunks(filepath, 7, filesize=5)) == (b'abcde',)
 
-    chunks = tuple(utils.read_chunks(filepath, 10, filesize=5))
-    assert chunks == (b'abcde',)
 
-    chunks = tuple(utils.read_chunks(filepath, 7, filesize=5))
-    assert chunks == (b'abcde',)
 
 
 def test_is_power_of_2():
@@ -169,16 +143,20 @@ def test_validated_url__min_port_number():
 
 
 @pytest.fixture
-def testdir(tmpdir):
-    base = tmpdir.mkdir('base')
-    foo = base.mkdir('foo')
-    bar = base.mkdir('.bar')
-    baz = bar.mkdir('baz')
+def testdir(tmp_path):
+    base = tmp_path / 'base'
+    base.mkdir()
+    foo = base / 'foo'
+    foo.mkdir()
+    bar = base / '.bar'
+    bar.mkdir()
+    baz = bar / 'baz'
+    baz.mkdir()
     for path in (foo, bar, baz):
-        path.join('empty').write('')
-        path.join('.empty').write('')
-        path.join('not_empty').write('dummy content')
-        path.join('.not_empty').write('more dummy content')
+        (path / 'empty').write_text('')
+        (path / '.empty').write_text('')
+        (path / 'not_empty').write_text('dummy content')
+        (path / '.not_empty').write_text('more dummy content')
     return base
 
 def test_filepaths(testdir):
