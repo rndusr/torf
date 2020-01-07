@@ -100,7 +100,20 @@ def test_read_chunks__fixed_size__file_smaller_than_chunk_size(create_content_fi
     assert tuple(utils.read_chunks(filepath, 10, filesize=5)) == (b'abcde',)
     assert tuple(utils.read_chunks(filepath, 7, filesize=5)) == (b'abcde',)
 
+def test_read_chunks__prepend_bytes_to_file(create_content_file):
+    filepath = create_content_file('some_file', ALPHABET[:10])
 
+    assert tuple(utils.read_chunks(filepath, 2, prepend=b'1')) == (b'1a', b'bc', b'de', b'fg', b'hi', b'j')
+    assert tuple(utils.read_chunks(filepath, 2, prepend=b'12')) == (b'12', b'ab', b'cd', b'ef', b'gh', b'ij')
+    assert tuple(utils.read_chunks(filepath, 2, prepend=b'123')) == (b'12', b'3a', b'bc', b'de', b'fg', b'hi', b'j')
+    assert tuple(utils.read_chunks(filepath, 2, prepend=b'1234')) == (b'12', b'34', b'ab', b'cd', b'ef', b'gh', b'ij')
+
+    assert tuple(utils.read_chunks(filepath, 3, prepend=b'1')) == (b'1ab', b'cde', b'fgh', b'ij')
+    assert tuple(utils.read_chunks(filepath, 3, prepend=b'12')) == (b'12a', b'bcd', b'efg', b'hij')
+    assert tuple(utils.read_chunks(filepath, 3, prepend=b'123')) == (b'123', b'abc', b'def', b'ghi', b'j')
+    assert tuple(utils.read_chunks(filepath, 3, prepend=b'1234')) == (b'123', b'4ab', b'cde', b'fgh', b'ij')
+    assert tuple(utils.read_chunks(filepath, 3, prepend=b'12345')) == (b'123', b'45a', b'bcd', b'efg', b'hij')
+    assert tuple(utils.read_chunks(filepath, 3, prepend=b'123456')) == (b'123', b'456', b'abc', b'def', b'ghi', b'j')
 
 
 def test_is_power_of_2():

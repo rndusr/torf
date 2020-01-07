@@ -119,13 +119,15 @@ class _FixedSizeFile():
         self._pos = newpos
         return chunk
 
-def read_chunks(filepath, chunksize, filesize=None):
+def read_chunks(filepath, chunksize, filesize=None, prepend=bytes()):
     """
     Generator that yields chunks from file
 
     If `filesize` is not None, it is the expected size of `filepath` in bytes.
     If `filepath` has a different size, it is transparently cropped or padded
     with null bytes to match the expected size.
+
+    `prepend` is prepended to the content of `filepath`.
     """
     if filesize is not None:
         cm = _FixedSizeFile(filepath, size=filesize)
@@ -135,7 +137,18 @@ def read_chunks(filepath, chunksize, filesize=None):
         except OSError as e:
             raise error.ReadError(e.errno, filepath)
     try:
+        chunk = b''
+        for pos in range(0, len(prepend), chunksize):
+            chunk = prepend[pos:pos + chunksize]
+            if len(chunk) == chunksize:
+                yield chunk
+                chunk = b''
+
         with cm as f:
+            # Fill last chunk from prepended bytes with first bytes from file
+            if chunk:
+                chunk += f.read(chunksize - len(chunk))
+                yield chunk
             while True:
                 chunk = f.read(chunksize)
                 if chunk:
