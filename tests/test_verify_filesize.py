@@ -16,10 +16,9 @@ def test_validate_is_called_first(monkeypatch):
     mock_validate.assert_called_once_with()
 
 
-def test_file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent):
-    content_path = tmpdir.join('content.jpg')
-    content_path.write('some data')
-    with create_torrent(path=content_path) as torrent_file:
+def test_file_in_singlefile_torrent_doesnt_exist(create_file, create_torrent_file):
+    content_path = create_file('file.jpg', '<image data>')
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
         # Without callback
@@ -41,28 +40,24 @@ def test_file_in_singlefile_torrent_doesnt_exist(tmpdir, create_torrent):
         assert cb.call_count == 1
 
 
-def test_file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file2 = content_path.join('file2.jpg')
-    content_file3 = content_path.join('file3.jpg')
-    content_file1.write('some data')
-    content_file2.write('some other data')
-    content_file3.write('some more data')
-
-    with create_torrent(path=content_path) as torrent_file:
+def test_file_in_multifile_torrent_doesnt_exist(create_dir, create_torrent_file):
+    content_path = create_dir('content',
+                              ('a.jpg', 'some data'),
+                              ('b.jpg', 'some other data'),
+                              ('c.jpg', 'some more data'))
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
-        os.remove(content_file1)
-        os.remove(content_file3)
-        assert not os.path.exists(content_file1)
-        assert os.path.exists(content_file2)
-        assert not os.path.exists(content_file3)
+        os.remove(content_path / 'a.jpg')
+        os.remove(content_path / 'c.jpg')
+        assert not os.path.exists(content_path / 'a.jpg')
+        assert os.path.exists(content_path / 'b.jpg')
+        assert not os.path.exists(content_path / 'c.jpg')
 
         # Without callback
         with pytest.raises(torf.PathNotFoundError) as excinfo:
             torrent.verify_filesize(content_path)
-        assert excinfo.match(f'^{content_file1}: No such file or directory$')
+        assert excinfo.match(f'^{content_path / "a.jpg"}: No such file or directory$')
 
         # With callback
         cb = mock.MagicMock()
@@ -71,36 +66,35 @@ def test_file_in_multifile_torrent_doesnt_exist(tmpdir, create_torrent):
             assert files_done == cb.call_count
             assert files_total == 3
             if cb.call_count == 1:
-                assert fs_path == str(content_file1)
-                assert t_path == os.sep.join(str(content_file1).split(os.sep)[-2:])
-                assert str(exc) == f'{content_file1}: No such file or directory'
+                assert fs_path == str(content_path / 'a.jpg')
+                assert t_path == os.sep.join(str(content_path / 'a.jpg').split(os.sep)[-2:])
+                assert str(exc) == f'{fs_path}: No such file or directory'
             elif cb.call_count == 2:
-                assert fs_path == str(content_file2)
-                assert t_path == os.sep.join(str(content_file2).split(os.sep)[-2:])
+                assert fs_path == str(content_path / 'b.jpg')
+                assert t_path == os.sep.join(str(content_path / 'b.jpg').split(os.sep)[-2:])
                 assert exc is None
             elif cb.call_count == 3:
-                assert fs_path == str(content_file3)
-                assert t_path == os.sep.join(str(content_file3).split(os.sep)[-2:])
-                assert str(exc) == f'{content_file3}: No such file or directory'
+                assert fs_path == str(content_path / 'c.jpg')
+                assert t_path == os.sep.join(str(content_path / 'c.jpg').split(os.sep)[-2:])
+                assert str(exc) == f'{fs_path}: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
         assert cb.call_count == 3
 
 
-def test_file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torrent):
-    content_path = tmpdir.join('content.jpg')
-    content_path.write('some data')
-    with create_torrent(path=content_path) as torrent_file:
+def test_file_in_singlefile_torrent_has_wrong_size(create_file, create_torrent_file):
+    content_path = create_file('file.jpg', '<image data>')
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
-        content_path.write('different data')
+        content_path.write_text('<different image data>')
         assert os.path.getsize(content_path) != torrent.size
 
         # Without callback
         with pytest.raises(torf.VerifyFileSizeError) as excinfo:
             torrent.verify_filesize(content_path)
-        assert excinfo.match(f'^{content_path}: Too big: 14 instead of 9 bytes$')
+        assert excinfo.match(f'^{content_path}: Too big: 22 instead of 12 bytes$')
 
         # With callback
         cb = mock.MagicMock()
@@ -110,34 +104,30 @@ def test_file_in_singlefile_torrent_has_wrong_size(tmpdir, create_torrent):
             assert t_path == os.path.basename(content_path)
             assert files_done == cb.call_count
             assert files_total == 1
-            assert str(exc) == f'{content_path}: Too big: 14 instead of 9 bytes'
+            assert str(exc) == f'{content_path}: Too big: 22 instead of 12 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
         assert cb.call_count == 1
 
 
-def test_file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file2 = content_path.join('file2.jpg')
-    content_file3 = content_path.join('file3.jpg')
-    content_file1.write('some data')
-    content_file2.write('some other data')
-    content_file3.write('some more data')
-
-    with create_torrent(path=content_path) as torrent_file:
+def test_file_in_multifile_torrent_has_wrong_size(create_dir, create_torrent_file):
+    content_path = create_dir('content',
+                              ('a.jpg', 100),
+                              ('b.jpg', 200),
+                              ('c.jpg', 300))
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
-        content_file2.write('some other different data')
-        content_file3.write('some more different data')
-        assert open(content_file2).read() == 'some other different data'
-        assert open(content_file3).read() == 'some more different data'
+        (content_path / 'b.jpg').write_bytes(create_dir.random_bytes(201))
+        (content_path / 'c.jpg').write_bytes(create_dir.random_bytes(299))
+        assert len((content_path / 'b.jpg').read_bytes()) == 201
+        assert len((content_path / 'c.jpg').read_bytes()) == 299
 
         # Without callback
         with pytest.raises(torf.VerifyFileSizeError) as excinfo:
             torrent.verify_filesize(content_path)
-        assert excinfo.match(f'^{content_file2}: Too big: 25 instead of 15 bytes$')
+        assert excinfo.match(f'^{content_path / "b.jpg"}: Too big: 201 instead of 200 bytes$')
 
         # With callback
         cb = mock.MagicMock()
@@ -146,33 +136,31 @@ def test_file_in_multifile_torrent_has_wrong_size(tmpdir, create_torrent):
             assert files_done == cb.call_count
             assert files_total == 3
             if cb.call_count == 1:
-                assert fs_path == str(content_file1)
-                assert t_path == os.sep.join(str(content_file1).split(os.sep)[-2:])
+                assert fs_path == str(content_path / 'a.jpg')
+                assert t_path == os.path.join(content_path.name, 'a.jpg')
                 assert exc is None
             elif cb.call_count == 2:
-                assert fs_path == str(content_file2)
-                assert t_path == os.sep.join(str(content_file2).split(os.sep)[-2:])
-                assert str(exc)  == f'{content_file2}: Too big: 25 instead of 15 bytes'
+                assert fs_path == str(content_path / 'b.jpg')
+                assert t_path == os.path.join(content_path.name, 'b.jpg')
+                assert str(exc)  == f'{content_path / "b.jpg"}: Too big: 201 instead of 200 bytes'
             elif cb.call_count == 3:
-                assert fs_path == str(content_file3)
-                assert t_path == os.sep.join(str(content_file3).split(os.sep)[-2:])
-                assert str(exc) == f'{content_file3}: Too big: 24 instead of 14 bytes'
+                assert fs_path == str(content_path / 'c.jpg')
+                assert t_path == os.path.join(content_path.name, 'c.jpg')
+                assert str(exc) == f'{content_path / "c.jpg"}: Too small: 299 instead of 300 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
         assert cb.call_count == 3
 
 
-def test_path_is_directory_and_torrent_contains_single_file(tmpdir, create_torrent):
-    content_path = tmpdir.join('content')
-    content_path.write('some data')
-    with create_torrent(path=content_path) as torrent_file:
+def test_path_is_directory_and_torrent_contains_single_file(create_file, create_dir, create_torrent_file):
+    content_data = create_file.random_bytes(1001)
+    content_path = create_file('content', content_data)
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
         os.remove(content_path)
-        content_path = tmpdir.mkdir('content')
-        content_file = content_path.join('file.jpg')
-        content_file.write('some data')
+        content_path = create_dir('content', ('content', content_data))
         assert os.path.isdir(content_path)
 
         # Without callback
@@ -195,27 +183,23 @@ def test_path_is_directory_and_torrent_contains_single_file(tmpdir, create_torre
         assert cb.call_count == 1
 
 
-def test_path_is_file_and_torrent_contains_directory(tmpdir, create_torrent):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file2 = content_path.join('file2.jpg')
-    content_file1.write('some data')
-    content_file2.write('some other data')
-
-    with create_torrent(path=content_path) as torrent_file:
+def test_path_is_file_and_torrent_contains_directory(create_file, create_dir, create_torrent_file):
+    content_path = create_dir('content',
+                              ('a.jpg', create_dir.random_bytes(1234)),
+                              ('b.jpg', create_dir.random_bytes(234)))
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
         shutil.rmtree(content_path)
         assert not os.path.exists(content_path)
 
-        content_file = tmpdir.join('content')
-        content_file.write('some data')
-        assert os.path.isfile(content_file)
+        create_file('content', 'some data')
+        assert os.path.isfile(content_path)
 
         # Without callback
         with pytest.raises(torf.PathNotFoundError) as excinfo:
             torrent.verify_filesize(content_path)
-        assert excinfo.match(f'^{content_file1}: No such file or directory$')
+        assert excinfo.match(f'^{content_path / "a.jpg"}: No such file or directory$')
 
         # With callback
         cb = mock.MagicMock()
@@ -224,38 +208,31 @@ def test_path_is_file_and_torrent_contains_directory(tmpdir, create_torrent):
             assert files_done == cb.call_count
             assert files_total == 2
             if cb.call_count == 1:
-                assert fs_path == str(content_file1)
-                assert t_path == os.sep.join(str(content_file1).split(os.sep)[-2:])
-                assert str(exc) == f'{content_file1}: No such file or directory'
+                assert fs_path == str(content_path / 'a.jpg')
+                assert t_path == os.path.join(content_path.name, 'a.jpg')
+                assert str(exc) == f'{content_path / "a.jpg"}: No such file or directory'
             elif cb.call_count == 2:
-                assert fs_path == str(content_file2)
-                assert t_path == os.sep.join(str(content_file2).split(os.sep)[-2:])
-                assert str(exc) == f'{content_file2}: No such file or directory'
+                assert fs_path == str(content_path / 'b.jpg')
+                assert t_path == os.path.join(content_path.name, 'b.jpg')
+                assert str(exc) == f'{content_path / "b.jpg"}: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
         assert cb.call_count == 2
 
 
-def test_parent_path_of_multifile_torrent_is_unreadable(tmpdir, create_torrent):
-    content_path = tmpdir.mkdir('content')
-    unreadable_path1 = content_path.mkdir('unreadable1').mkdir('b').mkdir('c')
-    unreadable_path2 = content_path.mkdir('unreadable2').mkdir('b').mkdir('c')
-    readable_path = content_path.mkdir('readable').mkdir('b').mkdir('c')
-    content_file1 = unreadable_path1.join('file1.jpg')
-    content_file2 = unreadable_path2.join('file2.jpg')
-    content_file3 = readable_path.join('file3.jpg')
-    content_file1.write('some data')
-    content_file2.write('some more data')
-    content_file3.write('some other data')
-    with create_torrent(path=content_path) as torrent_file:
+def test_parent_path_of_multifile_torrent_is_unreadable(create_dir, create_torrent_file):
+    content_path = create_dir('content',
+                              ('unreadable1/b/c/a.jpg', 'a data'),
+                              ('unreadable2/b/c/b.jpg', 'b data'),
+                              ('readable/b/c/c.jpg', 'c data'))
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
-
-        unreadable_path1_mode = os.stat(unreadable_path1).st_mode
-        unreadable_path2_mode = os.stat(unreadable_path2).st_mode
+        unreadable_path1_mode = os.stat(content_path / 'unreadable1').st_mode
+        unreadable_path2_mode = os.stat(content_path / 'unreadable2').st_mode
         try:
-            os.chmod(unreadable_path1, mode=0o222)
-            os.chmod(unreadable_path2, mode=0o222)
+            os.chmod((content_path / 'unreadable1'), mode=0o222)
+            os.chmod((content_path / 'unreadable2'), mode=0o222)
 
             # NOTE: We would expect "Permission denied" here, but
             # os.path.exists() can't look inside .../content/unreadable1/ and
@@ -264,7 +241,7 @@ def test_parent_path_of_multifile_torrent_is_unreadable(tmpdir, create_torrent):
             # Without callback
             with pytest.raises(torf.PathNotFoundError) as excinfo:
                 torrent.verify_filesize(content_path)
-            assert excinfo.match(f'^{content_file1}: No such file or directory$')
+            assert excinfo.match(f'^{content_path / "unreadable1/b/c/a.jpg"}: No such file or directory$')
 
             # With callback
             cb = mock.MagicMock()
@@ -273,41 +250,40 @@ def test_parent_path_of_multifile_torrent_is_unreadable(tmpdir, create_torrent):
                 assert files_done == cb.call_count
                 assert files_total == 3
                 if cb.call_count == 1:
-                    assert fs_path == str(content_file3)
-                    assert t_path == os.sep.join(str(content_file3).split(os.sep)[-5:])
+                    assert fs_path == str(content_path / 'readable/b/c/c.jpg')
+                    assert t_path == os.path.join(content_path.name, 'readable/b/c/c.jpg')
                     assert exc is None
                 elif cb.call_count == 2:
-                    assert fs_path == str(content_file1)
-                    assert t_path == os.sep.join(str(content_file1).split(os.sep)[-5:])
-                    assert str(exc) == f'{content_file1}: No such file or directory'
+                    assert fs_path == str(content_path / 'unreadable1/b/c/a.jpg')
+                    assert t_path == os.path.join(content_path.name, 'unreadable1/b/c/a.jpg')
+                    assert str(exc) == f'{fs_path}: No such file or directory'
                 elif cb.call_count == 3:
-                    assert fs_path == str(content_file2)
-                    assert t_path == os.sep.join(str(content_file2).split(os.sep)[-5:])
-                    assert str(exc) == f'{content_file2}: No such file or directory'
+                    assert fs_path == str(content_path / 'unreadable2/b/c/b.jpg')
+                    assert t_path == os.path.join(content_path.name, 'unreadable2/b/c/b.jpg')
+                    assert str(exc) == f'{fs_path}: No such file or directory'
                 return None
             cb.side_effect = assert_call
             assert torrent.verify_filesize(content_path, callback=cb) == False
             assert cb.call_count == 3
         finally:
-            os.chmod(unreadable_path1, mode=unreadable_path1_mode)
-            os.chmod(unreadable_path2, mode=unreadable_path2_mode)
+            os.chmod((content_path / 'unreadable1'), mode=unreadable_path1_mode)
+            os.chmod((content_path / 'unreadable2'), mode=unreadable_path2_mode)
 
 
-def test_parent_path_of_singlefile_torrent_is_unreadable(tmpdir, create_torrent):
-    content_path = tmpdir.mkdir('content')
-    content_file = content_path.join('file.jpg')
-    content_file.write('some data')
-
-    with create_torrent(path=content_file) as torrent_file:
+def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torrent_file):
+    parent_path = create_dir('parent',
+                             ('file.jpg', create_dir.random_bytes(123)))
+    content_file = str(parent_path / 'file.jpg')
+    with create_torrent_file(path=content_file) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
-        content_path_mode = os.stat(content_path).st_mode
+        parent_path_mode = os.stat(parent_path).st_mode
         try:
-            os.chmod(content_path, mode=0o222)
+            os.chmod(parent_path, mode=0o222)
 
             # NOTE: We would expect "Permission denied" here, but
-            # os.path.exists() can't look inside .../content/ and thus raises
-            # "No such file or directory".
+            # os.path.exists() can't look inside "parent" directory and thus
+            # raises "No such file or directory".
 
             # Without callback
             with pytest.raises(torf.PathNotFoundError) as excinfo:
@@ -328,35 +304,30 @@ def test_parent_path_of_singlefile_torrent_is_unreadable(tmpdir, create_torrent)
             assert torrent.verify_filesize(content_file, callback=cb) == False
             assert cb.call_count == 1
         finally:
-            os.chmod(content_path, mode=content_path_mode)
+            os.chmod(parent_path, mode=parent_path_mode)
 
 
-def test_verify__callback_raises_exception(tmpdir, create_torrent):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file2 = content_path.join('file2.jpg')
-    content_file3 = content_path.join('file3.jpg')
-    content_file1.write('some data')
-    content_file2.write('some other data')
-    content_file3.write('some more data')
-
-    with create_torrent(path=content_path) as torrent_file:
+def test_verify__callback_raises_exception(create_dir, create_torrent_file):
+    content_path = create_dir('content',
+                              ('a.jpg', create_dir.random_bytes(123)),
+                              ('b.jpg', create_dir.random_bytes(456)),
+                              ('c.jpg', create_dir.random_bytes(789)))
+    with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
-
         cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert files_done == cb.call_count
             assert files_total == 3
             if cb.call_count == 1:
-                assert fs_path == str(content_file1)
-                assert t_path == os.sep.join(str(content_file1).split(os.sep)[-2:])
+                assert fs_path == str(content_path / 'a.jpg')
+                assert t_path == os.path.join(content_path.name, 'a.jpg')
                 assert exc is None
             elif cb.call_count == 2:
                 raise RuntimeError("I'm off")
             elif cb.call_count == 3:
-                assert fs_path == str(content_file3)
-                assert t_path == os.sep.join(str(content_file3).split(os.sep)[-2:])
+                assert fs_path == str(content_path / 'c.jpg')
+                assert t_path == os.path.join(content_path.name, 'c.jpg')
                 assert exc is None
             return None
         cb.side_effect = assert_call
