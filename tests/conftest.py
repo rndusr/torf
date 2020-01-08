@@ -214,8 +214,7 @@ def multifile_content(tmpdir_factory):
 
 def _write_content_file(filepath, spec):
     if isinstance(spec, (int, float)):
-        filepath.write_bytes(bytes(random.getrandbits(8)
-                                   for _ in range(int(spec))))
+        filepath.write_bytes(_random_bytes(spec))
     elif isinstance(spec, str):
         filepath.write_text(spec)
     elif isinstance(spec, (bytes, bytearray)):
