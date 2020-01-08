@@ -15,19 +15,19 @@ def test_read_chunks__unreadable_file():
         tuple(utils.read_chunks('no/such/file', 10))
     assert excinfo.match(r'^no/such/file: No such file or directory$')
 
-def test_read_chunks__fixed_size__unreadable_file(create_content_file):
+def test_read_chunks__fixed_size__unreadable_file(create_file):
     with pytest.raises(torf.ReadError) as excinfo:
         tuple(utils.read_chunks('nonexisting/file', 10, filesize=20))
     assert excinfo.match(r'^nonexisting/file: No such file or directory$')
 
-def test_read_chunks__readable_file(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:16])
+def test_read_chunks__readable_file(create_file):
+    filepath = create_file('some_file', ALPHABET[:16])
     assert tuple(utils.read_chunks(filepath, 4)) == (b'abcd', b'efgh', b'ijkl', b'mnop')
     assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde', b'fghij', b'klmno', b'p')
     assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde', b'fghij', b'klmno', b'p')
 
-def test_read_chunks__fixed_size__file_smaller_than_wanted_size(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:10])
+def test_read_chunks__fixed_size__file_smaller_than_wanted_size(create_file):
+    filepath = create_file('some_file', ALPHABET[:10])
     chunks = tuple(utils.read_chunks(filepath, 3, filesize=15))
     assert chunks == (b'abc', b'def', b'ghi', b'j\x00\x00', b'\x00\x00\x00')
     chunks = tuple(utils.read_chunks(filepath, 5, filesize=15))
@@ -37,8 +37,8 @@ def test_read_chunks__fixed_size__file_smaller_than_wanted_size(create_content_f
     chunks = tuple(utils.read_chunks(filepath, 2, filesize=16))
     assert chunks == (b'ab', b'cd', b'ef', b'gh', b'ij', b'\x00\x00', b'\x00\x00', b'\x00\x00')
 
-def test_read_chunks__fixed_size__file_larger_than_wanted_size(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:15])
+def test_read_chunks__fixed_size__file_larger_than_wanted_size(create_file):
+    filepath = create_file('some_file', ALPHABET[:15])
 
     expected_chunks = [b'abcd', b'efgh']
     with pytest.raises(torf.ReadError) as err:
@@ -68,8 +68,8 @@ def test_read_chunks__fixed_size__file_larger_than_wanted_size(create_content_fi
     assert str(err.value) == f'{filepath}: File too large'
     assert expected_chunks == []
 
-def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:12])
+def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(create_file):
+    filepath = create_file('some_file', ALPHABET[:12])
 
     assert tuple(utils.read_chunks(filepath, 3, filesize=12)) == (b'abc', b'def', b'ghi', b'jkl')
     assert tuple(utils.read_chunks(filepath, 4, filesize=12)) == (b'abcd', b'efgh', b'ijkl')
@@ -82,8 +82,8 @@ def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(create_conte
     assert str(err.value) == f'{filepath}: File too large'
     assert expected_chunks == []
 
-def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:13])
+def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(create_file):
+    filepath = create_file('some_file', ALPHABET[:13])
 
     assert tuple(utils.read_chunks(filepath, 3, filesize=13)) == (b'abc', b'def', b'ghi', b'jkl', b'm')
     assert tuple(utils.read_chunks(filepath, 3, filesize=14)) == (b'abc', b'def', b'ghi', b'jkl', b'm\x00')
@@ -95,13 +95,13 @@ def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(create_c
     assert str(err.value) == f'{filepath}: File too large'
     assert expected_chunks == []
 
-def test_read_chunks__fixed_size__file_smaller_than_chunk_size(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:5])
+def test_read_chunks__fixed_size__file_smaller_than_chunk_size(create_file):
+    filepath = create_file('some_file', ALPHABET[:5])
     assert tuple(utils.read_chunks(filepath, 10, filesize=5)) == (b'abcde',)
     assert tuple(utils.read_chunks(filepath, 7, filesize=5)) == (b'abcde',)
 
-def test_read_chunks__prepend_bytes_to_file(create_content_file):
-    filepath = create_content_file('some_file', ALPHABET[:10])
+def test_read_chunks__prepend_bytes_to_file(create_file):
+    filepath = create_file('some_file', ALPHABET[:10])
 
     assert tuple(utils.read_chunks(filepath, 2, prepend=b'1')) == (b'1a', b'bc', b'de', b'fg', b'hi', b'j')
     assert tuple(utils.read_chunks(filepath, 2, prepend=b'12')) == (b'12', b'ab', b'cd', b'ef', b'gh', b'ij')

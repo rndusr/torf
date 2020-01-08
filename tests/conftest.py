@@ -237,33 +237,33 @@ def _random_size(piece_size, min_pieces=1, max_pieces=10):
     print('random size:', size, 'pieces:', size / torf.Torrent.piece_size_min)
     return size
 
-def _create_content_file(tmp_path, filename, spec):
-    filepath = tmp_path / filename
-    _write_content_file(filepath, spec)
-    return filepath
 @pytest.fixture
-def create_content_file(tmp_path):
-    func = functools.partial(_create_content_file, tmp_path)
+def create_file(tmp_path):
+    def _create_file(tmp_path, filename, spec):
+        filepath = tmp_path / filename
+        _write_content_file(filepath, spec)
+        return filepath
+    func = functools.partial(_create_file, tmp_path)
     func.piece_size = torf.Torrent.piece_size_min
     func.random_size = functools.partial(_random_size, func.piece_size)
     return func
 
-def _create_content_dir(tmp_path, dirname, *files):
-    content_path = tmp_path / dirname
-    content_path.mkdir()
-    for filepath, spec in files:
-        parts = [part for part in filepath.split(os.sep) if part]
-        dirpath = content_path
-        for part in parts[:-1]:
-            dirpath = dirpath / part
-            if not os.path.exists(dirpath):
-                dirpath.mkdir()
-        filepath = dirpath / parts[-1]
-        _write_content_file(filepath, spec)
-    return content_path
 @pytest.fixture
-def create_content_dir(tmp_path):
-    func = functools.partial(_create_content_dir, tmp_path)
+def create_dir(tmp_path):
+    def _create_dir(tmp_path, dirname, *files):
+        content_path = tmp_path / dirname
+        content_path.mkdir()
+        for filepath, spec in files:
+            parts = [part for part in filepath.split(os.sep) if part]
+            dirpath = content_path
+            for part in parts[:-1]:
+                dirpath = dirpath / part
+                if not os.path.exists(dirpath):
+                    dirpath.mkdir()
+            filepath = dirpath / parts[-1]
+            _write_content_file(filepath, spec)
+        return content_path
+    func = functools.partial(_create_dir, tmp_path)
     func.piece_size = torf.Torrent.piece_size_min
     func.random_size = functools.partial(_random_size, func.piece_size)
     return func

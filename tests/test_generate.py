@@ -22,9 +22,9 @@ def test_no_path():
     assert str(e.value) == 'generate() called with no path specified'
 
 
-def test_with_empty_file(create_content_file):
+def test_with_empty_file(create_file):
     # Create content so we can set path
-    content_path = create_content_file('file.jpg', '<image data>')
+    content_path = create_file('file.jpg', '<image data>')
     t = torf.Torrent(content_path)
     content_path.write_text('')
     with pytest.raises(torf.PathEmptyError) as e:
@@ -32,9 +32,9 @@ def test_with_empty_file(create_content_file):
     assert str(e.value) == f'{t.path}: Empty file'
 
 
-def test_with_empty_directory(create_content_dir):
+def test_with_empty_directory(create_dir):
     # Create content so we can set path
-    content_path = create_content_dir('empty', ('a file', '<data>'))
+    content_path = create_dir('empty', ('a file', '<data>'))
     t = torf.Torrent(content_path)
     (content_path / 'a file').unlink()
     with pytest.raises(torf.PathEmptyError) as e:
@@ -42,8 +42,8 @@ def test_with_empty_directory(create_content_dir):
     assert str(e.value) == f'{t.path}: Empty directory'
 
 
-def test_nonexisting_path(create_content_file):
-    content_path = create_content_file('file.jpg', '<image data>')
+def test_nonexisting_path(create_file):
+    content_path = create_file('file.jpg', '<image data>')
     t = torf.Torrent(content_path)
     content_path.unlink()
     with pytest.raises(torf.PathNotFoundError) as e:
@@ -51,11 +51,11 @@ def test_nonexisting_path(create_content_file):
     assert str(e.value) == f'{content_path}: No such file or directory'
 
 
-def test_unreadable_basedir_in_multifile_torrent(create_content_dir):
-    content_path = create_content_dir('content',
-                                      ('a.jpg', '<image data>'),
-                                      ('b.jpg', '<image data>'),
-                                      ('c.jpg', '<image data>'))
+def test_unreadable_basedir_in_multifile_torrent(create_dir):
+    content_path = create_dir('content',
+                              ('a.jpg', '<image data>'),
+                              ('b.jpg', '<image data>'),
+                              ('c.jpg', '<image data>'))
     t = torf.Torrent(content_path)
     old_mode = os.stat(content_path).st_mode
     try:
@@ -67,11 +67,11 @@ def test_unreadable_basedir_in_multifile_torrent(create_content_dir):
         os.chmod(content_path, mode=old_mode)
 
 
-def test_unreadable_file_in_multifile_torrent(create_content_dir):
-    content_path = create_content_dir('content',
-                                      ('a.jpg', '<image data>'),
-                                      ('b.jpg', '<image data>'),
-                                      ('c.jpg', '<image data>'))
+def test_unreadable_file_in_multifile_torrent(create_dir):
+    content_path = create_dir('content',
+                              ('a.jpg', '<image data>'),
+                              ('b.jpg', '<image data>'),
+                              ('c.jpg', '<image data>'))
     t = torf.Torrent(content_path)
     old_mode = os.stat(content_path).st_mode
     try:
@@ -83,9 +83,9 @@ def test_unreadable_file_in_multifile_torrent(create_content_dir):
         os.chmod(content_path, mode=old_mode)
 
 
-def test_generate_singlefile_torrent_sets_correct_metainfo(create_content_file, random_seed):
+def test_generate_singlefile_torrent_sets_correct_metainfo(create_file, random_seed):
     with random_seed(0):
-        content_path = create_content_file('file.jpg', torf.Torrent.piece_size_min * 10.123)
+        content_path = create_file('file.jpg', torf.Torrent.piece_size_min * 10.123)
     # exp_* values come from these commands:
     # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_generate_singlefile_torre0/file.jpg
     # $ btcheck -i file.jpg.torrent -n | grep Hash
@@ -98,12 +98,12 @@ def test_generate_singlefile_torrent_sets_correct_metainfo(create_content_file, 
                   b"\xd1\xbd\x8cL\x1cy\x82\xbe\x0b%\xf3\xa2\xa4\x9a\xd3\xd6\x90\x9f\xd7\x10\x7f\x93\x87Q")
     _check_metainfo(content_path, 2**15, exp_infohash, exp_pieces)
 
-def test_generate_multifile_torrent_sets_correct_metainfo(create_content_dir, random_seed):
+def test_generate_multifile_torrent_sets_correct_metainfo(create_dir, random_seed):
     with random_seed(0):
-        content_path = create_content_dir('content',
-                                          ('a.jpg', torf.Torrent.piece_size_min * 1.123),
-                                          ('b.jpg', torf.Torrent.piece_size_min * 2.456),
-                                          ('c.jpg', torf.Torrent.piece_size_min * 3.789))
+        content_path = create_dir('content',
+                                  ('a.jpg', torf.Torrent.piece_size_min * 1.123),
+                                  ('b.jpg', torf.Torrent.piece_size_min * 2.456),
+                                  ('c.jpg', torf.Torrent.piece_size_min * 3.789))
     # exp_* values come from these commands:
     # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_generate_multifile_torren0/content
     # $ btcheck -i content.torrent -n | grep Hash
