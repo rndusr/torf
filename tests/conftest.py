@@ -11,6 +11,47 @@ import contextlib
 import functools
 import math
 from unittest import mock
+import argparse
+import itertools
+
+
+# Make piece size and the number of pieces to use for testing torrents
+# configurable
+
+def pytest_addoption(parser):
+    class IntList(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            setattr(namespace, self.dest, [int(value) for value in values.split(',')])
+    parser.addoption('--piece-sizes', default=[8], action=IntList,
+                     help='Comma-separated list of piece sizes to use for test torrents')
+    parser.addoption('--piece-counts', default=[1, 2, 3], action=IntList,
+                     help='Comma-separated list of number of pieces to use for test torrents')
+
+def pytest_generate_tests(metafunc):
+    # Find file_size[_*] fixtures
+    file_size_fixtures = tuple(fxname for fxname in metafunc.fixturenames
+                               if fxname == 'file_size' or fxname.startswith('file_size_'))
+    if file_size_fixtures:
+        piece_sizes = metafunc.config.getoption('piece_sizes')
+        piece_counts = metafunc.config.getoption('piece_counts')
+        argnames = file_size_fixtures + ('piece_size',)
+        argvalues = []
+        for piece_size in piece_sizes:
+            # For each given piece_size, compute file sizes for each piece_count.
+            # We also add/subtract 1 from each size to for more coverage.
+            file_sizes = []
+            for piece_count in piece_counts:
+                file_sizes.append(piece_size * piece_count - 1)
+                file_sizes.append(piece_size * piece_count)
+                file_sizes.append(piece_size * piece_count + 1)
+            # Make arguments for file_size[_*] fixtures by generating all
+            # possible combinations of the previously computed file sizes.
+            # Also need add the piece_size fixture.
+            for fsizes in itertools.permutations(file_sizes, len(file_size_fixtures)):
+                argvalues.append(tuple(fsizes) + (piece_size,))
+        metafunc.parametrize(argnames, argvalues)
+
+
 
 @contextlib.contextmanager
 def _random_seed(seed):
