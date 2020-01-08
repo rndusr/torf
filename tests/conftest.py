@@ -281,18 +281,17 @@ def generated_multifile_torrent(mktorrent, multifile_content):
     return torrent
 
 
-@contextlib.contextmanager
-def _create_torrent(tmpdir, **kwargs):
-    torrent_file = str(tmpdir.join('test.torrent'))
-    try:
-        t = torf.Torrent(**kwargs)
-        t.generate()
-        t.write(torrent_file)
-        yield torrent_file
-    finally:
-        if os.path.exists(torrent_file):
-            os.remove(torrent_file)
-
 @pytest.fixture
-def create_torrent(tmpdir):
-    return functools.partial(_create_torrent, tmpdir)
+def create_torrent_file(tmp_path):
+    @contextlib.contextmanager
+    def _create_torrent_file(tmp_path, **kwargs):
+        torrent_file = tmp_path / 'test.torrent'
+        try:
+            t = torf.Torrent(**kwargs)
+            t.generate()
+            t.write(torrent_file)
+            yield torrent_file
+        finally:
+            if os.path.exists(torrent_file):
+                os.remove(torrent_file)
+    return functools.partial(_create_torrent_file, tmp_path)
