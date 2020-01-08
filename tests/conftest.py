@@ -246,6 +246,7 @@ def create_file(tmp_path):
     func = functools.partial(_create_file, tmp_path)
     func.piece_size = torf.Torrent.piece_size_min
     func.random_size = functools.partial(_random_size, func.piece_size)
+    func.random_bytes = _random_bytes
     return func
 
 @pytest.fixture
@@ -266,6 +267,7 @@ def create_dir(tmp_path):
     func = functools.partial(_create_dir, tmp_path)
     func.piece_size = torf.Torrent.piece_size_min
     func.random_size = functools.partial(_random_size, func.piece_size)
+    func.random_bytes = _random_bytes
     return func
 
 
