@@ -223,6 +223,10 @@ def _write_content_file(filepath, spec):
     else:
         raise RuntimeError(f'Invalid spec for {filepath}: {spec!r}')
 
+def _random_bytes(length):
+    return bytes(random.getrandbits(8)
+                 for _ in range(int(length)))
+
 def _random_size(piece_size, min_pieces=1, max_pieces=10):
     size = int(random.choice((
         piece_size * random.randrange(1, max_pieces),
