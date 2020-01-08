@@ -7,13 +7,6 @@ import os
 import base64
 from collections import defaultdict
 
-piece_size = torf.Torrent.piece_size_min
-def _generate_file_sizes(*piece_counts):
-    for piece_count in piece_counts:
-        yield piece_size * piece_count
-        yield (piece_size * piece_count) - 1
-        yield (piece_size * piece_count) + 1
-
 
 def test_no_path():
     t = torf.Torrent()
@@ -129,59 +122,63 @@ def _check_metainfo(content_path, piece_size, exp_infohash, exp_pieces):
     assert t.metainfo['info']['piece length'] == piece_size
 
 
-@pytest.mark.parametrize('file_size', _generate_file_sizes(1, 2, 5, 8))
-def test_callback_is_called_with_singlefile_torrent(file_size, create_content_file):
-    content_path = create_content_file('file.jpg', file_size)
-    t = torf.Torrent(content_path)
-    cb = mock.Mock(return_value=None)
-    success = t.generate(callback=cb, interval=0)
-    assert success is True
-    assert cb.call_count == t.pieces
-    exp_call_args_list = [mock.call(t, str(content_path), i, t.pieces)
-                          for i in range(1, t.pieces+1)]
-    for call in cb.call_args_list:
-        exp_call_args_list.remove(call)
-    assert exp_call_args_list == []
+def test_callback_is_called_with_singlefile_torrent(file_size, piece_size,
+                                                    create_file, forced_piece_size):
+    with forced_piece_size(piece_size):
+        content_path = create_file('file.jpg', file_size)
+        t = torf.Torrent(content_path)
+        cb = mock.Mock(return_value=None)
+        success = t.generate(callback=cb, interval=0)
+        assert t.piece_size == piece_size
+        assert success is True
+        assert cb.call_count == t.pieces
+        exp_call_args_list = [mock.call(t, str(content_path), i, t.pieces)
+                              for i in range(1, t.pieces+1)]
+        for call in cb.call_args_list:
+            exp_call_args_list.remove(call)
+        assert exp_call_args_list == []
 
 
-@pytest.mark.parametrize('file_size_a', _generate_file_sizes(1, 2, 6, 7))
-@pytest.mark.parametrize('file_size_b', _generate_file_sizes(1, 2, 4, 6))
-def test_callback_is_called_with_multifile_torrent(file_size_a, file_size_b, create_content_dir):
-    content_path = create_content_dir('content',
-                                      ('a.jpg', file_size_a),
-                                      ('b.jpg', file_size_b))
-    file_a_piece_count = file_size_a / create_content_dir.piece_size
-    file_b_piece_count = file_size_b / create_content_dir.piece_size
-    print('a.jpg:', file_size_a, '-', file_a_piece_count, 'pieces')
-    print('b.jpg:', file_size_b, '-', file_b_piece_count, 'pieces')
+def test_callback_is_called_with_multifile_torrent(file_size_a, file_size_b, piece_size,
+                                                   create_dir, forced_piece_size):
+    with forced_piece_size(piece_size):
+        content_path = create_dir('content',
+                                  ('a.jpg', file_size_a),
+                                  ('b.jpg', file_size_b))
+        file_a_piece_count = file_size_a / piece_size
+        file_b_piece_count = file_size_b / piece_size
+        print('a.jpg:', file_size_a, '-', file_a_piece_count, 'pieces')
+        print('b.jpg:', file_size_b, '-', file_b_piece_count, 'pieces')
 
-    exp_pieces_done = 1
-    seen_filepaths = defaultdict(lambda: 0)
-    def assert_cb_args(torrent, filepath, pieces_done, pieces_total):
-        nonlocal exp_pieces_done
-        assert torrent is t
-        assert pieces_done == exp_pieces_done
-        exp_pieces_done += 1
-        seen_filepaths[filepath] += 1
+        exp_pieces_done = 1
+        seen_filepaths = defaultdict(lambda: 0)
+        def assert_cb_args(torrent, filepath, pieces_done, pieces_total):
+            nonlocal exp_pieces_done
+            assert torrent is t
+            assert pieces_done == exp_pieces_done
+            exp_pieces_done += 1
+            seen_filepaths[filepath] += 1
 
-    t = torf.Torrent(content_path)
-    cb = mock.Mock(side_effect=assert_cb_args)
-    success = t.generate(callback=cb, interval=0)
-    assert success is True
+        t = torf.Torrent(content_path)
+        cb = mock.Mock(side_effect=assert_cb_args)
+        success = t.generate(callback=cb, interval=0)
+        assert success is True
+        assert t.piece_size == piece_size
 
-    print('Callback calls:')
-    for call in cb.call_args_list:
-        print(call)
-    assert cb.call_count == t.pieces
+        print('Callback calls:')
+        for call in cb.call_args_list:
+            print(call)
+        assert cb.call_count == t.pieces
 
-    print('Seen filepaths:', dict(seen_filepaths))
-    exp_seen_filepaths_a = math.floor(file_a_piece_count)
-    exp_seen_filepaths_b = math.ceil(
-        file_b_piece_count +
-        file_a_piece_count - math.floor(file_a_piece_count)
-    )
-    assert seen_filepaths[str(content_path / 'a.jpg')] == exp_seen_filepaths_a
-    assert seen_filepaths[str(content_path / 'b.jpg')] == exp_seen_filepaths_b
+        print('Seen filepaths:', dict(seen_filepaths))
+        print(file_a_piece_count)
+        exp_seen_filepaths_a = math.floor(file_a_piece_count)
+        exp_seen_filepaths_b = math.ceil(
+            file_b_piece_count +
+            file_a_piece_count - math.floor(file_a_piece_count)
+        )
+        assert seen_filepaths[str(content_path / 'a.jpg')] == exp_seen_filepaths_a
+        assert seen_filepaths[str(content_path / 'b.jpg')] == exp_seen_filepaths_b
 
 
 def assert_callback_is_called_at_intervals(content_path, monkeypatch):
@@ -201,42 +198,45 @@ def assert_callback_is_called_at_intervals(content_path, monkeypatch):
             exp_call_count = t.pieces // interval + t.pieces % interval
             print(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} = {exp_call_count}')
 
-        print('Actual calls:', cb.call_count)
         assert cb.call_count == exp_call_count
 
-@pytest.mark.parametrize('file_size', _generate_file_sizes(1, 2, 9, 10))
-def test_callback_is_called_at_interval_with_singlefile_torrent(file_size, create_content_file, monkeypatch):
-    content_path = create_content_file('file.jpg', file_size)
-    assert_callback_is_called_at_intervals(content_path, monkeypatch)
+def test_callback_is_called_at_interval_with_singlefile_torrent(file_size, piece_size,
+                                                                create_file, forced_piece_size, monkeypatch):
+    content_path = create_file('file.jpg', file_size)
+    with forced_piece_size(piece_size):
+        assert_callback_is_called_at_intervals(content_path, monkeypatch)
 
-@pytest.mark.parametrize('file_size_b', _generate_file_sizes(1, 2, 5, 6))
-@pytest.mark.parametrize('file_size_a', _generate_file_sizes(1, 2, 4, 7))
-def test_callback_is_called_at_interval_with_multifile_torrent(file_size_a, file_size_b, create_content_dir, monkeypatch):
-    content_path = create_content_dir('content',
-                                      ('a.jpg', file_size_a),
-                                      ('b.jpg', file_size_b))
-    assert_callback_is_called_at_intervals(content_path, monkeypatch)
-
-
-@pytest.mark.parametrize('file_size', _generate_file_sizes(4, 7))
-def test_callback_cancels(file_size, create_content_file):
-    content_path = create_content_file('file.jpg', file_size)
-
-    def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
-        print(f'{pieces_done} / {pieces_total}')
-        if pieces_done / pieces_total > 0.5:
-            return 'STOP THE PRESSES!'
-    cb = mock.Mock(side_effect=maybe_cancel)
-
-    t = torf.Torrent(content_path)
-    success = t.generate(callback=cb)
-    assert success is False
-    assert cb.call_count == math.floor(t.pieces * 0.5) + 1
+def test_callback_is_called_at_interval_with_multifile_torrent(file_size_a, file_size_b, piece_size,
+                                                               create_dir, forced_piece_size, monkeypatch):
+    with forced_piece_size(piece_size):
+        content_path = create_dir('content',
+                                  ('a.jpg', file_size_a),
+                                  ('b.jpg', file_size_b))
+        assert_callback_is_called_at_intervals(content_path, monkeypatch)
 
 
-def test_callback_raises_exception(create_content_file):
-    content_path = create_content_file(
-        'file.jpg', create_content_file.random_size(min_pieces=100, max_pieces=200))
+def test_callback_cancels(file_size, piece_size,
+                          create_file, forced_piece_size):
+    with forced_piece_size(piece_size):
+        # We need a larger file_size here because generate() might finish before
+        # maybe_cancel() as a chance to cancel.
+        content_path = create_file('file.jpg', file_size * 10)
+
+        def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
+            print(f'{pieces_done} / {pieces_total}')
+            if pieces_done / pieces_total > 0.5:
+                return 'STOP THE PRESSES!'
+        cb = mock.Mock(side_effect=maybe_cancel)
+
+        t = torf.Torrent(content_path)
+        success = t.generate(callback=cb)
+        assert success is False
+        assert cb.call_count == math.floor(t.pieces * 0.5) + 1
+
+
+def test_callback_raises_exception(create_file):
+    content_path = create_file(
+        'file.jpg', create_file.random_size(min_pieces=100, max_pieces=200))
 
     with mock.patch('torf._generate.sha1') as sha1_mock:
         def mock_digest():
