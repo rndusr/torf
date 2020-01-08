@@ -10,6 +10,7 @@ from collections import OrderedDict, abc
 import contextlib
 import functools
 import math
+from unittest import mock
 
 @contextlib.contextmanager
 def _random_seed(seed):
@@ -295,3 +296,22 @@ def create_torrent_file(tmp_path):
             if os.path.exists(torrent_file):
                 os.remove(torrent_file)
     return functools.partial(_create_torrent_file, tmp_path)
+
+
+@pytest.fixture
+def forced_piece_size(pytestconfig):
+    @contextlib.contextmanager
+    def _forced_piece_size(piece_size):
+        orig_piece_size_min = torf.Torrent.piece_size_min
+        torf.Torrent.piece_size_min = piece_size
+
+        with mock.patch('torf.Torrent.piece_size', new_callable=mock.PropertyMock) as mock_piece_size:
+            mock_piece_size.return_value = piece_size
+            def piece_size_setter(prop, torrent, value):
+                torrent.metainfo['info']['piece length'] = piece_size
+            mock_piece_size.__set__ = piece_size_setter
+
+            yield piece_size
+
+        torf.Torrent.piece_size_min = orig_piece_size_min
+    return _forced_piece_size
