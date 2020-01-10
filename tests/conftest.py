@@ -275,7 +275,9 @@ def _random_bytes(length):
     return bytes(random.getrandbits(8)
                  for _ in range(int(length)))
 
-def _random_size(piece_size, min_pieces=1, max_pieces=10):
+def _random_size(piece_size=None, min_pieces=1, max_pieces=10):
+    if piece_size is None:
+        piece_size = torf.Torrent.piece_size_min
     size = int(random.choice((
         piece_size * random.randrange(1, max_pieces),
         piece_size * (random.randrange(1, max_pieces) + random.random()),
@@ -294,7 +296,7 @@ def create_file(tmp_path):
         return filepath
     func = functools.partial(_create_file, tmp_path)
     func.piece_size = torf.Torrent.piece_size_min
-    func.random_size = functools.partial(_random_size, func.piece_size)
+    func.random_size = _random_size
     func.random_bytes = _random_bytes
     return func
 
@@ -315,7 +317,7 @@ def create_dir(tmp_path):
         return content_path
     func = functools.partial(_create_dir, tmp_path)
     func.piece_size = torf.Torrent.piece_size_min
-    func.random_size = functools.partial(_random_size, func.piece_size)
+    func.random_size = _random_size
     func.random_bytes = _random_bytes
     return func
 
