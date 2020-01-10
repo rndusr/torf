@@ -357,14 +357,11 @@ def forced_piece_size(pytestconfig):
     def _forced_piece_size(piece_size):
         orig_piece_size_min = torf.Torrent.piece_size_min
         torf.Torrent.piece_size_min = piece_size
-
         with mock.patch('torf.Torrent.piece_size', new_callable=mock.PropertyMock) as mock_piece_size:
             mock_piece_size.return_value = piece_size
             def piece_size_setter(prop, torrent, value):
                 torrent.metainfo['info']['piece length'] = piece_size
             mock_piece_size.__set__ = piece_size_setter
-
             yield piece_size
-
         torf.Torrent.piece_size_min = orig_piece_size_min
     return _forced_piece_size
