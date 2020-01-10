@@ -294,7 +294,6 @@ def create_file(tmp_path):
         _write_content_file(filepath, spec)
         return filepath
     func = functools.partial(_create_file, tmp_path)
-    func.piece_size = torf.Torrent.piece_size_min
     func.random_size = _random_size
     func.random_bytes = _random_bytes
     return func
@@ -315,7 +314,6 @@ def create_dir(tmp_path):
             _write_content_file(filepath, spec)
         return content_path
     func = functools.partial(_create_dir, tmp_path)
-    func.piece_size = torf.Torrent.piece_size_min
     func.random_size = _random_size
     func.random_bytes = _random_bytes
     return func
