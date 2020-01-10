@@ -39,61 +39,26 @@ def test_read_chunks__fixed_size__file_smaller_than_wanted_size(create_file):
 
 def test_read_chunks__fixed_size__file_larger_than_wanted_size(create_file):
     filepath = create_file('some_file', ALPHABET[:15])
-
-    expected_chunks = [b'abcd', b'efgh']
-    with pytest.raises(torf.ReadError) as err:
-        for chunk in utils.read_chunks(filepath, 4, filesize=8):
-            assert chunk == expected_chunks.pop(0)
-    assert str(err.value) == f'{filepath}: File too large'
-    assert expected_chunks == []
-
-    expected_chunks = [b'abcd', b'efgh', b'ij']
-    with pytest.raises(torf.ReadError) as err:
-        for chunk in utils.read_chunks(filepath, 4, filesize=10):
-            assert chunk == expected_chunks.pop(0)
-    assert str(err.value) == f'{filepath}: File too large'
-    assert expected_chunks == []
-
-    expected_chunks = [b'abcde', b'fgh']
-    with pytest.raises(torf.ReadError) as err:
-        for chunk in utils.read_chunks(filepath, 5, filesize=8):
-            assert chunk == expected_chunks.pop(0)
-    assert str(err.value) == f'{filepath}: File too large'
-    assert expected_chunks == []
-
-    expected_chunks = [b'abcde', b'fghij']
-    with pytest.raises(torf.ReadError) as err:
-        for chunk in utils.read_chunks(filepath, 5, filesize=10):
-            assert chunk == expected_chunks.pop(0)
-    assert str(err.value) == f'{filepath}: File too large'
-    assert expected_chunks == []
+    assert tuple(utils.read_chunks(filepath, 4, filesize=8)) == (b'abcd', b'efgh')
+    assert tuple(utils.read_chunks(filepath, 4, filesize=10)) == (b'abcd', b'efgh', b'ij')
+    assert tuple(utils.read_chunks(filepath, 5, filesize=8)) == (b'abcde', b'fgh')
+    assert tuple(utils.read_chunks(filepath, 5, filesize=10)) == (b'abcde', b'fghij')
 
 def test_read_chunks__fixed_size__file_size_divisible_by_chunk_size(create_file):
     filepath = create_file('some_file', ALPHABET[:12])
-
     assert tuple(utils.read_chunks(filepath, 3, filesize=12)) == (b'abc', b'def', b'ghi', b'jkl')
     assert tuple(utils.read_chunks(filepath, 4, filesize=12)) == (b'abcd', b'efgh', b'ijkl')
     assert tuple(utils.read_chunks(filepath, 5, filesize=15)) == (b'abcde', b'fghij', b'kl\x00\x00\x00')
-
-    expected_chunks = [b'abcde', b'f']
-    with pytest.raises(torf.ReadError) as err:
-        for chunk in utils.read_chunks(filepath, 5, filesize=6):
-            assert chunk == expected_chunks.pop(0)
-    assert str(err.value) == f'{filepath}: File too large'
-    assert expected_chunks == []
+    assert tuple(utils.read_chunks(filepath, 4, filesize=8))  == (b'abcd', b'efgh')
 
 def test_read_chunks__fixed_size__file_size_not_divisible_by_chunk_size(create_file):
     filepath = create_file('some_file', ALPHABET[:13])
-
     assert tuple(utils.read_chunks(filepath, 3, filesize=13)) == (b'abc', b'def', b'ghi', b'jkl', b'm')
+    assert tuple(utils.read_chunks(filepath, 4, filesize=13)) == (b'abcd', b'efgh', b'ijkl', b'm')
     assert tuple(utils.read_chunks(filepath, 3, filesize=14)) == (b'abc', b'def', b'ghi', b'jkl', b'm\x00')
-
-    expected_chunks = [b'abc', b'def', b'ghi', b'jk']
-    with pytest.raises(torf.ReadError) as err:
-        for chunk in utils.read_chunks(filepath, 3, filesize=11):
-            assert chunk == expected_chunks.pop(0)
-    assert str(err.value) == f'{filepath}: File too large'
-    assert expected_chunks == []
+    assert tuple(utils.read_chunks(filepath, 7, filesize=14)) == (b'abcdefg', b'hijklm\x00')
+    assert tuple(utils.read_chunks(filepath, 5, filesize=10)) == (b'abcde', b'fghij')
+    assert tuple(utils.read_chunks(filepath, 3, filesize=10)) == (b'abc', b'def', b'ghi', b'j')
 
 def test_read_chunks__fixed_size__file_smaller_than_chunk_size(create_file):
     filepath = create_file('some_file', ALPHABET[:5])

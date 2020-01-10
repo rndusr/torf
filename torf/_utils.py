@@ -104,11 +104,8 @@ class _FixedSizeFile():
 
         if newpos > spec_size:
             # We've read more bytes than we expected.  Shorten `chunk` so that
-            # we returned exactly `spec_size` bytes overall before raising
-            # ReadError on the next call because file size doesn't match.
+            # we returned exactly `spec_size` bytes in total.
             chunk = chunk[:exp_chunk_length]
-            if not chunk:
-                raise error.ReadError(errno.EFBIG, self.name)
 
         elif chunk_length < exp_chunk_length:
             # File is shorter than `spec_size`.  Pad chunk with null bytes.
