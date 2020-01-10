@@ -283,9 +283,8 @@ def _random_size(piece_size=None, min_pieces=1, max_pieces=10):
         piece_size * (random.randrange(1, max_pieces) + random.random()),
         piece_size * (random.randrange(0, max_pieces) + max(0.1, random.random())),
     )))
-    if int(size / torf.Torrent.piece_size_min) < min_pieces:
-        size = min_pieces * torf.Torrent.piece_size_min
-    print('random size:', size, 'pieces:', size / torf.Torrent.piece_size_min)
+    if int(size / piece_size) < min_pieces:
+        size = min_pieces * piece_size
     return size
 
 @pytest.fixture
