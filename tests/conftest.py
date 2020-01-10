@@ -289,9 +289,9 @@ def _random_size(piece_size=None, min_pieces=1, max_pieces=10):
 
 @pytest.fixture
 def create_file(tmp_path):
-    def _create_file(tmp_path, filename, spec):
+    def _create_file(tmp_path, filename, spec=None):
         filepath = tmp_path / filename
-        _write_content_file(filepath, spec)
+        _write_content_file(filepath, spec or _random_size())
         return filepath
     func = functools.partial(_create_file, tmp_path)
     func.random_size = _random_size
