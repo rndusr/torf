@@ -28,12 +28,12 @@ def pytest_addoption(parser):
                      help='Comma-separated list of number of pieces to use for test torrents')
 
 def pytest_generate_tests(metafunc):
+    piece_sizes = metafunc.config.getoption('piece_sizes')
+    piece_counts = metafunc.config.getoption('piece_counts')
     # Find file_size[_*] fixtures
     file_size_fixtures = tuple(fxname for fxname in metafunc.fixturenames
                                if fxname == 'file_size' or fxname.startswith('file_size_'))
     if file_size_fixtures:
-        piece_sizes = metafunc.config.getoption('piece_sizes')
-        piece_counts = metafunc.config.getoption('piece_counts')
         argnames = file_size_fixtures + ('piece_size',)
         argvalues = []
         for piece_size in piece_sizes:
@@ -50,6 +50,14 @@ def pytest_generate_tests(metafunc):
             for fsizes in itertools.permutations(file_sizes, len(file_size_fixtures)):
                 argvalues.append(tuple(fsizes) + (piece_size,))
         metafunc.parametrize(argnames, argvalues)
+    else:
+        for fxname in metafunc.fixturenames:
+            if fxname == 'piece_size':
+                metafunc.parametrize('piece_size', piece_sizes)
+            elif fxname == 'piece_count':
+                metafunc.parametrize('piece_count', piece_counts)
+
+
 
 
 
