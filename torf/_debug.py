@@ -19,7 +19,16 @@ def enable_debugging(filepath=None):
     logging.basicConfig(level=logging.DEBUG, format='%(message)s',
                         filename=filepath)
 
+def _pretty_bytes(b):
+    if isinstance(b, (bytes, bytearray)):
+        if len(b) > 8:
+            return b[:8].hex() + '...' + b[-8:].hex()
+        else:
+            return b.hex()
+    else:
+        return b
+
 def debug(msg):
     with _debug_lock:
         logging.debug(msg)
-
+debug.pretty_bytes = _pretty_bytes
