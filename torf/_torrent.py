@@ -1079,7 +1079,7 @@ class Torrent():
                 3. Number of checked pieces (:class:`int`)
                 4. Total number of pieces (:class:`int`)
                 5. Index of the current piece (:class:`int`)
-                6. SHA1 hash of the current piece (:class:`bytes`)
+                6. SHA1 hash of the current piece or ``None`` (:class:`bytes`)
                 7. Exception (:class:`TorfError`) or ``None``
 
             If `callback` returns anything that is not ``None``, verification is
@@ -1114,22 +1114,14 @@ class Torrent():
         else:
             exception = None
             threads = threads or NCORES
-
-            # Read piece_size'd chunks from disk and push them to queue for hashing
-            def reader_error_callback(exc, filepath, piece_index, torrent=self,
-                                      pieces_done=0, pieces_total=self.pieces,
-                                      piece_hash=None):
-                nonlocal exception
-                exception = exc
-                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
-                                      piece_index, piece_hash, exception),
-                             force_call=True)
             reader = generate.Reader(filepaths=fs_filepaths,
                                      file_sizes={fs_path:self.partial_size(t_path)
                                                  for fs_path,t_path in filepaths},
                                      piece_size=self.piece_size,
-                                     queue_size=threads*3,
-                                     error_callback=reader_error_callback)
+                                     queue_size=threads+1,
+                                     skip_file_on_first_error=skip_file_on_first_error)
+            # Try to deprecate this. Reader() should communicate to Hashers and
+            # Collector which files are deprecated
             file_was_skipped=lambda f: f in reader.skipped_files
 
             # Pool of workers that pull from reader_thread's piece queue, calculate
@@ -1138,47 +1130,35 @@ class Torrent():
                                                         file_was_skipped=file_was_skipped)
 
             # Pull from the hash queue; also call `callback` and maybe stop everything
-            def collector_callback(filepath, pieces_done, piece_index, piece_hash,
+            def collector_callback(filepath, pieces_done, piece_index, piece_hash, exc,
                                    torrent=self, pieces_total=self.pieces, piece_size=self.piece_size,
                                    exp_hashes=self.hashes,
                                    exp_filesizes={fs_path : self.partial_size(t_path)
-                                                  for fs_path,t_path in filepaths},
-                                   files_size_checked=[]):
+                                                  for fs_path,t_path in filepaths}):
                 nonlocal exception
-
-                # Verify piece hash first
-                if piece_hash != exp_hashes[piece_index]:
-                    if skip_file_on_first_error:
-                        reader.skip_file(filepath)
-                    files = tuple((fs_path, self.partial_size(t_path))
-                                  for fs_path,t_path in filepaths)
-                    exception = error.VerifyContentError(piece_index, piece_size, files)
+                if exc is not None:
+                    # Reader raised exception
+                    exception = exc
                     maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
                                           piece_index, piece_hash, exception),
                                  force_call=True)
-                    return
-
-                # `filepath` could be OK but have surplus bytes at the end.  The
-                # reader won't read those extra bytes because it maintains piece
-                # offsets as defined in the metainfo.
-                if filepath not in files_size_checked:
-                    files_size_checked.append(filepath)
-                    if os.path.getsize(filepath) > exp_filesizes[filepath]:
-                        exception = error.VerifyFileSizeError(filepath,
-                                                              os.path.getsize(filepath),
-                                                              exp_filesizes[filepath])
-                        maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
-                                              piece_index, piece_hash, exception),
-                                     force_call=True)
-                        if skip_file_on_first_error:
-                            reader.skip_file(filepath)
-                        return
-
-                # No error, but report progress
-                maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
-                                      piece_index, piece_hash, None),
-                             # Always call callback after the last piece was hashed
-                             force_call=pieces_done >= pieces_total)
+                elif piece_hash is not None and piece_hash != exp_hashes[piece_index]:
+                    # Piece hash doesn't match
+                    if skip_file_on_first_error:
+                        reader.skip_file(filepath, piece_index)
+                    file_sizes = tuple((fs_path, self.partial_size(t_path))
+                                       for fs_path,t_path in filepaths)
+                    exception = error.VerifyContentError(piece_index, piece_size, file_sizes)
+                    maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                          piece_index, piece_hash, exception),
+                                 force_call=True)
+                else:
+                    # No error; report progress
+                    maybe_cancel(cb_args=(torrent, filepath, pieces_done, pieces_total,
+                                          piece_index, piece_hash, None),
+                                 # Always call callback after the last piece was
+                                 # hashed to report completion
+                                 force_call=pieces_done >= pieces_total)
             collector_thread = generate.CollectorWorker(hasher_threadpool.hash_queue,
                                                         callback=collector_callback,
                                                         file_was_skipped=file_was_skipped)
