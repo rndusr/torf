@@ -26,12 +26,58 @@ from collections import defaultdict
 from . import _errors as error
 
 
-class NamedQueueMixin():
-    """Add `name` property and a useful `__repr__`"""
+class ExhaustableQueue(queue.Queue):
+    """
+    If `exhausted` method is called, unblock all calls raise `queue.Empty` in
+    all calls to get().  The `put` method is disabled after all remaining tasks
+    are consumed.
+    """
+    _EXHAUSTED = object()
+
     def __init__(self, *args, name=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.__is_exhausted = False
         self.__name = name
 
+    def get(self):
+        with self.not_empty:
+            while not self.__is_exhausted and not self._qsize():
+                self.not_empty.wait()
+            if self.__is_exhausted and not self._qsize():
+                # Tell all other get() callers to stop blocking
+                self.not_empty.notify_all()
+                raise queue.Empty()
+            task = self._get()
+            if task is self._EXHAUSTED:
+                # Mark this queue as exhausted so it won't accept any new tasks
+                # via put()
+                debug('{self} is now exhausted')
+                self.__is_exhausted = True
+                # Tell all other get() callers to stop blocking
+                self.not_empty.notify_all()
+                raise queue.Empty()
+            self.not_full.notify()
+            return task
+
+    def put(self, task):
+        if self.__is_exhausted:
+            raise RuntimeError('Cannot call put() on exhausted queue: {self}')
+        else:
+            super().put(task)
+
+    def exhausted(self):
+        if not self.__is_exhausted:
+            # Unblock one of the get() calls.  If nobody is currently calling
+            # get(), this still marks the end of the queue and will eventually
+            # be consumed after all real tasks.
+            self.put(self._EXHAUSTED)
+
+    @property
+    def is_exhausted(self):
+        return self.__is_exhausted
+
+    # TODO: Add clear() method that get()s tasks from queue until it is empty,
+    #       but only if __is_exhausted is True.
     @property
     def name(self):
         return self.__name
@@ -41,39 +87,6 @@ class NamedQueueMixin():
             return f'<{type(self).__name__} {self.__name!r} [{self.qsize()}]>'
         else:
             return f'<{type(self).__name__} [{self.qsize()}]>'
-
-class QueueExhausted(Exception): pass
-class ExhaustQueueMixin():
-    """
-    Add `exhausted` method that marks this queue as dead
-
-    `get` blocks until there is a new value or until `exhausted` is called. All
-    calls to `get` on an exhausted queue raise `QueueExhausted` if it is empty.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__is_exhausted = False
-
-    def get(self):
-        while True:
-            try:
-                return super().get(timeout=0.01)
-            except queue.Empty:
-                if self.__is_exhausted:
-                    # debug(f'{self} is exhausted')
-                    raise QueueExhausted()
-
-    def exhausted(self):
-        if not self.__is_exhausted:
-            self.__is_exhausted = True
-            # debug(f'Marked {self} as exhausted')
-
-    @property
-    def is_exhausted(self):
-        return self.__is_exhausted
-
-class ExhaustQueue(ExhaustQueueMixin, NamedQueueMixin, queue.Queue):
-    pass
 
 
 class Worker():
@@ -116,7 +129,7 @@ class Reader():
         assert self._filepaths, 'No file paths given'
         self._file_sizes = file_sizes
         self._piece_size = piece_size
-        self._piece_queue = ExhaustQueue(name='pieces', maxsize=queue_size)
+        self._piece_queue = ExhaustableQueue(name='pieces', maxsize=queue_size)
         self._bytes_chunked = 0  # Number of bytes sent off as piece_size'd chunks
         self._trailing_bytes = b''
         self._skip_file_on_first_error = skip_file_on_first_error
@@ -384,8 +397,8 @@ class Reader():
 class HashWorkerPool():
     def __init__(self, workers_count, piece_queue, file_was_skipped=None):
         self._piece_queue = piece_queue
-        self._hash_queue = ExhaustQueue(name='hashes')
         self._workers_count = workers_count
+        self._hash_queue = ExhaustableQueue(name='hashes')
         if file_was_skipped is not None:
             self._file_was_skipped = file_was_skipped
         else:
