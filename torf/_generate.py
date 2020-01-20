@@ -382,7 +382,7 @@ class Reader():
         return self._piece_queue
 
 
-class HashWorkerPool():
+class HasherPool():
     def __init__(self, workers_count, piece_queue, file_was_skipped=None):
         self._piece_queue = piece_queue
         self._hash_queue = ExhaustableQueue(name='hashes')
@@ -441,7 +441,7 @@ class HashWorkerPool():
         return self._hash_queue
 
 
-class CollectorWorker(Worker):
+class Collector(Worker):
     def __init__(self, hash_queue, callback=None, file_was_skipped=None):
         self._hash_queue = hash_queue
         self._callback = callback
