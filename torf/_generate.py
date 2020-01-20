@@ -138,7 +138,7 @@ class Reader():
         self._stop = False
 
     def read(self):
-        if self._stop or self._piece_queue.is_exhausted:
+        if self._stop:
             raise RuntimeError(f'Cannot read from the same instance multiple times.')
         try:
             for filepath in self._filepaths:
