@@ -269,16 +269,10 @@ class Reader():
         if spec_filesize is None:
             raise RuntimeError(f'Unable to fake reading {filepath} without file size')
 
-        # How many bytes of `filepath` we haven't read
-        # remaining_bytes = spec_filesize - bytes_chunked + len(self._trailing_bytes)
-        # debug(f'reader: Pretending to read {spec_filesize} - {bytes_chunked} + {len(self._trailing_bytes)} '
-        #       f'= {remaining_bytes} remaining bytes from {os.path.basename(filepath)}')
-
         file_index = self._calc_file_start(filepath)
         remaining_bytes = file_index - self._bytes_chunked + spec_filesize - bytes_chunked
         debug(f'reader: Pretending to read {self._bytes_chunked} - {file_index} + {spec_filesize} - {bytes_chunked} '
               f'= {remaining_bytes} remaining bytes from {os.path.basename(filepath)}')
-        # breakpoint()
         fake_bytes_chunked = bytes_chunked
         debug(f'reader: Bytes chunked so far: {self._bytes_chunked} + {fake_bytes_chunked}')
         while remaining_bytes >= piece_size:
@@ -328,10 +322,6 @@ class Reader():
                 debug(f'Marking {filepath} for skipping because of piece_index {piece_index} '
                       f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
                 self._skip_files.add(filepath)
-                # next_filepath = self._get_next_filepath(filepath)
-                # if next_filepath is not None:
-                #     debug(f'reader: Next file: {next_filepath}')
-                #     self._expect_corruption(next_filepath)
             else:
                 debug(f'Not skipping {filepath} because of expected '
                       f'corrupt piece_index {piece_index}: {self._expected_corruptions}')
