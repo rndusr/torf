@@ -374,8 +374,9 @@ class Reader():
                 pass
 
     def stop(self):
-        debug(f'reader: Setting stop flag')
-        self._stop = True
+        if not self._stop:
+            debug(f'reader: Setting stop flag')
+            self._stop = True
         return self
 
     @property
