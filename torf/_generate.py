@@ -110,9 +110,7 @@ class Worker():
         try:
             self._worker()
         except BaseException as e:
-            # debug(f'{self.name}: Setting exception: {e!r}')
             self._exception = e
-        # debug(f'{self.name}: Bye')
 
     def join(self):
         self._thread.join()
@@ -171,6 +169,7 @@ class Reader():
             self._trailing_bytes = b''
             self._piece_queue.exhausted()
             self._stop = True
+            debug(f'reader: Bye')
 
     def _check_file_size(self, filepath):
         spec_filesize = self._file_sizes[filepath]
@@ -207,7 +206,7 @@ class Reader():
                                        prepend=self._trailing_bytes)
             self._trailing_bytes = b''
             for chunk in chunks:
-                # debug(f'reader: Read {len(chunk)} bytes from {os.path.basename(filepath)}: {chunk.hex()}')
+                # debug(f'reader: Read {len(chunk)} bytes from {os.path.basename(filepath)}: {debug.pretty_bytes(chunk)}')
 
                 if self._stop:
                     debug(f'reader: Found stop signal while reading from {os.path.basename(filepath)}')
@@ -231,8 +230,7 @@ class Reader():
                         # debug(f'reader: Sending piece_index {piece_index} of {os.path.basename(filepath)} '
                         #       f'to {self._piece_queue} [{self._piece_queue.qsize()}]: {debug.pretty_bytes(chunk)}')
                         self._push(piece_index, chunk, filepath, exc=None)
-                        # debug(f'reader: Sent piece_index {piece_index} to '
-                        #       f'{self._piece_queue} [{self._piece_queue.qsize()}]')
+                        # debug(f'reader: Sent piece_index {piece_index} to {self._piece_queue} [{self._piece_queue.qsize()}]')
                     else:
                         # Last chunk in file might be shorter than piece_size
                         self._trailing_bytes = chunk
@@ -247,9 +245,9 @@ class Reader():
                 debug(f'reader: Raising read exception: {exc!r}')
                 raise
             else:
-                debug(f'reader: Reporting read exception: {exc!r}')
                 # Report error with piece_index pointing to the first corrupt piece
                 piece_index = self._calc_piece_index(bytes_chunked) + 1
+                debug(f'reader: Reporting read exception for piece index {piece_index}: {exc!r}')
                 self._push(piece_index, None, filepath, exc)
                 self.skip_file(filepath, piece_index)
                 bytes_chunked += self._fake_read_file(filepath, bytes_chunked)
@@ -297,13 +295,13 @@ class Reader():
                 f.seek(-remaining_bytes, os.SEEK_END)
                 self._trailing_bytes = f.read(remaining_bytes)
             debug(f'reader: Read {len(self._trailing_bytes)} trailing bytes '
-                  f'from {filepath}: {self._trailing_bytes.hex()}')
+                  f'from {filepath}: {debug.pretty_bytes(self._trailing_bytes)}')
         except OSError:
             # If the file is missing, fill trailing_bytes with the expected
             # amount of bytes to maintain correct piece offsets.
             self._trailing_bytes = b'\x00' * remaining_bytes
             debug(f'reader: Pretending to read {len(self._trailing_bytes)} trailing bytes '
-                  f'from {filepath}: {self._trailing_bytes.hex()}')
+                  f'from {filepath}: {debug.pretty_bytes(self._trailing_bytes)}')
 
         return fake_bytes_chunked
 
@@ -362,6 +360,7 @@ class Reader():
     def _push(self, piece_index, piece=None, filepath=None, exc=None):
         piece = None if piece is None else bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
+        # debug(f'reader: Pushed piece {piece_index} [{self._piece_queue.qsize()}]')
 
     def _get_next_filepath(self, filepath):
         try:
@@ -531,7 +530,7 @@ class CancelCallback():
     def __call__(self, cb_args, force_call=False):
         now = time_monotonic()
         prev_call_time = self._prev_call_time
-        if (force_call or                             # Special case (e.g. exception during Torrent.verify())
+        if (force_call or                             # Special case (e.g. exception in Torrent.verify())
             prev_call_time is None or                 # This is the first call
             now - prev_call_time >= self._interval):  # Previous call was at least `interval` seconds ago
             self._prev_call_time = now
