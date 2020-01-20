@@ -17,11 +17,9 @@ from ._debug import debug
 
 from hashlib import sha1
 import threading
-from multiprocessing.pool import ThreadPool
 import queue
 import os
 from time import monotonic as time_monotonic
-from itertools import count as _count
 from collections import defaultdict
 from . import _errors as error
 
@@ -387,62 +385,55 @@ class Reader():
 class HashWorkerPool():
     def __init__(self, workers_count, piece_queue, file_was_skipped=None):
         self._piece_queue = piece_queue
-        self._workers_count = workers_count
         self._hash_queue = ExhaustableQueue(name='hashes')
         if file_was_skipped is not None:
             self._file_was_skipped = file_was_skipped
         else:
             self._file_was_skipped = lambda _: False
         self._stop = False
-        self._name_counter = _count().__next__
-        self._name_counter_lock = threading.Lock()
-        self._pool = ThreadPool(workers_count, self._worker)
-
-    def _get_new_worker_name(self):
-        with self._name_counter_lock:
-            return f'hasher #{self._name_counter()}'
+        self._workers = [Worker(f'hasher{i}', self._worker)
+                         for i in range(1, workers_count+1)]
 
     def _worker(self):
-        name = self._get_new_worker_name()
+        name = threading.current_thread().name
         piece_queue = self._piece_queue
-        hash_queue = self._hash_queue
-        file_was_skipped = self._file_was_skipped
-        while True:
+        while not self._stop:
+            # debug(f'{name}: Waiting for next task [{piece_queue.qsize()}]')
             try:
-                piece_index, piece, filepath, exc = piece_queue.get()
-            except QueueExhausted:
+                task = piece_queue.get()
+            except queue.Empty:
                 # debug(f'{name}: {piece_queue} is exhausted')
                 break
             else:
-                if exc is not None:
-                    # debug(f'{name}: Forwarding exception for piece_index {piece_index}: {exc!r}')
-                    hash_queue.put((piece_index, piece, filepath, exc))
-                elif file_was_skipped(filepath):
-                    # debug(f'{name}: Sending dummy for piece_index {piece_index} of skipped file {os.path.basename(filepath)}')
-                    hash_queue.put((piece_index, None, filepath, None))
-                else:
-                    piece_hash = sha1(piece).digest() if piece is not None else None
-                    # debug(f'{name}: Sending hash of piece_index {piece_index} to {hash_queue}: '
-                    #       f'{debug.pretty_bytes(piece)}: {debug.pretty_bytes(piece_hash)}')
-                    hash_queue.put((piece_index, piece_hash, filepath, exc))
-                    # debug(f'{name}: Sent hash: {debug.pretty_bytes(piece_hash)}')
+                self._work(*task)
+        debug(f'{name}: Bye, piece_queue has {piece_queue.qsize()} items left')
 
-            if self._stop:
-                # debug(f'{name}: Stop flag found')
-                break
-        # debug(f'{name}: Bye')
+    def _work(self, piece_index, piece, filepath, exc):
+        # name = threading.current_thread().name
+        if exc is not None:
+            # debug(f'{name}: Forwarding exception for piece_index {piece_index}: {exc!r}')
+            self._hash_queue.put((piece_index, piece, filepath, exc))
+        elif self._file_was_skipped(filepath):
+            # debug(f'{name}: Sending dummy for piece_index {piece_index} of skipped file {os.path.basename(filepath)}')
+            self._hash_queue.put((piece_index, None, filepath, None))
+        else:
+            piece_hash = sha1(piece).digest() if piece is not None else None
+            # debug(f'{name}: Sending hash of piece_index {piece_index} to hash queue: '
+            #       f'{debug.pretty_bytes(piece)}: {piece_hash}')
+            self._hash_queue.put((piece_index, piece_hash, filepath, exc))
 
     def stop(self):
-        # debug(f'hasherpool: Stopping hasher pool')
-        self._stop = True
+        if not self._stop:
+            debug(f'hasherpool: Setting stop flag')
+            self._stop = True
         return self
 
     def join(self):
-        # debug(f'hasherpool: Joining {self._workers_count} workers')
-        self._pool.close()
-        self._pool.join()
+        for worker in self._workers:
+            debug(f'hasherpool: Joining {worker.name}')
+            worker.join()
+        debug('hasherpool: Joined all workers')
         self._hash_queue.exhausted()
-        # debug(f'hasherpool: All workers joined')
         return self
 
     @property
