@@ -446,7 +446,9 @@ class CollectorWorker(Worker):
         self._hash_queue = hash_queue
         self._callback = callback
         self._stop = False
+        self._hashes_unsorted = []
         self._hashes = bytes()
+        self._pieces_seen = set()
         if file_was_skipped is not None:
             self._file_was_skipped = file_was_skipped
         else:
@@ -454,48 +456,39 @@ class CollectorWorker(Worker):
         super().__init__(name='collector', worker=self._collect_hashes)
 
     def _collect_hashes(self):
-        hash_queue = self._hash_queue
-        callback = self._callback
-        file_was_skipped = self._file_was_skipped
-        hashes_unsorted = []
-        pieces_seen = set()
-
-        while True:
+        while not self._stop:
+            # debug(f'collector: Waiting for next piece_hash [{self._hash_queue.qsize()}]')
             try:
-                # debug(f'collector: Getting from {hash_queue}')
-                piece_index, piece_hash, filepath, exc = hash_queue.get()
-            except QueueExhausted:
-                # debug(f'collector: {hash_queue} is exhausted')
+                task = self._hash_queue.get()
+            except queue.Empty:
+                # debug(f'collector: {self._hash_queue} is exhausted')
                 break
             else:
-                if file_was_skipped(filepath):
-                    piece_hash = None
+                self._work(*task)
 
-                # A piece can be reported twice
-                pieces_seen.add(piece_index)
-
-                # debug(f'collector: Got {piece_index}, {debug.pretty_bytes(piece_hash)}, {filepath}, {exc}')
-                if exc is not None:
-                    if callback:
-                        # debug(f'collector: Forwarding exception for piece_index {piece_index}: {exc!r}')
-                        callback(filepath, len(pieces_seen), piece_index, piece_hash, exc)
-                    else:
-                        # debug(f'collector: Raising forwarded exception: {exc}')
-                        raise exc
-                else:
-                    # debug(f'collector: Collected piece hash of piece_index {piece_index} of {filepath}: '
-                    #       f'{debug.pretty_bytes(piece_hash)}')
-                    if piece_hash is not None:
-                        hashes_unsorted.append((piece_index, piece_hash))
-                    if callback:
-                        # debug(f'collector: Calling callback: pieces_done={len(pieces_seen)}')
-                        callback(filepath, len(pieces_seen), piece_index, piece_hash, exc)
-            if self._stop:
-                # debug(f'collector: Stop flag found while getting piece hash')
-                break
-        # debug(f'collector: Collected {len(hashes_unsorted)} pieces')
         # Sort hashes by piece_index and concatenate them
-        self._hashes = b''.join(hash for index,hash in sorted(hashes_unsorted))
+        self._hashes = b''.join(hash for index,hash in sorted(self._hashes_unsorted))
+        debug(f'collector: Collected {len(self._hashes_unsorted) / 20} pieces')
+        debug(f'collector: Bye, hash_queue has {self._hash_queue.qsize()} items left')
+
+    def _work(self, piece_index, piece_hash, filepath, exc):
+        # A piece can be reported twice, but we don't want to increase
+        # pieces_done in that case
+        self._pieces_seen.add(piece_index)
+        # In case a piece from a skipped file was already hashed and enqueued,
+        # act like drop the hash and report it as skipped.
+        if self._file_was_skipped(filepath):
+            piece_hash = None
+        if exc is not None:
+            if self._callback:
+                self._callback(filepath, len(self._pieces_seen), piece_index, piece_hash, exc)
+            else:
+                raise exc
+        else:
+            if piece_hash is not None:
+                self._hashes_unsorted.append((piece_index, piece_hash))
+            if self._callback:
+                self._callback(filepath, len(self._pieces_seen), piece_index, piece_hash, exc)
 
     @property
     def hashes(self):
