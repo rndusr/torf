@@ -17,14 +17,17 @@ import os
 
 class TorfError(Exception):
     """Base exception for all exceptions raised by torf"""
-    pass
+    def __init__(self, msg, *posargs, **kwargs):
+        super().__init__(msg)
+        self.posargs = posargs
+        self.kwargs = kwargs
 
 
 class URLError(TorfError):
     """Invalid URL"""
     def __init__(self, url):
         self._url = url
-        super().__init__(f'{url}: Invalid URL')
+        super().__init__(f'{url}: Invalid URL', url)
 
     @property
     def url(self):
@@ -39,9 +42,11 @@ class PieceSizeError(TorfError):
         self._min = min
         self._max = max
         if min is not None and max is not None:
-            super().__init__(f'Piece size must be between {min} and {max}: {size}')
+            super().__init__(f'Piece size must be between {min} and {max}: {size}',
+                             size, min=min, max=max)
         else:
-            super().__init__(f'Piece size must be a power of 2: {size}')
+            super().__init__(f'Piece size must be a power of 2: {size}',
+                             size)
 
     @property
     def size(self):
@@ -62,7 +67,7 @@ class PieceSizeError(TorfError):
 class MetainfoError(TorfError):
     """Invalid torrent metainfo"""
     def __init__(self, msg):
-        super().__init__(f'Invalid metainfo: {msg}')
+        super().__init__(f'Invalid metainfo: {msg}', msg)
 
 
 class BdecodeError(TorfError):
@@ -72,7 +77,7 @@ class BdecodeError(TorfError):
         if filepath is None:
             super().__init__('Invalid metainfo format')
         else:
-            super().__init__(f'{filepath}: Invalid torrent file format')
+            super().__init__(f'{filepath}: Invalid torrent file format', filepath)
 
     @property
     def filepath(self):
@@ -86,9 +91,9 @@ class MagnetError(TorfError):
         self._uri = uri
         self._reason = reason
         if reason is not None:
-            super().__init__(f'{uri}: {reason}')
+            super().__init__(f'{uri}: {reason}', uri, reason=reason)
         else:
-            super().__init__(f'{uri}: Invalid magnet URI')
+            super().__init__(f'{uri}: Invalid magnet URI', uri)
 
     @property
     def uri(self):
@@ -105,7 +110,7 @@ class PathNotFoundError(TorfError):
     """Path does not exist"""
     def __init__(self, path):
         self._path = path
-        super().__init__(f'{path}: No such file or directory')
+        super().__init__(f'{path}: No such file or directory', path)
 
     @property
     def path(self):
@@ -118,9 +123,9 @@ class PathEmptyError(TorfError):
     def __init__(self, path):
         self._path = path
         if os.path.isfile(path):
-            super().__init__(f'{path}: Empty file')
+            super().__init__(f'{path}: Empty file', path)
         else:
-            super().__init__(f'{path}: Empty directory')
+            super().__init__(f'{path}: Empty directory', path)
 
     @property
     def path(self):
@@ -132,7 +137,7 @@ class VerifyNotDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
     def __init__(self, path):
         self._path = path
-        super().__init__(f'{path}: Is a directory')
+        super().__init__(f'{path}: Is a directory', path)
 
     @property
     def path(self):
@@ -144,7 +149,7 @@ class VerifyIsDirectoryError(TorfError):
     """Expected (link to) directory, but found something else"""
     def __init__(self, path):
         self._path = path
-        super().__init__(f'{path}: Not a directory')
+        super().__init__(f'{path}: Not a directory', path)
 
     @property
     def path(self):
@@ -159,9 +164,11 @@ class VerifyFileSizeError(TorfError):
         self._actual_size = actual_size
         self._expected_size = expected_size
         if actual_size > expected_size:
-            super().__init__(f'{filepath}: Too big: {actual_size} instead of {expected_size} bytes')
+            super().__init__(f'{filepath}: Too big: {actual_size} instead of {expected_size} bytes',
+                             filepath, actual_size=actual_size, expected_size=expected_size)
         elif actual_size < expected_size:
-            super().__init__(f'{filepath}: Too small: {actual_size} instead of {expected_size} bytes')
+            super().__init__(f'{filepath}: Too small: {actual_size} instead of {expected_size} bytes',
+                             filepath, actual_size=actual_size, expected_size=expected_size)
         else:
             raise RuntimeError(f'Unjustified: actual_size={actual_size} == expected_size={expected_size}')
 
@@ -225,7 +232,7 @@ class VerifyContentError(TorfError):
                         ', '.join(corrupt_files))
 
         self._files = tuple(corrupt_files)
-        super().__init__(msg)
+        super().__init__(msg, piece_index, piece_size, file_sizes)
 
     @property
     def piece_index(self):
@@ -250,9 +257,9 @@ class ReadError(TorfError):
         self._path = path
         msg = os.strerror(errno) if errno else 'Unable to read'
         if path is None:
-            super().__init__(f'{msg}')
+            super().__init__(f'{msg}', errno)
         else:
-            super().__init__(f'{path}: {msg}')
+            super().__init__(f'{path}: {msg}', errno, path)
 
     @property
     def path(self):
@@ -272,9 +279,9 @@ class WriteError(TorfError):
         self._path = path
         msg = os.strerror(errno) if errno else 'Unable to write'
         if path is None:
-            super().__init__(f'{msg}')
+            super().__init__(f'{msg}', path)
         else:
-            super().__init__(f'{path}: {msg}')
+            super().__init__(f'{path}: {msg}', errno, path)
 
     @property
     def path(self):
