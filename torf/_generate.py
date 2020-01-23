@@ -49,7 +49,7 @@ class ExhaustableQueue(queue.Queue):
             if task is self._EXHAUSTED:
                 # Mark this queue as exhausted so it won't accept any new tasks
                 # via put()
-                debug('{self} is now exhausted')
+                debug(f'{self} is now exhausted')
                 self.__is_exhausted = True
                 # Tell all other get() callers to stop blocking
                 self.not_empty.notify_all()
@@ -142,7 +142,7 @@ class Reader():
                     debug(f'reader: Stopped reading after piece_index {self._calc_piece_index()}')
                     break
                 elif self.file_was_skipped(filepath):
-                    debug(f'reader: Skipping {filepath} before opening it')
+                    debug(f'reader: Skipping {os.path.basename(filepath)} before opening it')
                     self._bytes_chunked += self._fake_read_file(filepath)
                     self._expect_corruption(filepath=filepath)
                     continue
@@ -163,6 +163,7 @@ class Reader():
                 debug(f'reader: {len(self._trailing_bytes)} final bytes of all files: '
                       f'{debug.pretty_bytes(self._trailing_bytes)}')
                 self._push(piece_index, self._trailing_bytes, filepath, exc=None)
+            debug(f'reader: Chunked {self._bytes_chunked} bytes in total')
         finally:
             self._trailing_bytes = b''
             self._piece_queue.exhausted()
@@ -210,7 +211,7 @@ class Reader():
                     debug(f'reader: Found stop signal while reading from {os.path.basename(filepath)}')
                     break
                 elif self.file_was_skipped(filepath):
-                    debug(f'reader: Skipping {filepath} while chunking it')
+                    debug(f'reader: Skipping {os.path.basename(filepath)} while chunking it')
                     bytes_chunked = self._fake_read_file(filepath, bytes_chunked)
                     next_filepath = self._get_next_filepath(filepath)
                     if next_filepath is not None:
@@ -315,11 +316,11 @@ class Reader():
     def skip_file(self, filepath, piece_index):
         if self._skip_file_on_first_error and filepath not in self._skip_files:
             if piece_index not in self._expected_corruptions:
-                debug(f'Marking {filepath} for skipping because of piece_index {piece_index} '
+                debug(f'Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
                       f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
                 self._skip_files.add(filepath)
             else:
-                debug(f'Not skipping {filepath} because of expected '
+                debug(f'Not skipping {os.path.basename(filepath)} because of expected '
                       f'corrupt piece_index {piece_index}: {self._expected_corruptions}')
 
     # When we fake-read a file, we must also fake the trailing bytes that
@@ -468,7 +469,7 @@ class Collector(Worker):
 
         # Sort hashes by piece_index and concatenate them
         self._hashes = b''.join(hash for index,hash in sorted(self._hashes_unsorted))
-        debug(f'collector: Collected {len(self._hashes_unsorted) / 20} pieces')
+        debug(f'collector: Collected {len(self._hashes_unsorted)} pieces')
         debug(f'collector: Bye, hash_queue has {self._hash_queue.qsize()} items left')
 
     def _work(self, piece_index, piece_hash, filepath, exc):
