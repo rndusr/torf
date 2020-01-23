@@ -82,9 +82,9 @@ class ExhaustableQueue(queue.Queue):
 
     def __repr__(self):
         if self.__name:
-            return f'<{type(self).__name__} {self.__name!r} [{self.qsize()}]>'
+            return f'<{type(self).__name__} {self.__name!r} [{self._qsize()}]>'
         else:
-            return f'<{type(self).__name__} [{self.qsize()}]>'
+            return f'<{type(self).__name__} [{self._qsize()}]>'
 
 
 class Worker():
