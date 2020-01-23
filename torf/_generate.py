@@ -144,8 +144,7 @@ class Reader():
                 elif self.file_was_skipped(filepath):
                     debug(f'reader: Skipping {os.path.basename(filepath)} before opening it')
                     self._bytes_chunked += self._fake_read_file(filepath)
-                    self._expect_corruption(filepath=filepath)
-                    continue
+                    self._expect_corruption(self._get_next_filepath(filepath))
                 else:
                     self._check_file_size(filepath)
                     self._bytes_chunked += self._read_file(filepath)
@@ -187,9 +186,7 @@ class Reader():
                     self._push(piece_index, None, filepath, exc)
                     # No need to read this file
                     self.skip_file(filepath, piece_index)
-                    next_filepath = self._get_next_filepath(filepath)
-                    if next_filepath is not None:
-                        self._expect_corruption(next_filepath)
+                    self._expect_corruption(self._get_next_filepath(filepath))
 
     def _read_file(self, filepath):
         piece_size = self._piece_size
@@ -213,9 +210,7 @@ class Reader():
                 elif self.file_was_skipped(filepath):
                     debug(f'reader: Skipping {os.path.basename(filepath)} while chunking it')
                     bytes_chunked = self._fake_read_file(filepath, bytes_chunked)
-                    next_filepath = self._get_next_filepath(filepath)
-                    if next_filepath is not None:
-                        self._expect_corruption(next_filepath)
+                    self._expect_corruption(self._get_next_filepath(filepath))
                     break
                 else:
                     # Concatenate piece_size'd chunks across files until we have
@@ -249,10 +244,8 @@ class Reader():
                 debug(f'reader: Reporting read exception for piece index {piece_index}: {exc!r}')
                 self._push(piece_index, None, filepath, exc)
                 self.skip_file(filepath, piece_index)
-                bytes_chunked += self._fake_read_file(filepath, bytes_chunked)
-                next_filepath = self._get_next_filepath(filepath)
-                if next_filepath is not None:
-                    self._expect_corruption(next_filepath)
+                bytes_chunked = self._fake_read_file(filepath, bytes_chunked)
+                self._expect_corruption(self._get_next_filepath(filepath))
 
         return bytes_chunked
 
@@ -330,13 +323,17 @@ class Reader():
     # confirm that because we don't have enough information to compute its first
     # piece hash.
     def _expect_corruption(self, filepath):
+        if (filepath is None or               # Last file in the stream
+            len(self._trailing_bytes) == 0):  # Previous file ended perfectly at piece boundary
+            return
         # Store piece index of filepath's first byte
-        debug(f'reader: Expecting corruption in first piece of {filepath}')
-        file_index = self._calc_file_start(filepath)
-        piece_index = self._calc_piece_index(absolute_pos=file_index)
-        debug(f'reader: {os.path.basename(filepath)} starts at byte {file_index}, piece_index {piece_index}')
+        debug(f'reader: Expecting corruption in first piece of {os.path.basename(filepath)}')
+        file_beg = self._calc_file_start(filepath)
+        piece_index = self._calc_piece_index(absolute_pos=file_beg)
+        debug(f'reader: {os.path.basename(filepath)} starts at byte {file_beg}, piece_index {piece_index}')
         self._expected_corruptions.add(piece_index)
-        debug(f'reader: Never skipping {filepath} because of the following piece_indexes: {self._expected_corruptions}')
+        debug(f'reader: Never skipping {os.path.basename(filepath)} because of '
+              f'the following piece_indexes: {self._expected_corruptions}')
 
     def _calc_piece_index(self, additional_bytes_chunked=0, absolute_pos=0):
         if absolute_pos:
