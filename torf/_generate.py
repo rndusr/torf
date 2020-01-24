@@ -192,6 +192,7 @@ class Reader():
         piece_size = self._piece_size
         spec_filesize = self._file_sizes[filepath]
         bytes_chunked = 0
+        trailing_bytes = None
         try:
             # If file size is specified, ensure that we read exactly the
             # expected number of bytes.  Otherwise a shorter/longer file would
@@ -200,16 +201,16 @@ class Reader():
             chunks = utils.read_chunks(filepath, piece_size,
                                        filesize=spec_filesize,
                                        prepend=self._trailing_bytes)
-            self._trailing_bytes = b''
             for chunk in chunks:
                 # debug(f'reader: Read {len(chunk)} bytes from {os.path.basename(filepath)}: {debug.pretty_bytes(chunk)}')
-
                 if self._stop:
                     debug(f'reader: Found stop signal while reading from {os.path.basename(filepath)}')
                     break
                 elif self.file_was_skipped(filepath):
                     debug(f'reader: Skipping {os.path.basename(filepath)} while chunking it')
                     bytes_chunked = self._fake_read_file(filepath, bytes_chunked)
+                    # _fake_read_file() set self._trailing_bytes, so don't set in finally:...
+                    trailing_bytes = None
                     self._expect_corruption(self._get_next_filepath(filepath))
                     break
                 else:
@@ -225,11 +226,10 @@ class Reader():
                         #       f'to {self._piece_queue} [{self._piece_queue.qsize()}]: {debug.pretty_bytes(chunk)}')
                         self._push(piece_index, chunk, filepath, exc=None)
                         # debug(f'reader: Sent piece_index {piece_index} to {self._piece_queue} [{self._piece_queue.qsize()}]')
+                        trailing_bytes = b''
                     else:
                         # Last chunk in file might be shorter than piece_size
-                        self._trailing_bytes = chunk
-                        debug(f'reader: Remembering {len(self._trailing_bytes)} trailing bytes '
-                              f'from {os.path.basename(filepath)}: {debug.pretty_bytes(self._trailing_bytes)}')
+                        trailing_bytes = chunk
 
         except Exception as exc:
             if spec_filesize is None:
@@ -246,6 +246,11 @@ class Reader():
                 self.skip_file(filepath, piece_index)
                 bytes_chunked = self._fake_read_file(filepath, bytes_chunked)
                 self._expect_corruption(self._get_next_filepath(filepath))
+        else:
+            if trailing_bytes is not None:
+                self._trailing_bytes = trailing_bytes
+            debug(f'reader: Remembering {len(self._trailing_bytes)} trailing bytes '
+                  f'from {os.path.basename(filepath)}: {debug.pretty_bytes(self._trailing_bytes)}')
 
         return bytes_chunked
 
