@@ -275,6 +275,10 @@ def _random_bytes(length):
     return bytes(random.getrandbits(8)
                  for _ in range(int(length)))
 
+@pytest.fixture
+def random_bytes(*args, **kwargs):
+    return _random_bytes
+
 def _random_size(piece_size=None, min_pieces=1, max_pieces=10):
     if piece_size is None:
         piece_size = torf.Torrent.piece_size_min
@@ -286,6 +290,10 @@ def _random_size(piece_size=None, min_pieces=1, max_pieces=10):
     if int(size / piece_size) < min_pieces:
         size = min_pieces * piece_size
     return size
+
+@pytest.fixture
+def random_size(*args, **kwargs):
+    return _random_size
 
 @pytest.fixture
 def create_file(tmp_path):
