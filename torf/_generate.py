@@ -214,11 +214,7 @@ class Reader():
                         piece_index = self._calc_piece_index(bytes_chunked)
                         debug(f'reader: {piece_index}: Read {bytes_chunked} bytes from {os.path.basename(filepath)}, '
                               f'{self._bytes_chunked + bytes_chunked} bytes in total: {debug.pretty_bytes(chunk)}')
-
-                        # debug(f'reader: Sending piece_index {piece_index} of {os.path.basename(filepath)} '
-                        #       f'to {self._piece_queue} [{self._piece_queue.qsize()}]: {debug.pretty_bytes(chunk)}')
                         self._push(piece_index, chunk, filepath, exc=None)
-                        # debug(f'reader: Sent piece_index {piece_index} to {self._piece_queue} [{self._piece_queue.qsize()}]')
                         trailing_bytes = b''
                     else:
                         # Last chunk in file might be shorter than piece_size
@@ -426,21 +422,21 @@ class HasherPool():
             self._hash_queue.put((piece_index, None, filepath, None))
         else:
             piece_hash = sha1(piece).digest() if piece is not None else None
-            # debug(f'{name}: Sending hash of piece_index {piece_index} to hash queue: '
-            #       f'{debug.pretty_bytes(piece)}: {piece_hash}')
+            # debug(f'{name}: Sending hash of piece_index {piece_index}: '
+            #       f'{debug.pretty_bytes(piece)}: {debug.pretty_bytes(piece_hash)}')
             self._hash_queue.put((piece_index, piece_hash, filepath, exc))
 
     def stop(self):
         if not self._stop:
-            debug(f'hasherpool: Setting stop flag')
+            # debug(f'hasherpool: Setting stop flag')
             self._stop = True
         return self
 
     def join(self):
         for worker in self._workers:
-            debug(f'hasherpool: Joining {worker.name}')
+            # debug(f'hasherpool: Joining {worker.name}')
             worker.join()
-        debug('hasherpool: Joined all workers')
+        # debug('hasherpool: Joined all workers')
         self._hash_queue.exhausted()
         return self
 
