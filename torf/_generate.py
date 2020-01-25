@@ -360,9 +360,12 @@ class Reader():
         raise RuntimeError(f'Unknown file path: {filepath}')
 
     def _push(self, piece_index, piece=None, filepath=None, exc=None):
-        piece = None if piece is None else bytes(piece)
+        if self._stop:
+            debug(f'reader: Found stop signal just before sending piece_index {piece_index}')
+        if piece is not None:
+            piece = bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
-        # debug(f'reader: Pushed piece {piece_index} [{self._piece_queue.qsize()}]')
+        debug(f'reader: Pushed piece_index {piece_index} [{self._piece_queue.qsize()}]')
 
     def _get_next_filepath(self, filepath):
         try:
