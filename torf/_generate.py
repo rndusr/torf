@@ -233,7 +233,7 @@ class Reader():
                 raise
             else:
                 # Report error with piece_index pointing to the first corrupt piece
-                piece_index = self._calc_piece_index(bytes_chunked) + 1
+                piece_index = self._calc_piece_index(bytes_chunked + len(trailing_bytes) + 1)
                 debug(f'reader: Reporting read exception for piece index {piece_index}: {exc!r}')
                 self._push(piece_index, None, filepath, exc)
                 self.skip_file(filepath, piece_index)
@@ -348,7 +348,9 @@ class Reader():
             return absolute_pos // self._piece_size
         else:
             bytes_chunked = self._bytes_chunked + additional_bytes_chunked
-            return (bytes_chunked - 1) // self._piece_size
+            # bytes_chunked is the number of bytes, but we want the index of the
+            # last byte that was chunked, hence -1.
+            return max(0, bytes_chunked - 1) // self._piece_size
 
     def _calc_file_start(self, filepath):
         # Return the index of `filepath`'s first byte in the concatenated stream
