@@ -129,7 +129,7 @@ class Reader():
         self._bytes_chunked = 0  # Number of bytes sent off as piece_size'd chunks
         self._skip_file_on_first_error = skip_file_on_first_error
         self._skip_files = set()
-        self._expected_corruptions = set()
+        self._noskip_piece_indexes = set()
         self._stop = False
 
     def read(self):
@@ -316,13 +316,13 @@ class Reader():
 
     def skip_file(self, filepath, piece_index):
         if self._skip_file_on_first_error and filepath not in self._skip_files:
-            if piece_index not in self._expected_corruptions:
+            if piece_index not in self._noskip_piece_indexes:
                 debug(f'Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
                       f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
                 self._skip_files.add(filepath)
             else:
                 debug(f'Not skipping {os.path.basename(filepath)} because of expected '
-                      f'corrupt piece_index {piece_index}: {self._expected_corruptions}')
+                      f'corrupt piece_index {piece_index}: {self._noskip_piece_indexes}')
 
     # When we fake-read a file, we cannot verify the first piece of the next
     # file (unless the faked file perfectly ends at a piece boundary), so we
@@ -335,9 +335,9 @@ class Reader():
             file_beg = self._calc_file_start(filepath)
             piece_index = self._calc_piece_index(absolute_pos=file_beg)
             debug(f'reader: {os.path.basename(filepath)} starts at byte {file_beg}, piece_index {piece_index}')
-            self._expected_corruptions.add(piece_index)
+            self._noskip_piece_indexes.add(piece_index)
             debug(f'reader: Never skipping {os.path.basename(filepath)} because of '
-                  f'the following piece_indexes: {self._expected_corruptions}')
+                  f'the following piece_indexes: {self._noskip_piece_indexes}')
 
     def _calc_piece_index(self, additional_bytes_chunked=0, absolute_pos=0):
         if absolute_pos:
