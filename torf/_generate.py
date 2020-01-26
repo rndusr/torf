@@ -130,6 +130,7 @@ class Reader():
         self._skip_file_on_first_error = skip_file_on_first_error
         self._skip_files = set()
         self._noskip_piece_indexes = set()
+        self._forced_error_piece_indexes = set()
         self._stop = False
 
     def read(self):
@@ -286,24 +287,27 @@ class Reader():
             next_filepath = self._get_next_filepath(filepath)
             # Expect corruption in next piece
             self._expect_corruption(next_filepath)
-
+            next_piece_index = self._calc_piece_index(bytes_chunked + remaining_bytes)
             if next_filepath is not None:
                 # This is not the last file.  Fake trailing_bytes so the next
                 # piece isn't shifted in the stream.
                 trailing_bytes = b'\x00' * remaining_bytes
                 debug(f'reader: Pretending to read {len(trailing_bytes)} trailing bytes '
                       f'from {os.path.basename(filepath)}: {debug.pretty_bytes(trailing_bytes)}')
+                # It's possible that our faked trailing_bytes are identical to
+                # the missing data, meaning that the next piece will not raise a
+                # hash mismatch.
+                self._forced_error_piece_indexes.add(next_piece_index)
+                debug(f'reader: Forcing hash mismatch for piece_indexes: {self._forced_error_piece_indexes}')
             else:
                 # This is the last file in the stream.  We don't want the final
                 # piece to produce an error, so we fake it right now.  The error is
                 # avoided by returning no trailing_bytes.
-                next_piece_index = self._calc_piece_index(bytes_chunked + remaining_bytes)
                 debug(f'reader: Faking final piece_index {next_piece_index}')
                 self._push(next_piece_index, None, filepath, None)
                 bytes_chunked += remaining_bytes
 
         return bytes_chunked, trailing_bytes
-
 
     @property
     def skipped_files(self):
@@ -362,7 +366,12 @@ class Reader():
     def _push(self, piece_index, piece=None, filepath=None, exc=None):
         if self._stop:
             debug(f'reader: Found stop signal just before sending piece_index {piece_index}')
-        if piece is not None:
+            return
+        elif piece_index in self._forced_error_piece_indexes:
+            # We know this piece is corrupt, even if our padding replicates the missing data.
+            debug(f'reader: Forcing hash mismatch for piece_index {piece_index}')
+            piece = b''
+        elif piece is not None:
             piece = bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
         debug(f'reader: Pushed piece_index {piece_index} [{self._piece_queue.qsize()}]')
