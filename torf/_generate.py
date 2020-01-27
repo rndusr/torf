@@ -277,7 +277,7 @@ class Reader():
         while remaining_bytes >= piece_size:
             if self._stop:
                 debug(f'reader: Found stop signal while fake-reading from {os.path.basename(filepath)}')
-                return bytes_chunked, b''
+                return bytes_chunked, trailing_bytes
             remaining_bytes -= piece_size
             bytes_chunked += piece_size
             piece_index = self._calc_piece_index(bytes_chunked)
