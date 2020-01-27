@@ -187,7 +187,7 @@ class Reader():
                     self._push(piece_index, None, filepath, exc)
                     # No need to read this file
                     self.skip_file(filepath, piece_index)
-                    self._expect_corruption(self._get_next_filepath(filepath))
+                    self._dont_skip_next_piece(piece_index)
 
     def _read_file(self, filepath, trailing_bytes):
         piece_size = self._piece_size
@@ -288,9 +288,12 @@ class Reader():
         debug(f'reader: Remaining bytes to fake: {remaining_bytes}')
         if remaining_bytes > 0:
             next_filepath = self._get_next_filepath(filepath)
-            # Expect corruption in next piece
-            self._expect_corruption(next_filepath)
             next_piece_index = self._calc_piece_index(bytes_chunked + remaining_bytes)
+
+            # The next piece will be corrupt, but we don't want to skip any
+            # files in that because because of that.
+            self._dont_skip_next_piece(piece_index)
+
             if next_filepath is not None:
                 # This is not the last file.  Fake trailing_bytes so the next
                 # piece isn't shifted in the stream.
@@ -331,20 +334,16 @@ class Reader():
                 debug(f'Not skipping {os.path.basename(filepath)} because of expected '
                       f'corrupt piece_index {piece_index}: {self._noskip_piece_indexes}')
 
-    # When we fake-read a file, we cannot verify the first piece of the next
-    # file (unless the faked file perfectly ends at a piece boundary), so we
-    # report an error for that first piece If skip_file_on_first_error is True,
-    # that means the next file is skipped even if it is completely fine and we
-    # just couldn't confirm that.
-    def _expect_corruption(self, filepath):
-        if filepath is not None:
-            debug(f'reader: Expecting corruption in first piece of {os.path.basename(filepath)}')
-            file_beg = self._calc_file_start(filepath)
-            piece_index = self._calc_piece_index(absolute_pos=file_beg)
-            debug(f'reader: {os.path.basename(filepath)} starts at byte {file_beg}, piece_index {piece_index}')
-            self._noskip_piece_indexes.add(piece_index)
-            debug(f'reader: Never skipping {os.path.basename(filepath)} because of '
-                  f'the following piece_indexes: {self._noskip_piece_indexes}')
+    # When we fake-read a file, the first piece of the file after the faked file
+    # will produce an error because it (likely) contains padding bytes from the
+    # previous/faked file.  If skip_file_on_first_error is True, that means the
+    # next file is skipped even if it is completely fine and we just couldn't
+    # confirm that.
+    def _dont_skip_next_piece(self, piece_index):
+        if self._skip_file_on_first_error:
+            next_piece_index = piece_index + 1
+            debug(f'reader: Never skipping file at piece_index {next_piece_index}')
+            self._noskip_piece_indexes.add(next_piece_index)
 
     def _calc_piece_index(self, additional_bytes_chunked=0, absolute_pos=0):
         if absolute_pos:
