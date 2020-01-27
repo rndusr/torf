@@ -5,54 +5,664 @@ from unittest import mock
 import os
 import shutil
 import random
-from collections import defaultdict
-import logging
-log = logging.getLogger('test')
+import collections
+import re
+import math
+import errno
 
+import logging
+debug = logging.getLogger('test').debug
+
+# class regex:
+#     """
+#     Instances of this object are equal to strings that match a regex
+#     https://kalnytskyi.com/howto/assert-str-matches-regex-in-pytest/
+#     """
+#     def __init__(self, pattern, flags=0):
+#         self._regex = re.compile(pattern, flags)
+
+#     def __eq__(self, other):
+#         return bool(self._regex.search(str(other)))
+
+#     def __repr__(self):
+#         return self._regex.pattern
+
+class fuzzylist(list):
+    """
+    List that is fuzzily equal to other lists
+
+    >>> x = fuzzylist('a', 'b', 'c', maybe=('x', 'y', 'z'))
+    >>> x
+    ['a', 'b', 'c']
+    >>> x == ['z', 'b', 'a', 'c', 'y']
+    True
+
+    Limit the number of optional items:
+
+    >>> x = fuzzylist('a', 'b', 'c', maybe=('x', 'x'))
+    >>> x == ['a', 'x', 'b', 'x', 'c']
+    True
+    >>> x == ['a', 'x', 'b', 'x', 'c', 'x']
+    False
+
+    `max_maybe_items` also allows you to limit the number of optional items:
+
+    >>> x = fuzzylist('a', 'b', 'c', maybe=('x', 'y', 'z'), max_maybe_items={'x':1})
+    >>> x == ['a', 'x', 'b', 'z', 'c']
+    True
+    >>> x == ['a', 'x', 'b', 'x', 'c']
+    False
+
+    Unlike `set(...) == set(...)`, this doesn't remove duplicate items and
+    allows unhashable items.
+    """
+    def __init__(self, *args, maybe=(),
+                 max_maybe_items=collections.defaultdict(lambda: 1)):
+        self.maybe = tuple(maybe)
+        self.max_maybe_items = max_maybe_items
+        super().__init__(args)
+
+    def __eq__(self, other):
+        if tuple(self) != tuple(other):
+            maybe = self.maybe
+
+            # Check for unallowed items
+            for item in self:
+                if item not in other and item not in maybe:
+                    return False
+            for item in other:
+                if item not in self and item not in maybe:
+                    return False
+
+            # Check if any optional items exist too often
+            for item,maxcount in self.max_maybe_items.items():
+                if other.count(item) > maxcount:
+                    return False
+
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        args = ', '.join(repr(item) for item in self)
+        s = f'{type(self).__name__}({args}'
+        if self.maybe:
+            s += f', maybe={repr(self.maybe)}'
+        if self.max_maybe_items:
+            s += f', max_maybe_items={repr(self.max_maybe_items)}'
+        return s + ')'
+
+def test_fuzzylist():
+    x = fuzzylist('a', 'b', 'c', maybe=('x', 'y', 'z'), max_maybe_items={'x':1})
+    assert     x != ['a', 'b']
+    assert not x == ['a', 'b']
+    assert     x == ['a', 'c', 'b']
+    assert not x != ['a', 'c', 'b']
+    assert     x == ['a', 'x', 'c', 'y', 'b']
+    assert not x != ['a', 'x', 'c', 'y', 'b']
+    assert     x == ['a', 'x', 'b', 'z', 'c', 'y']
+    assert not x != ['a', 'x', 'b', 'z', 'c', 'y']
+    assert     x != ['a', 'l', 'b', 'z', 'c', 'y']
+    assert not x == ['a', 'l', 'b', 'z', 'c', 'y']
+    assert     x != ['x', 'b', 'x', 'a', 'c', 'y']
+    assert not x == ['x', 'b', 'x', 'a', 'c', 'y']
+
+def ComparableException(exc):
+    """
+    Horrible hack that allows us to compare exceptions comfortably
+
+    `exc1 == exc2` is True if both exceptions have the same type and the same
+    message.  Type checking with issubclass() and isinstance() also works as
+    expected.
+    """
+    # Make the returned class object an instance of the type of `exc` and the
+    # returned Comparable* class.
+    class ComparableExceptionMeta(type):
+        _cls = type(exc)
+        @classmethod
+        def __subclasscheck__(mcls, cls):
+            return issubclass(cls, mcls._cls) or issubclass(cls, mcls)
+        @classmethod
+        def __instancecheck__(mcls, inst):
+            return isinstance(cls, mcls._cls) or isinstance(cls, mcls)
+
+    # Make subclass of the same name with "Comparable" prepended
+    bases = (type(exc),)
+    clsname = 'Comparable' + type(exc).__name__
+    def __eq__(self, other, _real_cls=type(exc)):
+        return isinstance(other, (type(self), _real_cls)) and str(self) == str(other)
+    attrs = {'__eq__': __eq__}
+    cls = ComparableExceptionMeta(clsname, bases, attrs)
+    if isinstance(exc, torf.TorfError):
+        return cls(*exc.posargs, **exc.kwargs)
+    else:
+        raise exc
+
+def random_positions(stream):
+    """Return list of 1, 2 or 3 random indexes in `stream`"""
+    positions = random.sample(range(len(stream)), k=3)
+    return sorted(positions[:random.randint(1, len(positions))])
+
+def round_up_to_multiple(n, x):
+    """Round `n` up to the next multiple of `x`"""
+    return n - n % -x
+
+def round_down_to_multiple(n, x):
+    """Round `n` down to the previous multiple of `x`"""
+    if n % x != 0:
+        return round_up_to_multiple(n, x) - x
+    else:
+        return n
+
+def find_common_member(lista, listb, first=True, last=False):
+    """Find members common to `lista` and `listb`, then return the first or last one"""
+    intersection = tuple(set(lista).intersection(listb))
+    if intersection:
+        return intersection[0] if first else intersection[-1]
+    return None
+
+def file_size(filename, filespecs):
+    """Return `filename`'s size according to `filespecs`"""
+    for fn,size in filespecs:
+        if fn == filename:
+            return size
+    raise RuntimeError(f'Could not find {filename} in {filespecs}')
+
+def file_range(filename, filespecs):
+    """Return `filename`'s first and last byte index in stream"""
+    pos = 0
+    for fn,size in filespecs:
+        if fn == filename:
+            return pos, pos + size - 1
+        pos += size
+    raise RuntimeError(f'Could not find {filename} in {filespecs}')
+
+def pos2files(pos, filespecs, piece_size, include_file_at_pos=True):
+    """
+    Calculate which piece the byte at `pos` belongs to and return a list of file
+    names of those files that are covered by that piece.
+    """
+    p = 0
+    filenames = []
+    for filename,filesize in filespecs:
+        filepos_beg = p
+        filepos_end = filepos_beg + filesize - 1
+        first_piece_index = filepos_beg // piece_size
+        last_piece_index = filepos_end // piece_size
+        first_piece_index_pos_beg = first_piece_index * piece_size
+        last_piece_index_pos_end = (last_piece_index+1) * piece_size - 1
+        if first_piece_index_pos_beg <= pos <= last_piece_index_pos_end:
+            filenames.append(filename)
+        p += filesize
+
+    if not include_file_at_pos:
+        file_at_pos,_ = pos2file(pos, filespecs, piece_size)
+        return [f for f in filenames if f != file_at_pos]
+    else:
+        return filenames
+
+def pos2file(pos, filespecs, piece_size):
+    """Return file name and relative position of `pos` in file"""
+    p = 0
+    for filename,filesize in filespecs:
+        if p <= pos < p + filesize:
+            return (filename, pos - p)
+        p += filesize
+    raise RuntimeError(f'Could not find file at position {pos} in {filespecs}')
+
+def next_file(filename, filespecs):
+    for i,(fn,_) in enumerate(filespecs):
+        if fn == filename:
+            try:
+                return filespecs[i+1]
+            except IndexError:
+                return None, None
+    raise RuntimeError(f'Could not find file {filename} in {filespecs}')
+
+def prev_file(filename, filespecs):
+    for i,(fn,_) in enumerate(reversed(filespecs)):
+        if fn == filename:
+            try:
+                return filespecs[i+1]
+            except IndexError:
+                return None, None
+    raise RuntimeError(f'Could not find file {filename} in {filespecs}')
+
+def calc_piece_indexes(filespecs, piece_size, files_missing):
+    """
+    Turn a list of (filename, filesize) tuples into a dictionary that maps file
+    names to the piece indexes they cover. Pieces that overlap multiple files
+    belong to the last file they cover.
+    """
+    piece_indexes = collections.defaultdict(lambda: fuzzylist())
+    pos = 0
+    for i,(filename,filesize) in enumerate(filespecs):
+        first_pi = pos // piece_size
+        # Last piece needs special treatment
+        if i < len(filespecs)-1:
+            pos_end = pos + filesize
+        else:
+            pos_end = round_up_to_multiple(pos + filesize, piece_size)
+        last_pi = pos_end // piece_size
+        pis = list(range(first_pi, last_pi))
+        if pis:
+            piece_indexes[filename] = pis
+        pos += filesize
+
+    # For each missing file, the first piece of the file gets two calls, one for
+    # the "no such file" error and one for the "corrupt piece" error
+    for filepath in files_missing:
+        filename = os.path.basename(filepath)
+        file_beg,file_end = file_range(filename, filespecs)
+        piece_index = file_beg // piece_size
+        piece_indexes[filename].insert(0, file_beg // piece_size)
+
+    return piece_indexes
+
+def calc_good_pieces(filespecs, piece_size, corruption_positions, files_missing):
+    """Same as `calc_piece_indexes`, but exclude corrupt and skipped pieces"""
+    good_pieces = collections.defaultdict(lambda: fuzzylist())
+    corr_pis = [corrpos // piece_size for corrpos in corruption_positions]
+    debug(f'Calculating good pieces')
+    debug(f'corrupt piece_indexes: {corr_pis}')
+    debug(f'missing files: {files_missing}')
+
+    # Pieces that exclusively belong to missing files are skipped
+    skipped_pis = []
+    for filepath in files_missing:
+        file_beg,file_end = file_range(os.path.basename(filepath), filespecs)
+        first_skipped_piece_index = file_beg // piece_size
+        last_skipped_piece_index = file_end // piece_size
+        affected_files_beg = pos2files(file_beg, filespecs, piece_size)
+        affected_files_end = pos2files(file_end, filespecs, piece_size)
+        debug(f'affected_files_beg: {affected_files_beg}')
+        debug(f'affected_files_end: {affected_files_end}')
+        skipped_pis.extend(range(first_skipped_piece_index, last_skipped_piece_index+1))
+
+    for filename,all_pis in calc_piece_indexes(filespecs, piece_size, files_missing).items():
+        good_pis = []
+        for i,pi in enumerate(all_pis):
+            if pi not in corr_pis and pi not in skipped_pis:
+                good_pis.append(pi)
+        if good_pis:
+            good_pieces[filename] = good_pis
+
+    return good_pieces
+
+def calc_corruptions(filespecs, piece_size, corruption_positions):
+    """Map file names to (piece_index, exception) tuples"""
+    corrupt_pieces = []
+    reported = []
+    for corrpos in sorted(corruption_positions):
+        corr_pi = corrpos // piece_size
+        if corr_pi not in reported:
+            exc = torf.VerifyContentError(corr_pi, piece_size, filespecs)
+            # debug(f'### Corruption position {corrpos} is in piece index {corr_pi}: {exc}')
+            corrupt_pieces.append(exc)
+            reported.append(corr_pi)
+    return corrupt_pieces
+
+def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
+    # The callback gets the number of verified pieces (pieces_done).  This
+    # function calculates the expected values for that argument.
+    #
+    # It's not as simple as range(1, <number of pieces>+1).  If a file is
+    # missing, we get the same pieces_done value two times, once for "No such
+    # file" and once for "Corrupt piece".  If the missing file is smaller than
+    # piece_size, we get one additional identical pieces_done value for every
+    # file that is part of that piece.
+    files_missing = [str(filepath) for filepath in files_missing]
+    debug(f'missing_files: {files_missing}')
+    # List of pieces_done values that are reported once
+    pieces_done_list = []
+    # List of pieces_done values that may appear multiple times
+    maybe_double_pieces_done = []
+    # Map pieces_done values to the number of times they may appear
+    maybe_double_pieces_done_counts = {}
+    pos = 0
+    bytes_left = sum(filesize for _,filesize in filespecs_abspath)
+    pieces_done = 1
+    calc_pd = lambda pos: (pos // piece_size) + 1   # pieces_done
+
+    while bytes_left > 0:
+        filepath,_ = pos2file(pos, filespecs_abspath, piece_size)
+        file_beg,file_end = file_range(filepath, filespecs_abspath)
+        current_pi = pos // piece_size
+        file_beg_pi = file_beg // piece_size
+        file_end_pi = file_end // piece_size
+
+        debug(f'{pos}: {os.path.basename(filepath)}, pi={current_pi}, beg={file_beg}, end={file_end}, '
+              f'file_beg_pi={file_beg_pi}, file_end_pi={file_end_pi}')
+
+        # If this piece contains the first byte of a file, find the last file in
+        # this piece that is missing.  Any piece after this piece may be
+        # reported twice for the "No such file" error.  We can't predict which
+        # piece will be reported twice, but it must be one piece.
+        if current_pi == file_beg_pi:
+            debug(f'  Reading the first piece of {os.path.basename(filepath)}')
+            first_piece_files = pos2files(file_beg, filespecs_abspath, piece_size)
+            debug(f'  ? first_piece_files: {first_piece_files}')
+            missing_file = find_common_member(files_missing, first_piece_files, last=True)
+            if missing_file:
+                debug(f'  ! missing: {os.path.basename(missing_file)}')
+                for pieces_done in range(calc_pd(pos), file_end_pi+1):
+                    maybe_double_pieces_done.append(pieces_done)
+                    maybe_double_pieces_done_counts[pieces_done] = 2
+                files_missing.remove(missing_file)     # Don't report the same missing file twice
+
+        # Every piece is reported regularly, "No such file" errors are additional
+        pieces_done_list.append(calc_pd(pos))
+
+        bytes_left -= piece_size
+        pos += piece_size
+
+    fuzzy_pieces_done_list = fuzzylist(*pieces_done_list,
+                                       maybe=maybe_double_pieces_done,
+                                       max_maybe_items=maybe_double_pieces_done_counts)
+    return fuzzy_pieces_done_list
 
 class CollectingCallback():
+    """Collect call arguments and make basic assertments"""
     def __init__(self, torrent):
         super().__init__()
         self.torrent = torrent
-        self.good_pieces = defaultdict(lambda: [])
-        self.corrupt_pieces = defaultdict(lambda: [])
-        self.skipped_pieces = defaultdict(lambda: [])
+        self.seen_pieces_done = []
+        self._seen_pieces = collections.defaultdict(lambda: fuzzylist())
+        self._seen_good_pieces = collections.defaultdict(lambda: fuzzylist())
+        self._seen_skipped_pieces = collections.defaultdict(lambda: fuzzylist())
+        self.seen_exceptions = fuzzylist()
 
     def __call__(self, t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
         assert t is self.torrent
         assert pieces_total == t.pieces
         assert 1 <= pieces_done <= pieces_total
+        self.seen_pieces_done.append(pieces_done)
+        self._seen_pieces[os.path.basename(path)].append(piece_index)
         if exc is not None:
-            self.corrupt_pieces[os.path.basename(path)].append((piece_index, str(exc)))
+            if isinstance(exc, torf.VerifyContentError):
+                assert type(piece_hash) is bytes and len(piece_hash) == 20
+            else:
+                assert piece_hash is None
+            self.seen_exceptions.append(ComparableException(exc))
         elif piece_hash is None:
             assert exc is None
-            self.skipped_pieces[os.path.basename(path)].append(piece_index)
+            self._seen_skipped_pieces[os.path.basename(path)].append(piece_index)
         else:
             assert exc is None
             assert type(piece_hash) is bytes and len(piece_hash) == 20
-            self.good_pieces[os.path.basename(path)].append(piece_index)
+            self._seen_good_pieces[os.path.basename(path)].append(piece_index)
 
+    @property
+    def seen_pieces(self):
+        return dict(self._seen_pieces)
 
-def calc_exp_piece_indexes(*files, piece_size):
-    combined_size = sum(size for name,size in files)
-    current_piece_index = 0
-    exp_piece_indexes = {}
-    pos = 0
-    for i,(filename,filesize) in enumerate(files):
-        exp_piece_indexes[filename] = list(range(
-            pos // piece_size,
-            (pos + filesize) // piece_size))
-        pos += filesize
-        # If combined sizes are not divisible by piece size, we must add another
-        # piece_index to the last file
-        indexes = exp_piece_indexes[filename]
-        is_last_file = i == len(files)-1
-        if indexes:
-            # Keep track of the last added piece_index
-            current_piece_index = indexes[-1]
-        if is_last_file and combined_size % piece_size != 0:
-            exp_piece_indexes[filename].append(current_piece_index+1)
-    return exp_piece_indexes
+    @property
+    def seen_good_pieces(self):
+        return dict(self._seen_good_pieces)
+
+    @property
+    def seen_skipped_pieces(self):
+        return dict(self._seen_skipped_pieces)
+
+class _TestCaseBase():
+    """
+    This class runs most of the tests while the test_*() functions mostly
+    collect parametrized test values
+    """
+    def __init__(self, create_dir, create_file, create_torrent_file, forced_piece_size):
+        self.create_dir = create_dir
+        self.create_file = create_file
+        self.create_torrent_file = create_torrent_file
+        self.forced_piece_size = forced_piece_size
+        self.reset()
+
+    def run(self, *_, with_callback, exp_return_value=None, interval=0, skip_file_on_first_error=False):
+        debug(f'Original stream: {self.stream_original.hex()}')
+        debug(f' Corrupt stream: {self.stream_corrupt.hex()}')
+        debug(f'Corruption positions: {self.corruption_positions}')
+        debug(f'Corrupt piece indexes: {set(corrpos // self.piece_size for corrpos in self.corruption_positions)}')
+
+        kwargs = {'interval': interval,
+                  'skip_file_on_first_error': skip_file_on_first_error,
+                  'exp_return_value': exp_return_value}
+        if not with_callback:
+            exp_exceptions = self.exp_exceptions
+            if not exp_exceptions:
+                self._run_without_callback(**kwargs)
+                self.raised_exception = None
+            else:
+                exp_exception_types = tuple(set(type(exc) for exc in exp_exceptions))
+                with pytest.raises(exp_exception_types) as e:
+                    self._run_without_callback(**kwargs)
+                # Usually the first error in the stream is reported, but not
+                # always, so we expect one of the possible exceptions to be
+                # raised.
+                assert e.value in exp_exceptions
+                self.raised_exception = e.value
+        else:
+            return self._run_with_callback(**kwargs)
+
+    def _run_without_callback(self, exp_return_value, **kwargs):
+        debug(f'################ VERIFY WITHOUT CALLBACK: kwargs={kwargs}')
+        if exp_return_value is not None:
+            assert self.torrent.verify(self.content_path, **kwargs) is exp_return_value
+        else:
+            self.torrent.verify(self.content_path, **kwargs)
+
+    def _run_with_callback(self, exp_return_value, **kwargs):
+        debug(f'################ VERIFY WITH CALLBACK: kwargs={kwargs}')
+        cb = CollectingCallback(self.torrent)
+        kwargs['callback'] = cb
+        # Mock time.monotonic() so that each callback call is one second apart
+        with mock.patch('torf._generate.time_monotonic') as mock_monotonic:
+            mock_monotonic.side_effect = range(int(1e9))
+            if exp_return_value is not None:
+                assert self.torrent.verify(self.content_path, **kwargs) is exp_return_value
+            else:
+                self.torrent.verify(self.content_path, **kwargs)
+        # Last pieces_done value must be the total number of pieces so progress
+        # is reported correctly
+        assert cb.seen_pieces_done[-1] == self.torrent.pieces
+        return cb
+
+    def reset(self):
+        self.raised_exception = None
+        self.corruption_positions = []
+        self.files_missing = []
+        for attr in ('_exp_exceptions', '_exp_pieces_done',
+                     '_exp_piece_indexes', '_exp_good_pieces',
+                     '_exp_corruptions', '_exp_files_missing'):
+            if hasattr(self, attr):
+                delattr(self, attr)
+
+    @property
+    def exp_exceptions(self):
+        if not hasattr(self, '_exp_exceptions'):
+            self._exp_exceptions = self.exp_files_missing + self.exp_corruptions
+            debug(f'Expected exceptions:')
+            for e in self._exp_exceptions:
+                debug(e)
+        return self._exp_exceptions
+
+    @property
+    def exp_pieces_done(self):
+        if not hasattr(self, '_exp_pieces_done'):
+            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
+            debug(f'Expected pieces done: {self._exp_pieces_done}')
+        return self._exp_pieces_done
+
+    @property
+    def exp_piece_indexes(self):
+        if not hasattr(self, '_exp_piece_indexes'):
+            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size, self.files_missing)
+            debug(f'Expected piece indexes: {dict(self._exp_piece_indexes)}')
+        return dict(self._exp_piece_indexes)
+
+    @property
+    def exp_good_pieces(self):
+        if not hasattr(self, '_exp_good_pieces'):
+            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size,
+                                                     self.corruption_positions, self.files_missing)
+            debug(f'Expected good pieces: {dict(self._exp_good_pieces)}')
+        return dict(self._exp_good_pieces)
+
+    @property
+    def exp_corruptions(self):
+        if not hasattr(self, '_exp_corruptions'):
+            self._exp_corruptions = [ComparableException(exc) for exc in
+                                     calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)]
+            debug(f'Expected corruptions: {self._exp_corruptions}')
+        return self._exp_corruptions
+
+    @property
+    def exp_files_missing(self):
+        if not hasattr(self, '_exp_files_missing'):
+            self._exp_files_missing = [ComparableException(torf.ReadError(errno.ENOENT, filepath))
+                                       for filepath in self.files_missing]
+            debug(f'Expected files missing: {self._exp_files_missing}')
+        return self._exp_files_missing
+
+class _TestCaseSinglefile(_TestCaseBase):
+    @property
+    def filespecs_abspath(self):
+        return ((str(self.content_path), self.filesize),)
+
+    def setup(self, filespecs, piece_size):
+        self.filespecs = filespecs
+        self.piece_size = piece_size
+        self.filename = filespecs[0][0]
+        self.filesize = filespecs[0][1]
+        debug(f'Filename: {self.filename}, size: {self.filesize}, piece size: {piece_size}')
+        self.stream_original = self.create_file.random_bytes(self.filesize)
+        self.stream_corrupt = bytearray(self.stream_original)
+        self.content_path = self.create_file(self.filename, self.stream_original)
+        with self.forced_piece_size(piece_size):
+            with self.create_torrent_file(path=self.content_path) as torrent_filepath:
+                self.torrent = torf.Torrent.read(torrent_filepath)
+
+    def corrupt_stream(self):
+        # Introduce random number of corruptions without changing stream length
+        corruption_positions = random_positions(self.stream_corrupt)
+        for corrpos in corruption_positions:
+            debug(f'Introducing corruption at index {corrpos}')
+            self.stream_corrupt[corrpos] = (self.stream_corrupt[corrpos] + 1) % 256
+            self.content_path.write_bytes(self.stream_corrupt)
+        self.corruption_positions.extend(corruption_positions)
+
+    def delete_file(self, index):
+        debug(f'Removing file from file system: {os.path.basename(self.content_path)}')
+        os.rename(self.content_path, str(self.content_path) + '.deleted')
+        self.files_missing = [self.content_path]
+        self.stream_corrupt = b'\x00' * self.torrent.size
+
+class _TestCaseMultifile(_TestCaseBase):
+    @property
+    def filespecs_abspath(self):
+        return tuple((str(self.content_path / filename), filesize)
+                     for filename,filesize in self.filespecs)
+
+    def setup(self, filespecs, piece_size):
+        debug(f'File sizes: {", ".join(f"{n}={s}" for n,s in filespecs)}')
+        debug(f'Stream size: {sum(s for _,s in filespecs)}')
+        debug(f'Piece size: {piece_size}')
+        self.filespecs = filespecs
+        self.piece_size = piece_size
+        self.content_original = {}
+        self.content_corrupt = {}
+        create_dir_args = []
+        for filename,filesize in filespecs:
+            data = self.create_dir.random_bytes(filesize)
+            self.content_original[filename] = {'size': filesize,
+                                               'data': data}
+            self.content_corrupt[filename] = {'size': filesize,
+                                              'data': bytearray(data)}
+            create_dir_args.append((filename, data))
+        self.content_path = self.create_dir('content', *create_dir_args)
+        for filename,fileinfo in self.content_original.items():
+            fileinfo['path'] = self.content_path / filename
+            self.content_corrupt[filename]['path'] = fileinfo['path']
+        debug(f'Content: {self.content_original}')
+        with self.forced_piece_size(piece_size):
+            with self.create_torrent_file(path=self.content_path) as torrent_filepath:
+                self.torrent = torf.Torrent.read(torrent_filepath)
+
+    @property
+    def stream_original(self):
+        return b''.join((f['data'] for f in self.content_original.values()))
+
+    @property
+    def stream_corrupt(self):
+        return b''.join((f['data'] for f in self.content_corrupt.values()))
+
+    def corrupt_stream(self):
+        # Introduce random number of corruptions in random files without
+        # changing stream length
+        corruption_positions = random_positions(self.stream_corrupt)
+        for corrpos_in_stream in corruption_positions:
+            filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)
+            debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
+                  f'{corrpos_in_file} in file {filename}')
+            fileinfo = self.content_corrupt[filename]
+            fileinfo['data'][corrpos_in_file] = (fileinfo['data'][corrpos_in_file] + 1) % 256
+            fileinfo['path'].write_bytes(fileinfo['data'])
+        self.corruption_positions.extend(corruption_positions)
+
+    def delete_file(self, index):
+        # Remove file at `index` in filespecs from file system
+        filename,filesize = self.filespecs[index]
+        debug(f'Removing file from file system: {os.path.basename(filename)}')
+        filepath = self.content_path / filename
+        os.rename(filepath, str(filepath) + '.deleted')
+        self.files_missing.append(filepath)
+
+        # Find the first byte of the first affected piece and the first byte of
+        # the last affected piece
+        file_beg,file_end = file_range(filename, self.filespecs)
+        piece_size = self.piece_size
+        debug(f'{filename} starts at {file_beg} and ends at {file_end} in stream')
+        first_affected_piece_pos = round_down_to_multiple(file_beg, piece_size)
+        last_affected_piece_pos = round_down_to_multiple(file_end, piece_size)
+        debug(f'First affected piece starts at {first_affected_piece_pos} '
+              f'and last affected piece starts at {last_affected_piece_pos}')
+
+        # Pieces of missing files are always skipped--unless they overlap with
+        # an existing file, in which case they are reported as corrupt.
+        is_first_file = index == 0
+        is_last_file = index >= len(self.filespecs)-1
+        debug(f'is_first_file={is_first_file}, is_last_file={is_last_file}')
+
+        file_starts_at_piece_boundary = file_beg % piece_size == 0
+        file_ends_at_piece_boundary = (file_end+1) % piece_size == 0
+        debug(f'file_starts_at_piece_boundary={file_starts_at_piece_boundary}, '
+              f'file_ends_at_piece_boundary={file_ends_at_piece_boundary}')
+
+        if not is_first_file and not file_starts_at_piece_boundary:
+            # The first piece of the removed file corrupts the last piece of the
+            # preceding file.
+            debug(f'First piece of {filename} corrupts last piece of previous file')
+            self.corruption_positions.append(first_affected_piece_pos)
+        if not is_last_file and not file_ends_at_piece_boundary:
+            # The last piece of the removed file corrupts the last piece of the
+            # preceding file.
+            debug(f'Last piece of {filename} corrupts first piece of next file')
+            self.corruption_positions.append(last_affected_piece_pos)
+        debug(f'Corruption positions after removing file: {self.corruption_positions}')
+        self.content_corrupt[os.path.basename(filename)]['data'] = b'\x00' * filesize
+
+@pytest.fixture
+def mktestcase(create_dir, create_file, forced_piece_size, create_torrent_file):
+    """Return instance of _TestCaseMultifile or _TestCaseSinglefile"""
+    def mktestcase_(filespecs, piece_size):
+        if len(filespecs) == 1:
+            testcls = _TestCaseSinglefile
+        else:
+            testcls = _TestCaseMultifile
+        testcase = testcls(create_dir, create_file, create_torrent_file, forced_piece_size)
+        testcase.setup(filespecs, piece_size)
+        debug(f'################ TEST TORRENT CREATED: {testcase.torrent}')
+        return testcase
+    return mktestcase_
 
 
 def test_validate_is_called_first(monkeypatch):
@@ -64,860 +674,865 @@ def test_validate_is_called_first(monkeypatch):
     assert str(excinfo.value) == f'Invalid metainfo: Mock error'
     mock_validate.assert_called_once_with()
 
-
-def test_verify_content_successfully_with_singlefile_torrent(file_size, piece_size,
-                                                             create_file, create_torrent_file, forced_piece_size):
-    with forced_piece_size(piece_size):
-        content_path = create_file('some file', file_size)
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            assert torrent.verify(content_path, skip_file_on_first_error=False) == True
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            exp_piece_indexes = list(range(torrent.pieces))
-            exp_call_count = len(exp_piece_indexes)
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert str(path) == str(content_path)
-                assert 1 <= pieces_done <= pieces_total
-                assert pieces_total == torrent.pieces
-                assert 0 <= piece_index <= pieces_total - 1
-                assert type(piece_hash) is bytes and len(piece_hash) == 20
-                assert exc is None
-                exp_piece_indexes.remove(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == True
-            assert len(exp_piece_indexes) == 0, exp_piece_indexes
-            assert cb.call_count == exp_call_count
-
-
-def test_verify_content__random_corruption_in_singlefile_torrent(file_size, piece_size, forced_piece_size,
-                                                                 create_file, create_torrent_file):
-    file_size = int(file_size * (random.random() * 4 + 2))
-    with forced_piece_size(piece_size):
-        print('file_size:', file_size, 'piece_size:', piece_size)
-        data = create_file.random_bytes(file_size)
-        content_path = create_file('content.jpg', data)
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            for offset in (1, torrent.pieces//2*piece_size, file_size-2):
-                print('offset:', offset)
-
-                for errpos in (offset-1, offset, offset+1):
-                    print('error position:', errpos)
-                    data_corrupt = bytearray(data)
-                    data_corrupt[errpos] = (data[errpos] + 1) % 256
-                    assert len(data_corrupt) == len(data)
-                    assert data_corrupt != data
-                    content_path.write_bytes(data_corrupt)
-
-                    corrupt_piece_index = errpos // piece_size
-                    print('corrupt_piece_index:', corrupt_piece_index)
-
-                    log.debug('################ TEST WITHOUT CALLBACK ##################')
-                    with pytest.raises(torf.VerifyContentError) as excinfo:
-                        torrent.verify(content_path, skip_file_on_first_error=False)
-                    assert str(excinfo.value) == f'Corruption in piece {corrupt_piece_index+1}'
-
-                    log.debug('################ TEST WITH CALLBACK ##################')
-                    def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                        assert t == torrent
-                        assert pieces_total == torrent.pieces
-                        assert str(path) == str(content_path)
-                        assert 1 <= pieces_done <= pieces_total
-                        assert 0 <= piece_index <= pieces_total - 1
-                        assert type(piece_hash) is bytes and len(piece_hash) == 20
-                        if piece_index == corrupt_piece_index:
-                            assert str(exc) == f'Corruption in piece {piece_index+1}'
-                        else:
-                            assert exc is None
-                    cb = mock.Mock(side_effect=assert_call)
-                    assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-                    assert cb.call_count == torrent.pieces
-
-
-def test_verify_content_successfully_with_multifile_torrent(file_size_a, file_size_b, file_size_c, piece_size,
-                                                            create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(piece_size):
-        content_path = create_dir('content',
-                                  ('a', file_size_a),
-                                  ('b', file_size_b),
-                                  ('c', file_size_c))
-        exp_piece_indexes = calc_exp_piece_indexes(('a', file_size_a),
-                                                   ('b', file_size_b),
-                                                   ('c', file_size_c),
-                                                   piece_size=piece_size)
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            assert torrent.verify(content_path, skip_file_on_first_error=False) == True
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            log.debug(exp_piece_indexes)
-            all_exp_piece_indexes = list(range(torrent.pieces))
-            exp_call_count = len(all_exp_piece_indexes)
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert 1 <= pieces_done <= pieces_total
-                assert pieces_total == torrent.pieces
-                assert type(piece_hash) is bytes and len(piece_hash) == 20
-                assert 0 <= piece_index <= pieces_total - 1
-                if piece_index in exp_piece_indexes['a']:
-                    assert str(path) == str(content_path / 'a')
-                    all_exp_piece_indexes.remove(piece_index)
-                elif piece_index in exp_piece_indexes['b']:
-                    assert str(path) == str(content_path / 'b')
-                    all_exp_piece_indexes.remove(piece_index)
-                elif piece_index in exp_piece_indexes['c']:
-                    assert str(path) == str(content_path / 'c')
-                    all_exp_piece_indexes.remove(piece_index)
-                assert exc is None
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == True
-            assert len(all_exp_piece_indexes) == 0, all_exp_piece_indexes
-            assert cb.call_count == exp_call_count
-
-# TODO:
-# def test_verify_content__random_corruption_in_multifile_torrent(file_size, piece_size, forced_piece_size,
-#                                                                 create_file, create_torrent_file):
-
-def test_verify_content__file_is_missing(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(8) as piece_size:
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', 2*piece_size+4),
-                                  ('c', 2*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            os.rename(content_path / 'b', content_path / 'b.deleted')
-            assert not os.path.exists(content_path / 'b')
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.ReadError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=False)
-            assert str(excinfo.value) == f'{content_path / "b"}: No such file or directory'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            # (8+3) + (2*8+4) + (2*8+5) = 7 pieces (max_piece_index=6)
-            exp_piece_indexes = [
-                0, # stream slice  0 -  8: a[ 0: 8]         - ok
-                1, # stream slice  8 - 16: a[-3:  ] + b[:5] - ReadError
-                1, # stream slice  8 - 16: a[-3:  ] + b[:5] - fake piece
-                2, # stream slice 16 - 24: b[ 5:13]         - fake piece
-                3, # stream slice 24 - 32: b[13:20] + c[:1] - ReadError
-                4, # stream slice 32 - 40: c[ 1: 9]         - ok
-                5, # stream slice 40 - 48: c[ 9:17]         - ok
-                6, # stream slice 48 - 52: c[17:21]         - ok
-            ]
-            exp_call_count = len(exp_piece_indexes)
-
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_total == torrent.pieces
-                assert 1 <= pieces_done <= pieces_total
-                if piece_index in (0,):
-                    assert str(path) == str(content_path / 'a')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (1,):
-                    assert str(path) == str(content_path / 'b')
-                    assert piece_hash is None
-                    # We get piece_index=1 once for the ReadError and once for
-                    # the fake piece
-                    if exp_piece_indexes.count(1) == 2:
-                        assert str(exc) == f'{content_path / "b"}: No such file or directory'
-                    else:
-                        assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (2,):
-                    assert str(path) == str(content_path / 'b')
-                    assert piece_hash is None
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (3,):
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert str(exc) == (f'Corruption in piece {piece_index+1}, '
-                                        'at least one of these files is corrupt: '
-                                        f'{content_path / "b"}, {content_path / "c"}')
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (4, 5, 6):
-                    assert str(path) == str(content_path / "c")
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-            assert len(exp_piece_indexes) == 0, exp_piece_indexes
-            assert cb.call_count == exp_call_count
-
-
-def test_verify_content__file_is_smaller(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(8) as piece_size:
-        b_data = create_dir.random_bytes(2*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 1*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            corruption_offset = piece_size + 2
-            b_data_corrupt = b_data[:corruption_offset] + b_data[corruption_offset+1:]
-            assert len(b_data_corrupt) == len(b_data) - 1
-            (content_path / 'b').write_bytes(b_data_corrupt)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyFileSizeError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=False)
-            assert str(excinfo.value) == f'{content_path / "b"}: Too small: 19 instead of 20 bytes'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
-            exp_piece_indexes = [
-                0,    # stream slice  0 -  8: a[ 0: 8]         - ok
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - VerifyFileSizeError for b
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
-                2,    # stream slice 16 - 24: b[ 5:13]         - missing byte at size(a) + corruption_offset
-                3,    # stream slice 24 - 32: b[13:20] + c[:1] - VerifyContentError for b
-                4,    # stream slice 32 - 40: c[ 1: 9]         - ok
-                5,    # stream slice 40 - 44: c[ 9:13]         - ok
-            ]
-            exp_call_count = len(exp_piece_indexes)
-            exp_piece_1_exc = [torf.VerifyFileSizeError, type(None)]
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_total == torrent.pieces
-                assert 1 <= pieces_done <= pieces_total
-                if piece_index == 0:
-                    assert str(path) == str(content_path / 'a')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 1:
-                    exp_piece_1_exc.remove(type(exc))
-                    if isinstance(exc, torf.VerifyFileSizeError):
-                        assert str(path) == str(content_path / 'b')
-                        assert piece_hash is None
-                        assert str(exc) == f'{content_path / "b"}: Too small: 19 instead of 20 bytes'
-                    else:
-                        assert str(path) == str(content_path / 'b')
-                        assert type(piece_hash) is bytes and len(piece_hash) == 20
-                        assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 2:
-                    assert str(path) == str(content_path / 'b')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert str(exc) == f'Corruption in piece 3 in {content_path / "b"}'
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 3:
-                    assert isinstance(exc, torf.VerifyContentError)
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert str(exc) == (f'Corruption in piece 4, at least one of these files is corrupt: '
-                                        f'{content_path / "b"}, {content_path / "c"}')
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (4, 5):
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-            assert len(exp_piece_indexes) == 0, exp_piece_indexes
-            assert len(exp_piece_1_exc) == 0, exp_piece_1_exc
-            assert cb.call_count == exp_call_count
-
-
-def test_verify_content__file_contains_extra_bytes_in_the_middle(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(8) as piece_size:
-        b_data = create_dir.random_bytes(2*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 1*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            corruption_offset = 2*piece_size + 1
-            b_data_corrupt = b_data[:corruption_offset] + b'\x12' + b_data[corruption_offset:]
-            assert len(b_data_corrupt) == len(b_data) + 1
-            (content_path / 'b').write_bytes(b_data_corrupt)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.TorfError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=False)
-            assert str(excinfo.value) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
-            exp_piece_indexes = [
-                0,    # stream slice  0 -  8: a[ 0: 8]         - ok
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - VerifyFileSizeError for b
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
-                2,    # stream slice 16 - 24: b[ 5:13]         - corrupt, byte 28 in stream has corrupt byte inserted
-                3,    # stream slice 24 - 32: b[13:20] + c[:1] - VerifyContentError for b
-                4,    # stream slice 32 - 40: c[ 1: 9]         - ok
-                5,    # stream slice 40 - 44: c[ 9:13]         - ok
-            ]
-            exp_call_count = len(exp_piece_indexes)
-            exp_piece_1_exc = [torf.VerifyFileSizeError, type(None)]
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_total == torrent.pieces
-                assert 1 <= pieces_done <= pieces_total
-                if piece_index == 0:
-                    assert str(path) == str(content_path / 'a')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 1:
-                    exp_piece_1_exc.remove(type(exc))
-                    if isinstance(exc, torf.VerifyFileSizeError):
-                        assert str(path) == str(content_path / 'b')
-                        assert piece_hash is None
-                        assert str(exc) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
-                    else:
-                        assert str(path) == str(content_path / 'b')
-                        assert type(piece_hash) is bytes and len(piece_hash) == 20
-                        assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 2:
-                    assert str(path) == str(content_path / 'b')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 3:
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert str(exc) == (f'Corruption in piece {piece_index+1}, '
-                                        'at least one of these files is corrupt: '
-                                        f'{content_path / "b"}, {content_path / "c"}')
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (4, 5):
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-            assert len(exp_piece_indexes) == 0, exp_piece_indexes
-            assert len(exp_piece_1_exc) == 0, exp_piece_1_exc
-            assert cb.call_count == exp_call_count
-
-
-def test_verify_content__file_contains_extra_bytes_at_the_end(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(8) as piece_size:
-        b_data = create_dir.random_bytes(2*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 1*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            corruption_offset = piece_size
-            b_data_corrupt = b_data + b'\xff'
-            assert len(b_data_corrupt) == len(b_data) + 1
-            (content_path / 'b').write_bytes(b_data_corrupt)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyFileSizeError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=False)
-            assert str(excinfo.value) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
-            exp_piece_indexes = [
-                0,    # stream slice  0 -  8: a[ 0: 8]         - ok
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - VerifyFileSizeError for b
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
-                2,    # stream slice 16 - 24: b[ 5:13]         - ok
-                3,    # stream slice 24 - 32: b[13:20] + c[:1] - ok
-                4,    # stream slice 32 - 40: c[ 1: 9]         - ok
-                5,    # stream slice 40 - 44: c[ 9:13]         - ok
-            ]
-
-            exp_call_count = len(exp_piece_indexes)
-            exp_piece_1_exc = [torf.VerifyFileSizeError, type(None)]
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_total == torrent.pieces
-                assert 1 <= pieces_done <= pieces_total
-                if piece_index == 0:
-                    assert str(path) == str(content_path / 'a')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 1:
-                    exp_piece_1_exc.remove(type(exc))
-                    if isinstance(exc, torf.VerifyFileSizeError):
-                        assert str(path) == str(content_path / 'b')
-                        assert piece_hash is None
-                        assert str(exc) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
-                    else:
-                        assert str(path) == str(content_path / 'b')
-                        assert type(piece_hash) is bytes and len(piece_hash) == 20
-                        assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 2:
-                    assert str(path) == str(content_path / 'b')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 3:
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (4, 5):
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-            assert len(exp_piece_indexes) == 0, exp_piece_indexes
-            assert len(exp_piece_1_exc) == 0, exp_piece_1_exc
-            assert cb.call_count == exp_call_count
-
-
-def test_verify_content__file_is_same_size_but_corrupt(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(8) as piece_size:
-        b_data = create_dir.random_bytes(2*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 1*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            corruption_offset = 2*piece_size+4 - 1
-            b_data_corrupt = b_data[:corruption_offset] + b'\x12' + b_data[corruption_offset+1:]
-            assert len(b_data_corrupt) == len(b_data)
-            (content_path / 'b').write_bytes(b_data_corrupt)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyContentError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=False)
-            assert str(excinfo.value) == (f'Corruption in piece 4, at least one of these files is corrupt: '
-                                          f'{content_path / "b"}, {content_path / "c"}')
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
-            exp_piece_indexes = [
-                0,    # stream slice  0 -  8: a[ 0: 8]         - ok
-                1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
-                2,    # stream slice 16 - 24: b[ 5:13]         - ok
-                3,    # stream slice 24 - 32: b[13:20] + c[:1] - VerifyContentError
-                4,    # stream slice 32 - 40: c[ 1: 9]         - ok
-                5,    # stream slice 40 - 44: c[ 9:13]         - ok
-            ]
-
-            exp_call_count = len(exp_piece_indexes)
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_total == torrent.pieces
-                assert 1 <= pieces_done <= pieces_total
-                if piece_index == 0:
-                    assert str(path) == str(content_path / 'a')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (1, 2):
-                    assert str(path) == str(content_path / 'b')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index == 3:
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert str(exc) == (f'Corruption in piece 4, at least one of these files is corrupt: '
-                                        f'{content_path / "b"}, {content_path / "c"}')
-                    exp_piece_indexes.remove(piece_index)
-                elif piece_index in (4, 5):
-                    assert str(path) == str(content_path / 'c')
-                    assert type(piece_hash) is bytes and len(piece_hash) == 20
-                    assert exc is None
-                    exp_piece_indexes.remove(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-            assert len(exp_piece_indexes) == 0, exp_piece_indexes
-            assert cb.call_count == exp_call_count
-
-
-def test_verify_content__skip_file_on_first_read_error(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(1024) as piece_size:
-        b_data = create_dir.random_bytes(30*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 20*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            # Create one corruption at the beginning to trigger the skipping and
-            # another corruption in the last piece so that the first piece of
-            # "c" is also corrupt.
-            os.rename(content_path / 'b', content_path / 'b.orig')
-            assert not os.path.exists(content_path / 'b')
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.ReadError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=True)
-            assert str(excinfo.value) == f'{content_path / "b"}: No such file or directory'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            cb = CollectingCallback(torrent)
-            assert torrent.verify(content_path, skip_file_on_first_error=True, callback=cb, interval=0) == False
-            log.debug(f'good pieces: {dict(cb.good_pieces)}')
-            log.debug(f'corrupt pieces: {dict(cb.corrupt_pieces)}')
-            log.debug(f'skipped pieces: {dict(cb.skipped_pieces)}')
-
-            assert cb.good_pieces['a'] == [0]
-            assert cb.good_pieces['b'] == []
-            assert cb.good_pieces['c'] == list(range(32, 52))
-            assert cb.corrupt_pieces['a'] == []
-            assert cb.corrupt_pieces['b'] == [(1, f'{content_path / "b"}: No such file or directory')]
-            assert cb.corrupt_pieces['c'] == [(31, (f'Corruption in piece 32, at least one of these files is corrupt: '
-                                                    f'{content_path / "b"}, {content_path / "c"}'))]
-            assert cb.skipped_pieces['a'] == []
-            assert cb.skipped_pieces['b'] == list(range(1, 31))
-            assert cb.skipped_pieces['c'] == []
-
-
-def test_verify_content__skip_file_on_first_file_size_error(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(1024) as piece_size:
-        b_data = create_dir.random_bytes(30*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 20*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            # Provoke VerifyFileSizeError
-            (content_path / 'b').write_bytes(b'nah')
-            assert os.path.getsize(content_path / 'b') != len(b_data)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyFileSizeError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=True)
-            assert str(excinfo.value) == f'{content_path / "b"}: Too small: 3 instead of 30724 bytes'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            cb = CollectingCallback(torrent)
-            assert torrent.verify(content_path, skip_file_on_first_error=True, callback=cb, interval=0) == False
-            log.debug(f'good pieces: {dict(cb.good_pieces)}')
-            log.debug(f'corrupt pieces: {dict(cb.corrupt_pieces)}')
-            log.debug(f'skipped pieces: {dict(cb.skipped_pieces)}')
-
-            assert cb.good_pieces['a'] == [0]
-            assert cb.good_pieces['b'] == []
-            assert cb.good_pieces['c'] == list(range(32, 52))
-            assert cb.corrupt_pieces['a'] == []
-            assert cb.corrupt_pieces['b'] == [(1, f'{content_path / "b"}: Too small: 3 instead of 30724 bytes')]
-            assert cb.corrupt_pieces['c'] == [(31, (f'Corruption in piece 32, at least one of these files is corrupt: '
-                                                    f'{content_path / "b"}, {content_path / "c"}'))]
-            assert cb.skipped_pieces['a'] == []
-            assert cb.skipped_pieces['b'] == list(range(1, 31))
-            assert cb.skipped_pieces['c'] == []
-
-
-def test_verify_content__skip_file_on_first_hash_mismatch(create_dir, create_torrent_file, forced_piece_size):
-    with forced_piece_size(1024) as piece_size:
-        b_data = create_dir.random_bytes(30*piece_size+4)
-        content_path = create_dir('content',
-                                  ('a', 1*piece_size+3),
-                                  ('b', b_data),
-                                  ('c', 20*piece_size+5))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            # Corrupt multiple pieces
-            b_data_corrupt = bytearray(b_data)
-            b_data_len = len(b_data)
-            for pos in (3*piece_size, 10*piece_size, b_data_len-2):
-                b_data_corrupt[pos] = (b_data_corrupt[pos] + 1) % 256
-            assert b_data_corrupt != b_data
-            (content_path / 'b').write_bytes(b_data_corrupt)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyContentError) as excinfo:
-                torrent.verify(content_path, skip_file_on_first_error=True)
-            assert str(excinfo.value) == f'Corruption in piece 5 in {content_path / "b"}'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            cb = CollectingCallback(torrent)
-            assert torrent.verify(content_path, skip_file_on_first_error=True,
-                                  callback=cb, interval=0) == False
-            log.debug(f'good pieces: {dict(cb.good_pieces)}')
-            log.debug(f'corrupt pieces: {dict(cb.corrupt_pieces)}')
-            log.debug(f'skipped pieces: {dict(cb.skipped_pieces)}')
-
-            assert cb.good_pieces['a'] == [0]
-            assert cb.good_pieces['b'] == [1, 2, 3]
-            assert cb.good_pieces['c'] == list(range(32, 52))
-            assert cb.corrupt_pieces['a'] == []
-            assert cb.corrupt_pieces['b'] == [(4, f'Corruption in piece 5 in {content_path / "b"}')]
-            assert cb.corrupt_pieces['c'] == [(31, (f'Corruption in piece 32, at least one of these files is corrupt: '
-                                                    f'{content_path / "b"}, {content_path / "c"}'))]
-            assert cb.skipped_pieces['a'] == []
-            assert cb.skipped_pieces['b'] == list(range(5, 31))
-            assert cb.skipped_pieces['c'] == []
-
-
-def test_verify_content__torrent_contains_file_and_path_is_dir(forced_piece_size,
-                                                               create_file, create_dir, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        content_path = create_file('content', create_file.random_size(piece_size))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            os.remove(content_path)
-            new_content_path = create_dir('content',
-                                          ('a', create_dir.random_size(piece_size)),
-                                          ('b', create_dir.random_size(piece_size)))
-            assert os.path.isdir(content_path)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyNotDirectoryError) as excinfo:
-                torrent.verify(content_path)
-            assert str(excinfo.value) == f'{content_path}: Is a directory'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_done == 0
-                assert pieces_total == torrent.pieces
-                assert piece_index == 0
-                assert piece_hash is None
-                assert str(path) == str(content_path)
-                assert str(exc) == f'{content_path}: Is a directory'
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=0) == False
-            assert cb.call_count == 1
-
-
-def test_verify_content__torrent_contains_dir_and_path_is_file(forced_piece_size,
-                                                               create_file, create_dir, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        content_path = create_dir('content',
-                                  ('a', create_dir.random_size()),
-                                  ('b', create_dir.random_size()))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            shutil.rmtree(content_path)
-            new_content_path = create_file('content', create_file.random_size())
-            assert os.path.isfile(content_path)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyIsDirectoryError) as excinfo:
-                torrent.verify(content_path)
-            assert str(excinfo.value) == f'{content_path}: Not a directory'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_done == 0
-                assert pieces_total == torrent.pieces
-                assert piece_index == 0
-                assert piece_hash is None
-                assert str(path) == str(content_path / 'a')
-                assert str(exc) == f'{content_path}: Not a directory'
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=0) == False
-            assert cb.call_count == 1
-
-
-def test_verify_content__parent_path_is_unreadable(file_size_a, file_size_b, piece_size,
-                                                   create_dir, forced_piece_size, create_torrent_file):
-    with forced_piece_size(piece_size):
-        content_path = create_dir('content',
-                                  ('readable/x/a', file_size_a),
-                                  ('unreadable/x/b', file_size_b))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-            unreadable_path_mode = os.stat(content_path / 'unreadable').st_mode
-            try:
-                os.chmod(content_path / 'unreadable', mode=0o222)
-
-                log.debug('################ TEST WITHOUT CALLBACK ##################')
-                with pytest.raises(torf.ReadError) as excinfo:
-                    torrent.verify(content_path)
-                assert str(excinfo.value) == f'{content_path / "unreadable/x/b"}: Permission denied'
-
-                log.debug('################ TEST WITH CALLBACK ##################')
-                def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                    assert str(path) in (str(content_path / 'readable/x/a'),
-                                         str(content_path / 'unreadable/x/b'))
-                    if str(path) == str(content_path / 'readable/x/a'):
-                        assert type(piece_hash) is bytes and len(piece_hash) == 20
-                        assert exc is None
-                    elif str(path) == str(content_path / 'readable/x/a'):
-                        assert str(exc) == f'{content_path / "unreadable/x/b"}: Permission denied'
-                        assert piece_hash is None
-                cb = mock.Mock(side_effect=assert_call)
-                assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
-
-                # One call for each piece + 1 extra call for the ReadError
-                exp_cb_calls = torrent.pieces + 1
-                assert cb.call_count == exp_cb_calls
-            finally:
-                os.chmod(content_path / 'unreadable', mode=unreadable_path_mode)
-
-
-def test_verify_content__torrent_contains_dir_and_path_is_file(forced_piece_size,
-                                                               create_file, create_dir, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        content_path = create_dir('content',
-                                  ('a', create_dir.random_size()),
-                                  ('b', create_dir.random_size()))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            shutil.rmtree(content_path)
-            new_content_path = create_file('content', create_file.random_size())
-            assert os.path.isfile(content_path)
-
-            log.debug('################ TEST WITHOUT CALLBACK ##################')
-            with pytest.raises(torf.VerifyIsDirectoryError) as excinfo:
-                torrent.verify(content_path)
-            assert str(excinfo.value) == f'{content_path}: Not a directory'
-
-            log.debug('################ TEST WITH CALLBACK ##################')
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                assert t == torrent
-                assert pieces_done == 0
-                assert pieces_total == torrent.pieces
-                assert piece_index == 0
-                assert piece_hash is None
-                assert str(path) == str(content_path / 'a')
-                assert str(exc) == f'{content_path}: Not a directory'
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=0) == False
-            assert cb.call_count == 1
-
-def test_verify_content__callback_is_called_at_intervals(forced_piece_size, monkeypatch,
-                                                         create_file, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        content_path = create_file('content',
-                                   create_file.random_size(min_pieces=10, max_pieces=20))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-            monkeypatch.setattr(torf._generate, 'time_monotonic',
-                                mock.Mock(side_effect=range(int(1e9))))
-            pieces_seen = []
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                pieces_seen.append(piece_index)
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=2) == True
-            assert cb.call_count == torrent.pieces // 2 + 1
-
-
-def test_verify_content__last_callback_call_is_never_skipped_when_succeeding(forced_piece_size, monkeypatch,
-                                                                             create_dir, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        b_data = create_dir.random_bytes(create_dir.random_size(min_pieces=5))
-        content_path = create_dir('content',
-                                  ('a', create_dir.random_size()),
-                                  ('b', b_data),
-                                  ('c', create_dir.random_size()))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            monkeypatch.setattr(torf._generate, 'time_monotonic',
-                                mock.Mock(side_effect=range(int(1e9))))
-
-            progresses = []
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                progresses.append((pieces_done, pieces_total))
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=2, skip_file_on_first_error=True) == True
-            print(progresses)
-            assert progresses[-1] == (torrent.pieces, torrent.pieces)
-
-
-def test_verify_content__last_callback_call_is_never_skipped_when_failing(forced_piece_size, monkeypatch,
-                                                                          create_dir, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        b_data = create_dir.random_bytes(create_dir.random_size(min_pieces=5))
-        content_path = create_dir('content',
-                                  ('a', create_dir.random_size()),
-                                  ('b', b_data),
-                                  ('c', create_dir.random_size()))
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            b_data_corrupt = bytearray(b_data)
-            b_data_corrupt[piece_size:piece_size] = b'foo'
-            assert b_data_corrupt != b_data
-            (content_path / 'b').write_bytes(b_data_corrupt)
-
-            monkeypatch.setattr(torf._generate, 'time_monotonic',
-                                mock.Mock(side_effect=range(int(1e9))))
-
-            progresses = []
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                print(path, pieces_done, pieces_total, piece_index, piece_hash, exc)
-                progresses.append((pieces_done, pieces_total))
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=2, skip_file_on_first_error=True) == False
-            print(progresses)
-            assert progresses[-1] == (torrent.pieces, torrent.pieces)
-
-
-def test_verify_content__callback_interval_is_ignored_when_error_occurs(forced_piece_size, monkeypatch,
-                                                                        create_file, create_torrent_file):
-    with forced_piece_size(8) as piece_size:
-        data = create_file.random_bytes(9*piece_size)
-        content_path = create_file('content', data)
-        with create_torrent_file(path=content_path) as torrent_file:
-            torrent = torf.Torrent.read(torrent_file)
-
-            # Corrupt consecutive pieces
-            errpos = (4, 5, 6)
-            data_corrupt = bytearray(data)
-            data_corrupt[piece_size*errpos[0]] = (data[piece_size*errpos[0]] + 1) % 256
-            data_corrupt[piece_size*errpos[1]] = (data[piece_size*errpos[0]] + 1) % 256
-            data_corrupt[piece_size*errpos[2]] = (data[piece_size*errpos[2]] + 1) % 256
-            assert len(data_corrupt) == len(data)
-            assert data_corrupt != data
-            content_path.write_bytes(data_corrupt)
-
-            monkeypatch.setattr(torf._generate, 'time_monotonic',
-                                mock.Mock(side_effect=range(int(1e9))))
-
-            progresses = []
-            def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-                print(path, pieces_done, pieces_total, piece_index, piece_hash, exc)
-                progresses.append((pieces_done, pieces_total))
-            cb = mock.Mock(side_effect=assert_call)
-            assert torrent.verify(content_path, callback=cb, interval=3, skip_file_on_first_error=False) == False
-            assert progresses == [(1, 9), (4, 9), (5, 9), (6, 9), (7, 9), (9, 9)]
-
-
-# def test_callback_raises_exception(forced_piece_size, monkeypatch,
-#                                    create_file, create_torrent_file)
-#     content = tmpdir.join('file.jpg')
-#     content.write_binary(os.urandom(5*torf.Torrent.piece_size_min))
-
-#     with create_torrent_file(path=content) as torrent_file:
-#         torrent = torf.Torrent.read(torrent_file)
-
-#         cb = mock.MagicMock()
-#         def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
-#             if cb.call_count == 3:
-#                 raise RuntimeError("I'm off")
-#         cb.side_effect = assert_call
-#         with pytest.raises(RuntimeError) as excinfo:
-#             torrent.verify(content, skip_file_on_first_error=False, callback=cb)
-#         assert excinfo.match(f"^I'm off$")
-#         assert cb.call_count == 3
+def test_verify_content_successfully(mktestcase, piece_size, filespecs, with_callback):
+    tc = mktestcase(filespecs, piece_size)
+    cb = tc.run(with_callback=with_callback, exp_return_value=True)
+    if with_callback:
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        assert cb.seen_pieces == tc.exp_piece_indexes
+        assert cb.seen_good_pieces == tc.exp_piece_indexes
+        assert cb.seen_exceptions == []
+
+def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespecs, with_callback):
+    tc = mktestcase(filespecs, piece_size)
+    tc.corrupt_stream()
+    cb = tc.run(with_callback=with_callback, exp_return_value=False)
+    if with_callback:
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        assert cb.seen_pieces == tc.exp_piece_indexes
+        assert cb.seen_good_pieces == tc.exp_good_pieces
+        assert cb.seen_exceptions == tc.exp_exceptions
+
+def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, with_callback, filespec_indexes):
+    tc = mktestcase(filespecs, piece_size)
+    for index in filespec_indexes:
+        tc.delete_file(index)
+    cb = tc.run(with_callback=with_callback, exp_return_value=False)
+    if with_callback:
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        assert cb.seen_pieces == tc.exp_piece_indexes
+        assert cb.seen_good_pieces == tc.exp_good_pieces
+        assert cb.seen_exceptions == tc.exp_exceptions
+
+
+# def test_verify_content_successfully_with_singlefile_torrent(mktestcase, piece_size, file_size):
+#     filespecs=(('a', file_size),)
+#     tc = mktestcase(filespecs, piece_size)
+
+#     tc.run(with_callback=False, exp_return_value=True)
+
+#     cb = tc.run(with_callback=True, exp_return_value=True)
+#     assert cb.seen_pieces_done == tc.exp_pieces_done
+#     assert cb.seen_pieces == tc.exp_piece_indexes
+#     assert cb.seen_good_pieces == tc.exp_piece_indexes
+#     assert cb.seen_exceptions == []
+
+# def test_verify_content_successfully_with_multifile_torrent(mktestcase, piece_size,
+#                                                             file_size_a, file_size_b, file_size_c):
+#     filespecs=(('a', file_size_a),
+#                ('b', file_size_b),
+#                ('c', file_size_c))
+#     tc = mktestcase(filespecs, piece_size)
+
+#     tc.run(with_callback=False, exp_return_value=True)
+
+#     cb = tc.run(with_callback=True, exp_return_value=True)
+#     assert cb.seen_pieces_done == tc.exp_pieces_done
+#     assert cb.seen_pieces == tc.exp_piece_indexes
+#     assert cb.seen_good_pieces == tc.exp_piece_indexes
+#     assert cb.seen_exceptions == []
+
+
+
+
+# # TODO: Test callback with interval and success
+# # TODO: Test callback with interval and various corruptions
+# # TODO: Test callback with interval and various corruptions with skip_file_on_first_error
+
+# def test_verify_content__random_corruption_in_singlefile_torrent(mktestcase, piece_size, file_size):
+#     filespecs = (('a', file_size),)
+#     tc = mktestcase(filespecs, piece_size)
+#     tc.corrupt_stream()
+
+#     tc.run(with_callback=False)
+
+#     cb = tc.run(with_callback=True, exp_return_value=False)
+#     assert cb.seen_pieces_done == tc.exp_pieces_done
+#     assert cb.seen_pieces == tc.exp_piece_indexes
+#     assert cb.seen_good_pieces == tc.exp_good_pieces
+#     assert cb.seen_exceptions == tc.exp_exceptions
+
+# def test_verify_content__random_corruption_in_multifile_torrent(mktestcase, piece_size,
+#                                                                 file_size_a, file_size_b, file_size_c):
+#     filespecs = (('a', file_size_a),
+#                  ('b', file_size_b),
+#                  ('c', file_size_c))
+#     tc = mktestcase(filespecs, piece_size)
+#     tc.corrupt_stream()
+
+#     tc.run(with_callback=False)
+
+#     cb = tc.run(with_callback=True, exp_return_value=False)
+#     assert cb.seen_pieces_done == tc.exp_pieces_done
+#     assert cb.seen_pieces == tc.exp_piece_indexes
+#     assert cb.seen_good_pieces == tc.exp_good_pieces
+#     assert cb.seen_exceptions == tc.exp_corruptions
+
+
+# def test_verify_content__file_is_missing_in_singlefile_torrent(mktestcase, piece_size, file_size):
+#     filespecs = (('a', file_size),)
+#     tc = mktestcase(filespecs, piece_size)
+#     tc.delete_file()
+
+#     tc.run(with_callback=False)
+
+#     cb = tc.run(with_callback=True, exp_return_value=False)
+#     assert cb.seen_pieces_done == tc.exp_pieces_done
+#     assert cb.seen_pieces == tc.exp_piece_indexes
+#     assert cb.seen_good_pieces == {}
+#     assert cb.seen_exceptions == tc.exp_exceptions
+
+# def test_verify_content__file_is_missing_in_multifile_torrent(mktestcase, piece_size,
+#                                                               file_size_a, file_size_b, file_size_c):
+#     filespecs = (('a', file_size_a),
+#                  ('b', file_size_b),
+#                  ('c', file_size_c))
+#     tc = mktestcase(filespecs, piece_size)
+#     for _ in range(random.randint(1, len(filespecs))):
+#         tc.delete_file()
+
+#     tc.run(with_callback=False)
+
+#     cb = tc.run(with_callback=True, exp_return_value=False)
+#     assert cb.seen_pieces_done == tc.exp_pieces_done
+#     assert cb.seen_pieces == tc.exp_piece_indexes
+#     assert cb.seen_good_pieces == tc.exp_good_pieces
+#     assert cb.seen_exceptions == tc.exp_exceptions
+
+
+# # def test_verify_content__file_is_missing(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(8) as piece_size:
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', 2*piece_size+4),
+# #                                   ('c', 2*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             os.rename(content_path / 'b', content_path / 'b.deleted')
+# #             assert not os.path.exists(content_path / 'b')
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.ReadError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=False)
+# #             assert str(excinfo.value) == f'{content_path / "b"}: No such file or directory'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             # (8+3) + (2*8+4) + (2*8+5) = 7 pieces (max_piece_index=6)
+# #             exp_piece_indexes = [
+# #                 0, # stream slice  0 -  8: a[ 0: 8]         - ok
+# #                 1, # stream slice  8 - 16: a[-3:  ] + b[:5] - ReadError
+# #                 1, # stream slice  8 - 16: a[-3:  ] + b[:5] - fake piece
+# #                 2, # stream slice 16 - 24: b[ 5:13]         - fake piece
+# #                 3, # stream slice 24 - 32: b[13:20] + c[:1] - ReadError
+# #                 4, # stream slice 32 - 40: c[ 1: 9]         - ok
+# #                 5, # stream slice 40 - 48: c[ 9:17]         - ok
+# #                 6, # stream slice 48 - 52: c[17:21]         - ok
+# #             ]
+# #             exp_call_count = len(exp_piece_indexes)
+
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_total == torrent.pieces
+# #                 assert 1 <= pieces_done <= pieces_total
+# #                 if piece_index in (0,):
+# #                     assert str(path) == str(content_path / 'a')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (1,):
+# #                     assert str(path) == str(content_path / 'b')
+# #                     assert piece_hash is None
+# #                     # We get piece_index=1 once for the ReadError and once for
+# #                     # the fake piece
+# #                     if exp_piece_indexes.count(1) == 2:
+# #                         assert str(exc) == f'{content_path / "b"}: No such file or directory'
+# #                     else:
+# #                         assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (2,):
+# #                     assert str(path) == str(content_path / 'b')
+# #                     assert piece_hash is None
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (3,):
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert str(exc) == (f'Corruption in piece {piece_index+1}, '
+# #                                         'at least one of these files is corrupt: '
+# #                                         f'{content_path / "b"}, {content_path / "c"}')
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (4, 5, 6):
+# #                     assert str(path) == str(content_path / "c")
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+# #             assert len(exp_piece_indexes) == 0, exp_piece_indexes
+# #             assert cb.call_count == exp_call_count
+
+
+# # def test_verify_content__file_is_smaller(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(8) as piece_size:
+# #         b_data = create_dir.random_bytes(2*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 1*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             corruption_offset = piece_size + 2
+# #             b_data_corrupt = b_data[:corruption_offset] + b_data[corruption_offset+1:]
+# #             assert len(b_data_corrupt) == len(b_data) - 1
+# #             (content_path / 'b').write_bytes(b_data_corrupt)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyFileSizeError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=False)
+# #             assert str(excinfo.value) == f'{content_path / "b"}: Too small: 19 instead of 20 bytes'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
+# #             exp_piece_indexes = [
+# #                 0,    # stream slice  0 -  8: a[ 0: 8]         - ok
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - VerifyFileSizeError for b
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
+# #                 2,    # stream slice 16 - 24: b[ 5:13]         - missing byte at size(a) + corruption_offset
+# #                 3,    # stream slice 24 - 32: b[13:20] + c[:1] - VerifyContentError for b
+# #                 4,    # stream slice 32 - 40: c[ 1: 9]         - ok
+# #                 5,    # stream slice 40 - 44: c[ 9:13]         - ok
+# #             ]
+# #             exp_call_count = len(exp_piece_indexes)
+# #             exp_piece_1_exc = [torf.VerifyFileSizeError, type(None)]
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_total == torrent.pieces
+# #                 assert 1 <= pieces_done <= pieces_total
+# #                 if piece_index == 0:
+# #                     assert str(path) == str(content_path / 'a')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 1:
+# #                     exp_piece_1_exc.remove(type(exc))
+# #                     if isinstance(exc, torf.VerifyFileSizeError):
+# #                         assert str(path) == str(content_path / 'b')
+# #                         assert piece_hash is None
+# #                         assert str(exc) == f'{content_path / "b"}: Too small: 19 instead of 20 bytes'
+# #                     else:
+# #                         assert str(path) == str(content_path / 'b')
+# #                         assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                         assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 2:
+# #                     assert str(path) == str(content_path / 'b')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert str(exc) == f'Corruption in piece 3 in {content_path / "b"}'
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 3:
+# #                     assert isinstance(exc, torf.VerifyContentError)
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert str(exc) == (f'Corruption in piece 4, at least one of these files is corrupt: '
+# #                                         f'{content_path / "b"}, {content_path / "c"}')
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (4, 5):
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+# #             assert len(exp_piece_indexes) == 0, exp_piece_indexes
+# #             assert len(exp_piece_1_exc) == 0, exp_piece_1_exc
+# #             assert cb.call_count == exp_call_count
+
+
+# # def test_verify_content__file_contains_extra_bytes_in_the_middle(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(8) as piece_size:
+# #         b_data = create_dir.random_bytes(2*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 1*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             corruption_offset = 2*piece_size + 1
+# #             b_data_corrupt = b_data[:corruption_offset] + b'\x12' + b_data[corruption_offset:]
+# #             assert len(b_data_corrupt) == len(b_data) + 1
+# #             (content_path / 'b').write_bytes(b_data_corrupt)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.TorfError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=False)
+# #             assert str(excinfo.value) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
+# #             exp_piece_indexes = [
+# #                 0,    # stream slice  0 -  8: a[ 0: 8]         - ok
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - VerifyFileSizeError for b
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
+# #                 2,    # stream slice 16 - 24: b[ 5:13]         - corrupt, byte 28 in stream has corrupt byte inserted
+# #                 3,    # stream slice 24 - 32: b[13:20] + c[:1] - VerifyContentError for b
+# #                 4,    # stream slice 32 - 40: c[ 1: 9]         - ok
+# #                 5,    # stream slice 40 - 44: c[ 9:13]         - ok
+# #             ]
+# #             exp_call_count = len(exp_piece_indexes)
+# #             exp_piece_1_exc = [torf.VerifyFileSizeError, type(None)]
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_total == torrent.pieces
+# #                 assert 1 <= pieces_done <= pieces_total
+# #                 if piece_index == 0:
+# #                     assert str(path) == str(content_path / 'a')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 1:
+# #                     exp_piece_1_exc.remove(type(exc))
+# #                     if isinstance(exc, torf.VerifyFileSizeError):
+# #                         assert str(path) == str(content_path / 'b')
+# #                         assert piece_hash is None
+# #                         assert str(exc) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
+# #                     else:
+# #                         assert str(path) == str(content_path / 'b')
+# #                         assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                         assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 2:
+# #                     assert str(path) == str(content_path / 'b')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 3:
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert str(exc) == (f'Corruption in piece {piece_index+1}, '
+# #                                         'at least one of these files is corrupt: '
+# #                                         f'{content_path / "b"}, {content_path / "c"}')
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (4, 5):
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+# #             assert len(exp_piece_indexes) == 0, exp_piece_indexes
+# #             assert len(exp_piece_1_exc) == 0, exp_piece_1_exc
+# #             assert cb.call_count == exp_call_count
+
+
+# # def test_verify_content__file_contains_extra_bytes_at_the_end(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(8) as piece_size:
+# #         b_data = create_dir.random_bytes(2*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 1*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             corruption_offset = piece_size
+# #             b_data_corrupt = b_data + b'\xff'
+# #             assert len(b_data_corrupt) == len(b_data) + 1
+# #             (content_path / 'b').write_bytes(b_data_corrupt)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyFileSizeError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=False)
+# #             assert str(excinfo.value) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
+# #             exp_piece_indexes = [
+# #                 0,    # stream slice  0 -  8: a[ 0: 8]         - ok
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - VerifyFileSizeError for b
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
+# #                 2,    # stream slice 16 - 24: b[ 5:13]         - ok
+# #                 3,    # stream slice 24 - 32: b[13:20] + c[:1] - ok
+# #                 4,    # stream slice 32 - 40: c[ 1: 9]         - ok
+# #                 5,    # stream slice 40 - 44: c[ 9:13]         - ok
+# #             ]
+
+# #             exp_call_count = len(exp_piece_indexes)
+# #             exp_piece_1_exc = [torf.VerifyFileSizeError, type(None)]
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_total == torrent.pieces
+# #                 assert 1 <= pieces_done <= pieces_total
+# #                 if piece_index == 0:
+# #                     assert str(path) == str(content_path / 'a')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 1:
+# #                     exp_piece_1_exc.remove(type(exc))
+# #                     if isinstance(exc, torf.VerifyFileSizeError):
+# #                         assert str(path) == str(content_path / 'b')
+# #                         assert piece_hash is None
+# #                         assert str(exc) == f'{content_path / "b"}: Too big: 21 instead of 20 bytes'
+# #                     else:
+# #                         assert str(path) == str(content_path / 'b')
+# #                         assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                         assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 2:
+# #                     assert str(path) == str(content_path / 'b')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 3:
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (4, 5):
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+# #             assert len(exp_piece_indexes) == 0, exp_piece_indexes
+# #             assert len(exp_piece_1_exc) == 0, exp_piece_1_exc
+# #             assert cb.call_count == exp_call_count
+
+
+# # def test_verify_content__file_is_same_size_but_corrupt(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(8) as piece_size:
+# #         b_data = create_dir.random_bytes(2*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 1*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             corruption_offset = 2*piece_size+4 - 1
+# #             b_data_corrupt = b_data[:corruption_offset] + b'\x12' + b_data[corruption_offset+1:]
+# #             assert len(b_data_corrupt) == len(b_data)
+# #             (content_path / 'b').write_bytes(b_data_corrupt)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyContentError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=False)
+# #             assert str(excinfo.value) == (f'Corruption in piece 4, at least one of these files is corrupt: '
+# #                                           f'{content_path / "b"}, {content_path / "c"}')
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             # (8+3) + (2*8+4) + (8+5) = 6 pieces (max_piece_index=5)
+# #             exp_piece_indexes = [
+# #                 0,    # stream slice  0 -  8: a[ 0: 8]         - ok
+# #                 1,    # stream slice  8 - 16: a[-3:  ] + b[:5] - ok
+# #                 2,    # stream slice 16 - 24: b[ 5:13]         - ok
+# #                 3,    # stream slice 24 - 32: b[13:20] + c[:1] - VerifyContentError
+# #                 4,    # stream slice 32 - 40: c[ 1: 9]         - ok
+# #                 5,    # stream slice 40 - 44: c[ 9:13]         - ok
+# #             ]
+
+# #             exp_call_count = len(exp_piece_indexes)
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_total == torrent.pieces
+# #                 assert 1 <= pieces_done <= pieces_total
+# #                 if piece_index == 0:
+# #                     assert str(path) == str(content_path / 'a')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (1, 2):
+# #                     assert str(path) == str(content_path / 'b')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index == 3:
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert str(exc) == (f'Corruption in piece 4, at least one of these files is corrupt: '
+# #                                         f'{content_path / "b"}, {content_path / "c"}')
+# #                     exp_piece_indexes.remove(piece_index)
+# #                 elif piece_index in (4, 5):
+# #                     assert str(path) == str(content_path / 'c')
+# #                     assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                     assert exc is None
+# #                     exp_piece_indexes.remove(piece_index)
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+# #             assert len(exp_piece_indexes) == 0, exp_piece_indexes
+# #             assert cb.call_count == exp_call_count
+
+
+# # def test_verify_content__skip_file_on_first_read_error(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(1024) as piece_size:
+# #         b_data = create_dir.random_bytes(30*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 20*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             # Create one corruption at the beginning to trigger the skipping and
+# #             # another corruption in the last piece so that the first piece of
+# #             # "c" is also corrupt.
+# #             os.rename(content_path / 'b', content_path / 'b.orig')
+# #             assert not os.path.exists(content_path / 'b')
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.ReadError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=True)
+# #             assert str(excinfo.value) == f'{content_path / "b"}: No such file or directory'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             cb = CollectingCallback(torrent)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=True, callback=cb, interval=0) == False
+# #             log.debug(f'good pieces: {dict(cb.good_pieces)}')
+# #             log.debug(f'corrupt pieces: {dict(cb.corrupt_pieces)}')
+# #             log.debug(f'skipped pieces: {dict(cb.skipped_pieces)}')
+
+# #             assert cb.good_pieces['a'] == [0]
+# #             assert cb.good_pieces['b'] == []
+# #             assert cb.good_pieces['c'] == list(range(32, 52))
+# #             assert cb.corrupt_pieces['a'] == []
+# #             assert cb.corrupt_pieces['b'] == [(1, f'{content_path / "b"}: No such file or directory')]
+# #             assert cb.corrupt_pieces['c'] == [(31, (f'Corruption in piece 32, at least one of these files is corrupt: '
+# #                                                     f'{content_path / "b"}, {content_path / "c"}'))]
+# #             assert cb.skipped_pieces['a'] == []
+# #             assert cb.skipped_pieces['b'] == list(range(1, 31))
+# #             assert cb.skipped_pieces['c'] == []
+
+
+# # def test_verify_content__skip_file_on_first_file_size_error(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(1024) as piece_size:
+# #         b_data = create_dir.random_bytes(30*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 20*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             # Provoke VerifyFileSizeError
+# #             (content_path / 'b').write_bytes(b'nah')
+# #             assert os.path.getsize(content_path / 'b') != len(b_data)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyFileSizeError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=True)
+# #             assert str(excinfo.value) == f'{content_path / "b"}: Too small: 3 instead of 30724 bytes'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             cb = CollectingCallback(torrent)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=True, callback=cb, interval=0) == False
+# #             log.debug(f'good pieces: {dict(cb.good_pieces)}')
+# #             log.debug(f'corrupt pieces: {dict(cb.corrupt_pieces)}')
+# #             log.debug(f'skipped pieces: {dict(cb.skipped_pieces)}')
+
+# #             assert cb.good_pieces['a'] == [0]
+# #             assert cb.good_pieces['b'] == []
+# #             assert cb.good_pieces['c'] == list(range(32, 52))
+# #             assert cb.corrupt_pieces['a'] == []
+# #             assert cb.corrupt_pieces['b'] == [(1, f'{content_path / "b"}: Too small: 3 instead of 30724 bytes')]
+# #             assert cb.corrupt_pieces['c'] == [(31, (f'Corruption in piece 32, at least one of these files is corrupt: '
+# #                                                     f'{content_path / "b"}, {content_path / "c"}'))]
+# #             assert cb.skipped_pieces['a'] == []
+# #             assert cb.skipped_pieces['b'] == list(range(1, 31))
+# #             assert cb.skipped_pieces['c'] == []
+
+
+# # def test_verify_content__skip_file_on_first_hash_mismatch(create_dir, create_torrent_file, forced_piece_size):
+# #     with forced_piece_size(1024) as piece_size:
+# #         b_data = create_dir.random_bytes(30*piece_size+4)
+# #         content_path = create_dir('content',
+# #                                   ('a', 1*piece_size+3),
+# #                                   ('b', b_data),
+# #                                   ('c', 20*piece_size+5))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             # Corrupt multiple pieces
+# #             b_data_corrupt = bytearray(b_data)
+# #             b_data_len = len(b_data)
+# #             for pos in (3*piece_size, 10*piece_size, b_data_len-2):
+# #                 b_data_corrupt[pos] = (b_data_corrupt[pos] + 1) % 256
+# #             assert b_data_corrupt != b_data
+# #             (content_path / 'b').write_bytes(b_data_corrupt)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyContentError) as excinfo:
+# #                 torrent.verify(content_path, skip_file_on_first_error=True)
+# #             assert str(excinfo.value) == f'Corruption in piece 5 in {content_path / "b"}'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             cb = CollectingCallback(torrent)
+# #             assert torrent.verify(content_path, skip_file_on_first_error=True,
+# #                                   callback=cb, interval=0) == False
+# #             log.debug(f'good pieces: {dict(cb.good_pieces)}')
+# #             log.debug(f'corrupt pieces: {dict(cb.corrupt_pieces)}')
+# #             log.debug(f'skipped pieces: {dict(cb.skipped_pieces)}')
+
+# #             assert cb.good_pieces['a'] == [0]
+# #             assert cb.good_pieces['b'] == [1, 2, 3]
+# #             assert cb.good_pieces['c'] == list(range(32, 52))
+# #             assert cb.corrupt_pieces['a'] == []
+# #             assert cb.corrupt_pieces['b'] == [(4, f'Corruption in piece 5 in {content_path / "b"}')]
+# #             assert cb.corrupt_pieces['c'] == [(31, (f'Corruption in piece 32, at least one of these files is corrupt: '
+# #                                                     f'{content_path / "b"}, {content_path / "c"}'))]
+# #             assert cb.skipped_pieces['a'] == []
+# #             assert cb.skipped_pieces['b'] == list(range(5, 31))
+# #             assert cb.skipped_pieces['c'] == []
+
+
+# # def test_verify_content__torrent_contains_file_and_path_is_dir(forced_piece_size,
+# #                                                                create_file, create_dir, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         content_path = create_file('content', create_file.random_size(piece_size))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             os.remove(content_path)
+# #             new_content_path = create_dir('content',
+# #                                           ('a', create_dir.random_size(piece_size)),
+# #                                           ('b', create_dir.random_size(piece_size)))
+# #             assert os.path.isdir(content_path)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyNotDirectoryError) as excinfo:
+# #                 torrent.verify(content_path)
+# #             assert str(excinfo.value) == f'{content_path}: Is a directory'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_done == 0
+# #                 assert pieces_total == torrent.pieces
+# #                 assert piece_index == 0
+# #                 assert piece_hash is None
+# #                 assert str(path) == str(content_path)
+# #                 assert str(exc) == f'{content_path}: Is a directory'
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=0) == False
+# #             assert cb.call_count == 1
+
+
+# # def test_verify_content__torrent_contains_dir_and_path_is_file(forced_piece_size,
+# #                                                                create_file, create_dir, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         content_path = create_dir('content',
+# #                                   ('a', create_dir.random_size()),
+# #                                   ('b', create_dir.random_size()))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             shutil.rmtree(content_path)
+# #             new_content_path = create_file('content', create_file.random_size())
+# #             assert os.path.isfile(content_path)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyIsDirectoryError) as excinfo:
+# #                 torrent.verify(content_path)
+# #             assert str(excinfo.value) == f'{content_path}: Not a directory'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_done == 0
+# #                 assert pieces_total == torrent.pieces
+# #                 assert piece_index == 0
+# #                 assert piece_hash is None
+# #                 assert str(path) == str(content_path / 'a')
+# #                 assert str(exc) == f'{content_path}: Not a directory'
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=0) == False
+# #             assert cb.call_count == 1
+
+
+# # def test_verify_content__parent_path_is_unreadable(file_size_a, file_size_b, piece_size,
+# #                                                    create_dir, forced_piece_size, create_torrent_file):
+# #     with forced_piece_size(piece_size):
+# #         content_path = create_dir('content',
+# #                                   ('readable/x/a', file_size_a),
+# #                                   ('unreadable/x/b', file_size_b))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+# #             unreadable_path_mode = os.stat(content_path / 'unreadable').st_mode
+# #             try:
+# #                 os.chmod(content_path / 'unreadable', mode=0o222)
+
+# #                 log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #                 with pytest.raises(torf.ReadError) as excinfo:
+# #                     torrent.verify(content_path)
+# #                 assert str(excinfo.value) == f'{content_path / "unreadable/x/b"}: Permission denied'
+
+# #                 log.debug('################ TEST WITH CALLBACK ##################')
+# #                 def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                     assert str(path) in (str(content_path / 'readable/x/a'),
+# #                                          str(content_path / 'unreadable/x/b'))
+# #                     if str(path) == str(content_path / 'readable/x/a'):
+# #                         assert type(piece_hash) is bytes and len(piece_hash) == 20
+# #                         assert exc is None
+# #                     elif str(path) == str(content_path / 'readable/x/a'):
+# #                         assert str(exc) == f'{content_path / "unreadable/x/b"}: Permission denied'
+# #                         assert piece_hash is None
+# #                 cb = mock.Mock(side_effect=assert_call)
+# #                 assert torrent.verify(content_path, skip_file_on_first_error=False, callback=cb, interval=0) == False
+
+# #                 # One call for each piece + 1 extra call for the ReadError
+# #                 exp_cb_calls = torrent.pieces + 1
+# #                 assert cb.call_count == exp_cb_calls
+# #             finally:
+# #                 os.chmod(content_path / 'unreadable', mode=unreadable_path_mode)
+
+
+# # def test_verify_content__torrent_contains_dir_and_path_is_file(forced_piece_size,
+# #                                                                create_file, create_dir, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         content_path = create_dir('content',
+# #                                   ('a', create_dir.random_size()),
+# #                                   ('b', create_dir.random_size()))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             shutil.rmtree(content_path)
+# #             new_content_path = create_file('content', create_file.random_size())
+# #             assert os.path.isfile(content_path)
+
+# #             log.debug('################ TEST WITHOUT CALLBACK ##################')
+# #             with pytest.raises(torf.VerifyIsDirectoryError) as excinfo:
+# #                 torrent.verify(content_path)
+# #             assert str(excinfo.value) == f'{content_path}: Not a directory'
+
+# #             log.debug('################ TEST WITH CALLBACK ##################')
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 assert t == torrent
+# #                 assert pieces_done == 0
+# #                 assert pieces_total == torrent.pieces
+# #                 assert piece_index == 0
+# #                 assert piece_hash is None
+# #                 assert str(path) == str(content_path / 'a')
+# #                 assert str(exc) == f'{content_path}: Not a directory'
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=0) == False
+# #             assert cb.call_count == 1
+
+# # def test_verify_content__callback_is_called_at_intervals(forced_piece_size, monkeypatch,
+# #                                                          create_file, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         content_path = create_file('content',
+# #                                    create_file.random_size(min_pieces=10, max_pieces=20))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+# #             monkeypatch.setattr(torf._generate, 'time_monotonic',
+# #                                 mock.Mock(side_effect=range(int(1e9))))
+# #             pieces_seen = []
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 pieces_seen.append(piece_index)
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=2) == True
+# #             assert cb.call_count == torrent.pieces // 2 + 1
+
+
+# # def test_verify_content__last_callback_call_is_never_skipped_when_succeeding(forced_piece_size, monkeypatch,
+# #                                                                              create_dir, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         b_data = create_dir.random_bytes(create_dir.random_size(min_pieces=5))
+# #         content_path = create_dir('content',
+# #                                   ('a', create_dir.random_size()),
+# #                                   ('b', b_data),
+# #                                   ('c', create_dir.random_size()))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             monkeypatch.setattr(torf._generate, 'time_monotonic',
+# #                                 mock.Mock(side_effect=range(int(1e9))))
+
+# #             progresses = []
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 progresses.append((pieces_done, pieces_total))
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=2, skip_file_on_first_error=True) == True
+# #             print(progresses)
+# #             assert progresses[-1] == (torrent.pieces, torrent.pieces)
+
+
+# # def test_verify_content__last_callback_call_is_never_skipped_when_failing(forced_piece_size, monkeypatch,
+# #                                                                           create_dir, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         b_data = create_dir.random_bytes(create_dir.random_size(min_pieces=5))
+# #         content_path = create_dir('content',
+# #                                   ('a', create_dir.random_size()),
+# #                                   ('b', b_data),
+# #                                   ('c', create_dir.random_size()))
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             b_data_corrupt = bytearray(b_data)
+# #             b_data_corrupt[piece_size:piece_size] = b'foo'
+# #             assert b_data_corrupt != b_data
+# #             (content_path / 'b').write_bytes(b_data_corrupt)
+
+# #             monkeypatch.setattr(torf._generate, 'time_monotonic',
+# #                                 mock.Mock(side_effect=range(int(1e9))))
+
+# #             progresses = []
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 print(path, pieces_done, pieces_total, piece_index, piece_hash, exc)
+# #                 progresses.append((pieces_done, pieces_total))
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=2, skip_file_on_first_error=True) == False
+# #             print(progresses)
+# #             assert progresses[-1] == (torrent.pieces, torrent.pieces)
+
+
+# # def test_verify_content__callback_interval_is_ignored_when_error_occurs(forced_piece_size, monkeypatch,
+# #                                                                         create_file, create_torrent_file):
+# #     with forced_piece_size(8) as piece_size:
+# #         data = create_file.random_bytes(9*piece_size)
+# #         content_path = create_file('content', data)
+# #         with create_torrent_file(path=content_path) as torrent_file:
+# #             torrent = torf.Torrent.read(torrent_file)
+
+# #             # Corrupt consecutive pieces
+# #             errpos = (4, 5, 6)
+# #             data_corrupt = bytearray(data)
+# #             data_corrupt[piece_size*errpos[0]] = (data[piece_size*errpos[0]] + 1) % 256
+# #             data_corrupt[piece_size*errpos[1]] = (data[piece_size*errpos[0]] + 1) % 256
+# #             data_corrupt[piece_size*errpos[2]] = (data[piece_size*errpos[2]] + 1) % 256
+# #             assert len(data_corrupt) == len(data)
+# #             assert data_corrupt != data
+# #             content_path.write_bytes(data_corrupt)
+
+# #             monkeypatch.setattr(torf._generate, 'time_monotonic',
+# #                                 mock.Mock(side_effect=range(int(1e9))))
+
+# #             progresses = []
+# #             def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# #                 print(path, pieces_done, pieces_total, piece_index, piece_hash, exc)
+# #                 progresses.append((pieces_done, pieces_total))
+# #             cb = mock.Mock(side_effect=assert_call)
+# #             assert torrent.verify(content_path, callback=cb, interval=3, skip_file_on_first_error=False) == False
+# #             assert progresses == [(1, 9), (4, 9), (5, 9), (6, 9), (7, 9), (9, 9)]
+
+
+# # # def test_callback_raises_exception(forced_piece_size, monkeypatch,
+# # #                                    create_file, create_torrent_file)
+# # #     content = tmpdir.join('file.jpg')
+# # #     content.write_binary(os.urandom(5*torf.Torrent.piece_size_min))
+
+# # #     with create_torrent_file(path=content) as torrent_file:
+# # #         torrent = torf.Torrent.read(torrent_file)
+
+# # #         cb = mock.MagicMock()
+# # #         def assert_call(t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
+# # #             if cb.call_count == 3:
+# # #                 raise RuntimeError("I'm off")
+# # #         cb.side_effect = assert_call
+# # #         with pytest.raises(RuntimeError) as excinfo:
+# # #             torrent.verify(content, skip_file_on_first_error=False, callback=cb)
+# # #         assert excinfo.match(f"^I'm off$")
+# # #         assert cb.call_count == 3
