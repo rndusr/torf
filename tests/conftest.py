@@ -26,36 +26,74 @@ def pytest_addoption(parser):
                      help='Comma-separated list of piece sizes to use for test torrents')
     parser.addoption('--piece-counts', default=[1, 2, 3], action=IntList,
                      help='Comma-separated list of number of pieces to use for test torrents')
+    parser.addoption('--file-counts', default=[1, 3], action=IntList,
+                     help='Comma-separated list of number of files to use for test torrents')
 
+alphabet = 'abcdefghijklmnopqrstuvwxyz'
 def pytest_generate_tests(metafunc):
     piece_sizes = metafunc.config.getoption('piece_sizes')
     piece_counts = metafunc.config.getoption('piece_counts')
-    # Find file_size[_*] fixtures
-    file_size_fixtures = tuple(fxname for fxname in metafunc.fixturenames
-                               if fxname == 'file_size' or fxname.startswith('file_size_'))
-    if file_size_fixtures:
-        argnames = file_size_fixtures + ('piece_size',)
+    file_counts = metafunc.config.getoption('file_counts')
+    fixturenames = metafunc.fixturenames
+
+    if 'filespecs' in fixturenames:
+        argnames = ['filespecs', 'piece_size']
+        if 'filespec_index' in fixturenames:
+            argnames.append('filespec_index')
+        elif 'filespec_indexes' in fixturenames:
+            argnames.append('filespec_indexes')
         argvalues = []
-        for piece_size in piece_sizes:
-            # For each given piece_size, compute file sizes for each piece_count.
-            # We also add/subtract 1 from each size to for more coverage.
-            file_sizes = []
-            for piece_count in piece_counts:
-                file_sizes.append(piece_size * piece_count - 1)
-                file_sizes.append(piece_size * piece_count)
-                file_sizes.append(piece_size * piece_count + 1)
-            # Make arguments for file_size[_*] fixtures by generating all
-            # possible combinations of the previously computed file sizes.
-            # Also need add the piece_size fixture.
-            for fsizes in itertools.permutations(file_sizes, len(file_size_fixtures)):
-                argvalues.append(tuple(fsizes) + (piece_size,))
-        metafunc.parametrize(argnames, argvalues)
+        ids = []
+        for filecount in file_counts:
+            for piece_size in piece_sizes:
+                # For each given piece_size, compute file sizes for each piece_count.
+                # We also add/subtract 1 from each size to for more coverage.
+                file_sizes = []
+                # File size smaller than piece_size
+                if piece_size >= 16:
+                    file_sizes.append(math.floor(piece_size / 5))
+                    file_sizes.append(math.floor(piece_size / 4))
+                else:
+                    file_sizes.append(math.ceil(piece_size / 3))
+                    file_sizes.append(math.ceil(piece_size / 2))
+                # File size larger or at least about as large as piece_size
+                for piece_count in piece_counts:
+                    file_sizes.append(piece_size * piece_count - 1)
+                    file_sizes.append(piece_size * piece_count)
+                    file_sizes.append(piece_size * piece_count + 1)
+                # Generate filespec and piece_size arguments
+                for fsizes in itertools.product(file_sizes, repeat=filecount):
+                    filespec = tuple((alphabet[i], fsize)
+                                     for i,fsize in enumerate(fsizes))
+                    values = (filespec, piece_size)
+                    # Generate single file indexes
+                    if 'filespec_index' in fixturenames:
+                        for index in range(filecount):
+                            argvalues.append(values + (index,))
+                            ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                       + f'-piecesize={piece_size}'
+                                       + f'-fileindex={index}')
+                    # Generate combinations of file indexes
+                    elif 'filespec_indexes' in fixturenames:
+                        for number_of_indexes in range(1, filecount+1):
+                            print(f'Generating possible combinations of {number_of_indexes} indexes:')
+                            for indexes in itertools.combinations(range(0, filecount), number_of_indexes):
+                                argvalues.append(values + (indexes,))
+                                ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                           + f'-piecesize={piece_size}'
+                                           + f'-fileindexes={",".join(str(i) for i in indexes)}')
+                    else:
+                        argvalues.append(values)
+                        ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                   + f'-ps={piece_size}')
+        metafunc.parametrize(argnames, argvalues, ids=ids)
     else:
-        for fxname in metafunc.fixturenames:
-            if fxname == 'piece_size':
-                metafunc.parametrize('piece_size', piece_sizes)
-            elif fxname == 'piece_count':
-                metafunc.parametrize('piece_count', piece_counts)
+        if 'piece_size' in fixturenames:
+            metafunc.parametrize('piece_size', piece_sizes)
+    if 'piece_count' in fixturenames:
+        metafunc.parametrize('piece_count', piece_counts)
+    if 'with_callback' in fixturenames:
+        metafunc.parametrize('with_callback', (False, True), ids=['', 'callback'])
 
 
 
