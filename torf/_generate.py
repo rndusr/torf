@@ -75,7 +75,10 @@ class ExhaustableQueue(queue.Queue):
         return self.__is_exhausted
 
     # TODO: Add clear() method that get()s tasks from queue until it is empty,
-    #       but only if __is_exhausted is True.
+    #       but only if __is_exhausted is True.  This might be useful when
+    #       skipping files: The reader can clear() its own output queue to stop
+    #       hashers from getting any new pieces.
+
     @property
     def name(self):
         return self.__name
