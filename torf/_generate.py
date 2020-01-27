@@ -270,6 +270,8 @@ class Reader():
             # Send b'' to guarantee a hash mismatch.  Sending fake bytes might
             # *not* raise an error if they replicate the missing data.
             self._push(piece_index, b'', filepath, None)
+
+        # All bytes from previous file(s) are now irrelevant
         trailing_bytes = b''
 
         # Fake pieces that exclusively belong to `filepath`.  Send `None` as
@@ -285,33 +287,56 @@ class Reader():
                   f'{self._bytes_chunked + bytes_chunked} bytes in total, {remaining_bytes} bytes remaining')
             self._push(piece_index, None, filepath, None)
 
+        # Figure out what we want to do with remaining_bytes.
         debug(f'reader: Remaining bytes to fake: {remaining_bytes}')
         if remaining_bytes > 0:
-            next_filepath = self._get_next_filepath(filepath)
+            piece_index = self._calc_piece_index(bytes_chunked)
             next_piece_index = self._calc_piece_index(bytes_chunked + remaining_bytes)
+            debug(f'reader: piece_index={piece_index}, next_piece_index={next_piece_index}')
 
             # The next piece will be corrupt, but we don't want to skip any
             # files in that because because of that.
             self._dont_skip_next_piece(piece_index)
 
+            # If this is not the last file, fake trailing_bytes so the next
+            # piece isn't shifted in the stream.
+            next_filepath = self._get_next_filepath(filepath)
             if next_filepath is not None:
-                # This is not the last file.  Fake trailing_bytes so the next
-                # piece isn't shifted in the stream.
                 trailing_bytes = b'\x00' * remaining_bytes
                 debug(f'reader: Pretending to read {len(trailing_bytes)} trailing bytes '
                       f'from {os.path.basename(filepath)}: {debug.pretty_bytes(trailing_bytes)}')
                 # It's possible that our faked trailing_bytes are identical to
-                # the missing data, meaning that the next piece will not raise a
-                # hash mismatch.
-                self._forced_error_piece_indexes.add(next_piece_index)
-                debug(f'reader: Forcing hash mismatch for piece_indexes: {self._forced_error_piece_indexes}')
-            else:
-                # This is the last file in the stream.  We don't want the final
-                # piece to produce an error, so we fake it right now.  The error is
-                # avoided by returning no trailing_bytes.
+                # the missing data, meaning that the first piece of the next
+                # file will not raise a hash mismatch, so we must remember to
+                # enforce that.  However, this is irrelevant if the next file
+                # fits into the current piece and we *don't* want that
+                # superfluous corruption error.
+                next_file_beg, next_file_end = self._calc_file_range(next_filepath)
+                debug(f'reader: Next file ends at {next_file_end}, '
+                      f'next piece starts at {next_piece_index*piece_size}')
+                if (# Processing remaining_bytes will start a new piece
+                    next_piece_index > piece_index
+                    # Next file ends after the next piece starts
+                    and next_file_end >= next_piece_index * piece_size):
+                    self._forced_error_piece_indexes.add(next_piece_index)
+                    debug(f'reader: Updated forced error piece_indexes: {self._forced_error_piece_indexes}')
+
+            # If this is the last file in the stream (next_filepath is None) and
+            # the final piece does not contain bytes from the previous file, we
+            # don't want the final piece to produce an error, so we fake it
+            # right now.  The error is avoided by returning no trailing_bytes.
+            elif next_piece_index > piece_index and remaining_bytes <= spec_filesize:
                 debug(f'reader: Faking final piece_index {next_piece_index}')
                 self._push(next_piece_index, None, filepath, None)
                 bytes_chunked += remaining_bytes
+
+            # If this is the last file in the stream and the final piece does
+            # contain bytes from the previous file, we *do* want to produce an
+            # error.
+            elif remaining_bytes > spec_filesize:
+                trailing_bytes = b'\x00' * remaining_bytes
+                debug(f'reader: Pretending to read {len(trailing_bytes)} trailing bytes '
+                      f'from {os.path.basename(filepath)}: {debug.pretty_bytes(trailing_bytes)}')
 
         return bytes_chunked, trailing_bytes
 
