@@ -369,7 +369,7 @@ class Reader():
         if self._stop:
             debug(f'reader: Found stop signal just before sending piece_index {piece_index}')
             return
-        elif piece_index in self._forced_error_piece_indexes:
+        elif piece_index in self._forced_error_piece_indexes and exc is None:
             # We know this piece is corrupt, even if our padding replicates the missing data.
             debug(f'reader: Forcing hash mismatch for piece_index {piece_index}')
             piece = b''
