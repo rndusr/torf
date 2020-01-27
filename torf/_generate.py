@@ -403,7 +403,8 @@ class Reader():
         elif piece is not None:
             piece = bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
-        debug(f'reader: Pushed piece_index {piece_index} [{self._piece_queue.qsize()}]')
+        debug(f'reader: >>> Pushed piece_index {piece_index} [{self._piece_queue.qsize()}]: '
+              f'{piece}, {os.path.basename(filepath)}, {exc}')
 
     def _get_next_filepath(self, filepath):
         try:
