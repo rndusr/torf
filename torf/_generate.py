@@ -253,16 +253,16 @@ class Reader():
         if spec_filesize is None:
             raise RuntimeError(f'Unable to fake reading {filepath} without file size')
         debug(f'reader: Fake reading {os.path.basename(filepath)} after chunking {bytes_chunked} bytes from it '
-              f'and {self._bytes_chunked} in from previous files')
+              f'and {self._bytes_chunked} bytes from previous files')
         remaining_bytes = spec_filesize - bytes_chunked + len(trailing_bytes)
         debug(f'reader: Remaining bytes to fake: {remaining_bytes}')
 
-        # Report the first piece of `filepath` as broken if it contains bytes
+        # Report the first piece of `filepath` as corrupt if it contains bytes
         # from the previous file.  It's possible that we don't have enough bytes
-        # for a full piece, which happens if we fake the first file and it is
-        # smaller than piece_size.  In that case, the error will be reported
-        # when the next file is read.
-        if trailing_bytes and len(trailing_bytes) + remaining_bytes >= piece_size:
+        # for a full piece if `filepath` is the first file in the stream and it
+        # is smaller than piece_size.  In that case, the error for `filepath`
+        # will be reported when the next file is read.
+        if trailing_bytes and remaining_bytes >= piece_size:
             remaining_bytes -= piece_size
             bytes_chunked += piece_size
             piece_index = self._calc_piece_index(bytes_chunked)
