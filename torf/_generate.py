@@ -354,15 +354,17 @@ class Reader():
             # last byte that was chunked, hence -1.
             return max(0, bytes_chunked - 1) // self._piece_size
 
-    def _calc_file_start(self, filepath):
-        # Return the index of `filepath`'s first byte in the concatenated stream
-        # of all files
-        index = 0  # File's first byte in stream of files
+    def _calc_file_range(self, filepath):
+        # Return the index of `filepath`'s first and last byte in the
+        # concatenated stream of all files
+        pos = 0
         for fp in self._filepaths:
             if fp == filepath:
-                return index
+                beg = pos
+                end = beg + self._file_sizes[fp] - 1
+                return beg, end
             else:
-                index += self._file_sizes[fp]
+                pos += self._file_sizes[fp]
         raise RuntimeError(f'Unknown file path: {filepath}')
 
     def _push(self, piece_index, piece=None, filepath=None, exc=None):
