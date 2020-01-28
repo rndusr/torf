@@ -28,14 +28,16 @@ def pytest_addoption(parser):
                      help='Comma-separated list of number of pieces to use for test torrents')
     parser.addoption('--file-counts', default=[1, 3], action=IntList,
                      help='Comma-separated list of number of files to use for test torrents')
+    parser.addoption('--callback-intervals', default=[0, 1, 3], action=IntList,
+                     help='Comma-separated list of callback intervals')
 
 alphabet = 'abcdefghijklmnopqrstuvwxyz'
 def pytest_generate_tests(metafunc):
     piece_sizes = metafunc.config.getoption('piece_sizes')
     piece_counts = metafunc.config.getoption('piece_counts')
     file_counts = metafunc.config.getoption('file_counts')
+    callback_intervals = metafunc.config.getoption('callback_intervals')
     fixturenames = metafunc.fixturenames
-
     if 'filespecs' in fixturenames:
         argnames = ['filespecs', 'piece_size']
         if 'filespec_index' in fixturenames:
