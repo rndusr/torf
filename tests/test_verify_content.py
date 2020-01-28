@@ -550,14 +550,20 @@ class _TestCaseBase():
     @property
     def exp_pieces_done(self):
         if not hasattr(self, '_exp_pieces_done'):
-            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
+            exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
+            exp_pieces_done_errors = [pos // self.piece_size + 1
+                                      for pos in self.corruption_positions]
+            self._exp_pieces_done = apply_interval_to_list(exp_pieces_done, self.interval, exp_pieces_done_errors)
             debug(f'Expected pieces done: {self._exp_pieces_done}')
         return self._exp_pieces_done
 
     @property
     def exp_piece_indexes(self):
         if not hasattr(self, '_exp_piece_indexes'):
-            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size, self.files_missing)
+            exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size, self.files_missing)
+            exp_error_piece_indexes = {pos // self.piece_size
+                                       for pos in self.corruption_positions}
+            self._exp_piece_indexes = apply_interval_to_dict(exp_piece_indexes, self.interval, exp_error_piece_indexes)
             debug(f'Expected piece indexes: {dict(self._exp_piece_indexes)}')
         return dict(self._exp_piece_indexes)
 
