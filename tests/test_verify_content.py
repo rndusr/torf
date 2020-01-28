@@ -555,6 +555,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         os.rename(self.content_path, str(self.content_path) + '.deleted')
         self.files_missing = [self.content_path]
         self.stream_corrupt = b'\x00' * self.torrent.size
+        self.corruption_positions.append(0)
 
 class _TestCaseMultifile(_TestCaseBase):
     @property
