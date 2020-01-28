@@ -745,31 +745,37 @@ def test_validate_is_called_first(monkeypatch):
     assert str(excinfo.value) == f'Invalid metainfo: Mock error'
     mock_validate.assert_called_once_with()
 
-def test_verify_content_successfully(mktestcase, piece_size, filespecs, with_callback):
+def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback):
     tc = mktestcase(filespecs, piece_size)
-    cb = tc.run(with_callback=with_callback, exp_return_value=True)
-    if with_callback:
+    cb = tc.run(with_callback=callback['enabled'],
+                interval=callback['interval'],
+                exp_return_value=True)
+    if callback['enabled']:
         assert cb.seen_pieces_done == tc.exp_pieces_done
         assert cb.seen_piece_indexes == tc.exp_piece_indexes
         assert cb.seen_good_pieces == tc.exp_piece_indexes
         assert cb.seen_exceptions == []
 
-def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespecs, with_callback):
+def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespecs, callback):
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
-    cb = tc.run(with_callback=with_callback, exp_return_value=False)
-    if with_callback:
+    cb = tc.run(with_callback=callback['enabled'],
+                interval=callback['interval'],
+                exp_return_value=False)
+    if callback['enabled']:
         assert cb.seen_pieces_done == tc.exp_pieces_done
         assert cb.seen_piece_indexes == tc.exp_piece_indexes
         assert cb.seen_good_pieces == tc.exp_good_pieces
         assert cb.seen_exceptions == tc.exp_exceptions
 
-def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, with_callback, filespec_indexes):
+def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, callback, filespec_indexes):
     tc = mktestcase(filespecs, piece_size)
     for index in filespec_indexes:
         tc.delete_file(index)
-    cb = tc.run(with_callback=with_callback, exp_return_value=False)
-    if with_callback:
+    cb = tc.run(with_callback=callback['enabled'],
+                # interval=callback['interval'],
+                exp_return_value=False)
+    if callback['enabled']:
         assert cb.seen_pieces_done == tc.exp_pieces_done
         assert cb.seen_piece_indexes == tc.exp_piece_indexes
         assert cb.seen_good_pieces == tc.exp_good_pieces
