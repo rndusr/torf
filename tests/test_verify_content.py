@@ -362,6 +362,52 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
                                        max_maybe_items=maybe_double_pieces_done_counts)
     return fuzzy_pieces_done_list
 
+def apply_interval_to_list(lst, interval, error_items):
+    if interval <= 0:
+        return lst
+    else:
+        result = []
+        fake_seconds = 0
+        # Filter every call except:
+        # - each <interval>th call
+        # - calls that report an error
+        for i in range(len(lst)):
+            if lst[i] in error_items:
+                result.append(lst[i])
+                fake_seconds = 0
+            elif fake_seconds % interval == 0:
+                result.append(lst[i])
+            fake_seconds += 1
+        # Final item ignores interval
+        if result[-1] != lst[-1]:
+            result.append(lst[-1])
+        return result
+
+def apply_interval_to_dict(dct, interval, error_items):
+    if interval <= 0:
+        return dct
+    else:
+        # Turn mapping of keys to lists of <anything>
+        # into list of (sec, key, item) tuples
+        lst = []
+        fake_second = 0
+        for key in dct:
+            for item in dct[key]:
+                if item in error_items:
+                    lst.append((fake_second, key, item))
+                    fake_second = 0
+                elif fake_second % interval == 0:
+                    lst.append((fake_second, key, item))
+                fake_second += 1
+        # Final item ignores interval
+        if lst[-1][2] != item:
+            lst.append((lst[-1][0], key, item))
+        # Turn list back into dict
+        result = collections.defaultdict(lambda: [])
+        for _,key,item in lst:
+            result[key].append(item)
+        return result
+
 class CollectingCallback():
     """Collect call arguments and make basic assertments"""
     def __init__(self, torrent):
