@@ -368,7 +368,7 @@ class CollectingCallback():
         super().__init__()
         self.torrent = torrent
         self.seen_pieces_done = []
-        self._seen_pieces = collections.defaultdict(lambda: fuzzylist())
+        self._seen_piece_indexes = collections.defaultdict(lambda: fuzzylist())
         self._seen_good_pieces = collections.defaultdict(lambda: fuzzylist())
         self._seen_skipped_pieces = collections.defaultdict(lambda: fuzzylist())
         self.seen_exceptions = fuzzylist()
@@ -378,7 +378,7 @@ class CollectingCallback():
         assert pieces_total == t.pieces
         assert 1 <= pieces_done <= pieces_total
         self.seen_pieces_done.append(pieces_done)
-        self._seen_pieces[os.path.basename(path)].append(piece_index)
+        self._seen_piece_indexes[os.path.basename(path)].append(piece_index)
         if exc is not None:
             if isinstance(exc, torf.VerifyContentError):
                 assert type(piece_hash) is bytes and len(piece_hash) == 20
@@ -394,8 +394,8 @@ class CollectingCallback():
             self._seen_good_pieces[os.path.basename(path)].append(piece_index)
 
     @property
-    def seen_pieces(self):
-        return dict(self._seen_pieces)
+    def seen_piece_indexes(self):
+        return dict(self._seen_piece_indexes)
 
     @property
     def seen_good_pieces(self):
@@ -502,7 +502,7 @@ class _TestCaseBase():
     @property
     def exp_good_pieces(self):
         if not hasattr(self, '_exp_good_pieces'):
-            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size,
+            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.interval,
                                                      self.corruption_positions, self.files_missing)
             debug(f'Expected good pieces: {dict(self._exp_good_pieces)}')
         return dict(self._exp_good_pieces)
@@ -679,7 +679,7 @@ def test_verify_content_successfully(mktestcase, piece_size, filespecs, with_cal
     cb = tc.run(with_callback=with_callback, exp_return_value=True)
     if with_callback:
         assert cb.seen_pieces_done == tc.exp_pieces_done
-        assert cb.seen_pieces == tc.exp_piece_indexes
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
         assert cb.seen_good_pieces == tc.exp_piece_indexes
         assert cb.seen_exceptions == []
 
@@ -689,7 +689,7 @@ def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespec
     cb = tc.run(with_callback=with_callback, exp_return_value=False)
     if with_callback:
         assert cb.seen_pieces_done == tc.exp_pieces_done
-        assert cb.seen_pieces == tc.exp_piece_indexes
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
         assert cb.seen_good_pieces == tc.exp_good_pieces
         assert cb.seen_exceptions == tc.exp_exceptions
 
@@ -700,7 +700,7 @@ def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, wi
     cb = tc.run(with_callback=with_callback, exp_return_value=False)
     if with_callback:
         assert cb.seen_pieces_done == tc.exp_pieces_done
-        assert cb.seen_pieces == tc.exp_piece_indexes
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
         assert cb.seen_good_pieces == tc.exp_good_pieces
         assert cb.seen_exceptions == tc.exp_exceptions
 
