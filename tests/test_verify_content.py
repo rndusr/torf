@@ -423,6 +423,7 @@ class _TestCaseBase():
         debug(f'Corruption positions: {self.corruption_positions}')
         debug(f'Corrupt piece indexes: {set(corrpos // self.piece_size for corrpos in self.corruption_positions)}')
 
+        self.interval = interval
         kwargs = {'interval': interval,
                   'skip_file_on_first_error': skip_file_on_first_error,
                   'exp_return_value': exp_return_value}
