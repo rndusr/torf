@@ -319,6 +319,7 @@ def calc_corruptions(filespecs, piece_size, corruption_positions):
     return corrupt_pieces
 
 def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
+    debug(f'Calculating pieces_done')
     # The callback gets the number of verified pieces (pieces_done).  This
     # function calculates the expected values for that argument.
     #
@@ -517,6 +518,7 @@ class _TestCaseBase():
         cb = CollectingCallback(self.torrent)
         kwargs['callback'] = cb
         # Mock time.monotonic() so that each callback call is one second apart
+        # and we can test intervals.
         with mock.patch('torf._generate.time_monotonic') as mock_monotonic:
             mock_monotonic.side_effect = range(int(1e9))
             if exp_return_value is not None:
