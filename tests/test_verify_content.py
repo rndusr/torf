@@ -260,13 +260,14 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
 
     return piece_indexes
 
-def calc_good_pieces(filespecs, piece_size, corruption_positions, files_missing):
+def calc_good_pieces(filespecs, piece_size, interval, corruption_positions, files_missing):
     """Same as `calc_piece_indexes`, but exclude corrupt and skipped pieces"""
     good_pieces = collections.defaultdict(lambda: fuzzylist())
-    corr_pis = [corrpos // piece_size for corrpos in corruption_positions]
+    corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
     debug(f'Calculating good pieces')
     debug(f'corrupt piece_indexes: {corr_pis}')
     debug(f'missing files: {files_missing}')
+    debug(f'interval: {interval}')
 
     # Pieces that exclusively belong to missing files are skipped
     skipped_pis = []
@@ -280,14 +281,28 @@ def calc_good_pieces(filespecs, piece_size, corruption_positions, files_missing)
         debug(f'affected_files_end: {affected_files_end}')
         skipped_pis.extend(range(first_skipped_piece_index, last_skipped_piece_index+1))
 
-    for filename,all_pis in calc_piece_indexes(filespecs, piece_size, files_missing).items():
+    all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing)
+    fake_seconds = 0
+    for filename,all_pis in all_piece_indexes.items():
         good_pis = []
         for i,pi in enumerate(all_pis):
-            if pi not in corr_pis and pi not in skipped_pis:
+            debug(f'{fake_seconds}:')
+            if pi in corr_pis or pi in skipped_pis:
+                debug(f'  {pi} is corrupt or skipped - resetting fake_seconds')
+                fake_seconds = 0
+            elif interval <= 0 or fake_seconds % interval == 0:
+                debug(f'  {interval} is zero or {fake_seconds} fits - appending {pi}')
                 good_pis.append(pi)
+            fake_seconds += 1
+
         if good_pis:
             good_pieces[filename] = good_pis
 
+    # Ensure final piece_index unless it is corrupt or skipped
+    final_filename = filespecs[-1][0]
+    final_piece_index = all_piece_indexes[filename][-1]
+    if final_piece_index not in corr_pis and final_piece_index not in skipped_pis:
+        good_pieces[final_filename].append(final_piece_index)
     return good_pieces
 
 def calc_corruptions(filespecs, piece_size, corruption_positions):
