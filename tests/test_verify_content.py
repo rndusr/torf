@@ -12,6 +12,7 @@ import errno
 
 import logging
 debug = logging.getLogger('test').debug
+from . import display_filespecs
 
 # class regex:
 #     """
@@ -747,6 +748,7 @@ def test_validate_is_called_first(monkeypatch):
     mock_validate.assert_called_once_with()
 
 def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback):
+    display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     cb = tc.run(with_callback=callback['enabled'],
                 interval=callback['interval'],
@@ -758,6 +760,7 @@ def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback
         assert cb.seen_exceptions == []
 
 def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespecs, callback):
+    display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
     cb = tc.run(with_callback=callback['enabled'],
@@ -770,6 +773,7 @@ def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespec
         assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, callback, filespec_indexes):
+    display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     for index in filespec_indexes:
         tc.delete_file(index)
