@@ -75,34 +75,26 @@ def pytest_generate_tests(metafunc):
 
 def _generate_filespecs(filecount, piece_size, piece_count):
     filespecs = set()
+    if piece_count == 1:
+        # Whole stream <= piece_size * piece_count
+        for fsizes in itertools.product((piece_size // filecount,
+                                         piece_size // filecount - 1,
+                                         piece_size // filecount - 2), repeat=filecount):
+            filespecs.add(tuple((alphabet[i], max(1, fsize))
+                                for i,fsize in enumerate(fsizes)))
 
-    # Whole stream <= piece_size
-    for fsizes in itertools.product((piece_size // filecount,
-                                     piece_size // filecount - 1,
-                                     piece_size // filecount - 2), repeat=filecount):
-        filespecs.add(tuple((alphabet[i], max(1, fsize))
-                            for i,fsize in enumerate(fsizes)))
-
-    # Last file overlaps into second piece
-    for fsizes in itertools.product((piece_size // filecount + 1,
-                                     piece_size // filecount + 2), repeat=filecount):
-        filespecs.add(tuple((alphabet[i], max(1, fsize))
-                            for i,fsize in enumerate(fsizes)))
-
-    # File sizes = piece_size (+- 1)
-    for fsizes in itertools.product((piece_size - 1,
-                                     piece_size,
-                                     piece_size + 1), repeat=filecount):
-        filespecs.add(tuple((alphabet[i], max(1, fsize))
-                            for i,fsize in enumerate(fsizes)))
-
-    # File sizes = multiple pieces (+-1)
-    for fsizes in itertools.product((piece_count * piece_size - 1,
-                                     piece_count * piece_size,
-                                     piece_count * piece_size + 1), repeat=filecount):
-        filespecs.add(tuple((alphabet[i], max(1, fsize))
-                            for i,fsize in enumerate(fsizes)))
-
+        # Last file overlaps into second piece
+        for fsizes in itertools.product((piece_size // filecount + 1,
+                                         piece_size // filecount + 2), repeat=filecount):
+            filespecs.add(tuple((alphabet[i], max(1, fsize))
+                                for i,fsize in enumerate(fsizes)))
+    else:
+        # Each file is equal or slightly smaller/larger than piece_size
+        for fsizes in itertools.product((piece_size * piece_count - 1,
+                                         piece_size * piece_count,
+                                         piece_size * piece_count + 1), repeat=filecount):
+            filespecs.add(tuple((alphabet[i], max(1, fsize))
+                                for i,fsize in enumerate(fsizes)))
     # Sets don't have order, but running tests in multiple threads requires them
     # to be in the same order every time.
     return sorted(filespecs)
