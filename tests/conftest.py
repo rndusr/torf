@@ -110,7 +110,7 @@ def _display_filespecs(filespecs, filecount, piece_size):
     for i,line in enumerate(sorted(lines)):
         if i % 10 == 0:
             header = [' ' * (((4*filecount) + (2*filecount-1)) + 1)]
-            for i in range(11):
+            for i in range(6):
                 header.append(str(i) + ' '*(piece_size-2))
             print(' '.join(header))
         print(line)
