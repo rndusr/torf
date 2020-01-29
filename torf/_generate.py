@@ -314,12 +314,8 @@ class Reader():
                 next_file_beg, next_file_end = self._calc_file_range(next_filepath)
                 debug(f'reader: Next file ends at {next_file_end}, '
                       f'next piece starts at {next_piece_index*piece_size}')
-                if (# Processing remaining_bytes will start a new piece
-                    next_piece_index > piece_index
-                    # Next file ends after the next piece starts
-                    and next_file_end >= next_piece_index * piece_size):
-                    self._forced_error_piece_indexes.add(next_piece_index)
-                    debug(f'reader: Updated forced error piece_indexes: {self._forced_error_piece_indexes}')
+                self._forced_error_piece_indexes.add(next_piece_index)
+                debug(f'reader: Updated forced error piece_indexes: {self._forced_error_piece_indexes}')
 
             # If this is the last file in the stream (next_filepath is None) and
             # the final piece does not contain bytes from the previous file, we
@@ -337,6 +333,8 @@ class Reader():
                 trailing_bytes = b'\x00' * remaining_bytes
                 debug(f'reader: Pretending to read {len(trailing_bytes)} trailing bytes '
                       f'from {os.path.basename(filepath)}: {debug.pretty_bytes(trailing_bytes)}')
+                self._forced_error_piece_indexes.add(next_piece_index)
+                debug(f'reader: Updated forced error piece_indexes: {self._forced_error_piece_indexes}')
 
         return bytes_chunked, trailing_bytes
 
