@@ -754,9 +754,13 @@ def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback
                 interval=callback['interval'],
                 exp_return_value=True)
     if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
         assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
         assert cb.seen_good_pieces == tc.exp_piece_indexes
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == []
 
 def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespecs, callback):
@@ -767,9 +771,13 @@ def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespec
                 interval=callback['interval'],
                 exp_return_value=False)
     if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
         assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
         assert cb.seen_good_pieces == tc.exp_good_pieces
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, callback, filespec_indexes):
@@ -781,9 +789,13 @@ def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, ca
                 # interval=callback['interval'],
                 exp_return_value=False)
     if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
         assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
         assert cb.seen_good_pieces == tc.exp_good_pieces
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
 
