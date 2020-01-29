@@ -605,7 +605,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         self.filename = filespecs[0][0]
         self.filesize = filespecs[0][1]
         debug(f'Filename: {self.filename}, size: {self.filesize}, piece size: {piece_size}')
-        self.stream_original = self.create_file.random_bytes(self.filesize)
+        self.stream_original = b'\x00' * self.filesize
         self.stream_corrupt = bytearray(self.stream_original)
         self.content_path = self.create_file(self.filename, self.stream_original)
         with self.forced_piece_size(piece_size):
@@ -645,7 +645,7 @@ class _TestCaseMultifile(_TestCaseBase):
         self.content_corrupt = {}
         create_dir_args = []
         for filename,filesize in filespecs:
-            data = self.create_dir.random_bytes(filesize)
+            data = b'\x00' * filesize
             self.content_original[filename] = {'size': filesize,
                                                'data': data}
             self.content_corrupt[filename] = {'size': filesize,
