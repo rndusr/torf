@@ -54,28 +54,10 @@ def pytest_generate_tests(metafunc):
                     # piece_size is connected to file sizes (i.e. filespecs)
                     for filespec in filespecs:
                         values = (filespec, piece_size)
-                        # Generate single file indexes
-                        if 'filespec_index' in fixturenames:
-                            for index in range(filecount):
-                                argvalues.append(values + (index,))
-                                ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
-                                           + f'-pc={piece_count}'
-                                           + f'-ps={piece_size}'
-                                           + f'-fi={index}')
-                        # Generate combinations of file indexes
-                        elif 'filespec_indexes' in fixturenames:
-                            for number_of_indexes in range(1, filecount+1):
-                                for indexes in itertools.combinations(range(0, filecount), number_of_indexes):
-                                    argvalues.append(values + (indexes,))
-                                    ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
-                                               + f'-pc={piece_count}'
-                                               + f'-ps={piece_size}'
-                                               + f'-fis={",".join(str(i) for i in indexes)}')
-                        else:
-                            argvalues.append(values)
-                            ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
-                                       + f'-pc={piece_count}'
-                                       + f'-ps={piece_size}')
+                        argvalues.append(values)
+                        ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                   + f'-pc={piece_count}'
+                                   + f'-ps={piece_size}')
         metafunc.parametrize(argnames, argvalues, ids=ids)
     else:
         if 'piece_size' in fixturenames:
