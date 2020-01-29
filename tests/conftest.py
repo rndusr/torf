@@ -354,8 +354,25 @@ def _write_content_file(filepath, spec):
         raise RuntimeError(f'Invalid spec for {filepath}: {spec!r}')
 
 def _random_bytes(length):
-    return bytes(random.getrandbits(8)
-                 for _ in range(int(length)))
+    if random.choice((0, 1)):
+        return bytes(random.getrandbits(8)
+                     for _ in range(int(length)))
+    else:
+        # We use b'\x00' as a placeholder for padding, so we increase the
+        # probability of b'\x00' at the beginning and/or end
+        if random.choice((0, 1)):
+            beg = b'\x00' * random.randint(0, max(1, int(length/2)))
+        else:
+            beg = b''
+        if random.choice((0, 1)):
+            end = b'\x00' * random.randint(0, max(1, int(length/2)))
+        else:
+            end = b''
+        b = beg + bytes(random.getrandbits(8)
+                        for _ in range(int(length-len(beg)-len(end)))) + end
+        print(length, '==', len(b), b)
+        assert length == len(b)
+        return b
 
 @pytest.fixture
 def random_bytes(*args, **kwargs):
