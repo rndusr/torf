@@ -143,6 +143,13 @@ def _display_filespecs(filespecs, filecount, piece_size):
 
 
 
+@pytest.fixture
+def random_filespec_indexes():
+    def _random_filespec_indexes(filespecs):
+        filecount = len(filespecs)
+        return sorted(random.sample(range(filecount), random.randint(1, filecount)))
+    return _random_filespec_indexes
+
 @contextlib.contextmanager
 def _random_seed(seed):
     random.seed(seed)

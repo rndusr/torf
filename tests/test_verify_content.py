@@ -780,10 +780,10 @@ def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespec
         debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
-def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, callback, filespec_indexes):
+def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, callback, random_filespec_indexes):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
-    for index in filespec_indexes:
+    for index in random_filespec_indexes(filespecs):
         tc.delete_file(index)
     cb = tc.run(with_callback=callback['enabled'],
                 # interval=callback['interval'],
