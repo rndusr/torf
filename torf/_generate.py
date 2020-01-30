@@ -233,8 +233,9 @@ class Reader():
                 raise
             else:
                 # Report error with piece_index pointing to the first corrupt piece
-                piece_index = self._calc_piece_index(bytes_chunked + len(trailing_bytes) + 1)
-                debug(f'reader: Reporting read exception for piece index {piece_index}: {exc!r}')
+                file_beg,_ = self._calc_file_range(filepath)
+                piece_index = self._calc_piece_index(absolute_pos=file_beg)
+                debug(f'reader: Reporting read exception for piece index {piece_index} (file pos {file_beg}): {exc!r}')
                 self._push(piece_index, None, filepath, exc)
                 self.skip_file(filepath, piece_index)
                 bytes_chunked, trailing_bytes = self._fake_read_file(filepath, bytes_chunked, trailing_bytes)
