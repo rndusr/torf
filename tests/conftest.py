@@ -46,11 +46,11 @@ def pytest_generate_tests(metafunc):
             argnames.append('filespec_indexes')
         argvalues = []
         ids = []
-        for filecount in file_counts:
+        for file_count in file_counts:
             for piece_size in piece_sizes:
                 for piece_count in piece_counts:
-                    filespecs = _generate_filespecs(filecount, piece_size, piece_count)
-                    _display_filespecs(filespecs, filecount, piece_size)
+                    filespecs = _generate_filespecs(file_count, piece_size, piece_count)
+                    _display_filespecs(filespecs, file_count, piece_size)
                     # piece_size is connected to file sizes (i.e. filespecs)
                     for filespec in filespecs:
                         values = (filespec, piece_size)
@@ -99,7 +99,7 @@ def _generate_filespecs(filecount, piece_size, piece_count):
     # to be in the same order every time.
     return sorted(filespecs)
 
-def _display_filespecs(filespecs, filecount, piece_size):
+def _display_filespecs(filespecs, file_count, piece_size):
     lines = []
     for filespec in filespecs:
         line = (', '.join(f'{fn}:{fs:2d}' for fn,fs in filespec),
@@ -109,7 +109,7 @@ def _display_filespecs(filespecs, filecount, piece_size):
     print(f'{len(filespecs)} filespecs:')
     for i,line in enumerate(sorted(lines)):
         if i % 10 == 0:
-            header = [' ' * (((4*filecount) + (2*filecount-1)) + 1)]
+            header = [' ' * (((4*file_count) + (2*file_count-1)) + 1)]
             for i in range(6):
                 header.append(str(i) + ' '*(piece_size-2))
             print(' '.join(header))
@@ -120,8 +120,8 @@ def _display_filespecs(filespecs, filecount, piece_size):
 @pytest.fixture
 def random_filespec_indexes():
     def _random_filespec_indexes(filespecs):
-        filecount = len(filespecs)
-        return sorted(random.sample(range(filecount), random.randint(1, filecount)))
+        file_count = len(filespecs)
+        return sorted(random.sample(range(file_count), random.randint(1, file_count)))
     return _random_filespec_indexes
 
 @contextlib.contextmanager
