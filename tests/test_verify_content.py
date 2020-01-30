@@ -65,21 +65,18 @@ class fuzzylist(list):
 
     def __eq__(self, other):
         if tuple(self) != tuple(other):
-            maybe = self.maybe
-
-            # Check for unallowed items
+            self_maybe = self.maybe
+            other_maybe = getattr(other, 'maybe', ())
             for item in self:
-                if item not in other and item not in maybe:
+                if item not in other and item not in other_maybe:
                     return False
             for item in other:
-                if item not in self and item not in maybe:
+                if item not in self and item not in self_maybe:
                     return False
-
             # Check if any optional items exist too often
             for item,maxcount in self.max_maybe_items.items():
                 if other.count(item) > maxcount:
                     return False
-
         return True
 
     def __ne__(self, other):
@@ -108,6 +105,10 @@ def test_fuzzylist():
     assert not x == ['a', 'l', 'b', 'z', 'c', 'y']
     assert     x != ['x', 'b', 'x', 'a', 'c', 'y']
     assert not x == ['x', 'b', 'x', 'a', 'c', 'y']
+    assert fuzzylist(0) == fuzzylist(maybe=(0,))
+    assert fuzzylist(maybe=(0,)) == fuzzylist(0)
+    assert fuzzylist(0) != fuzzylist(maybe=(1,))
+    assert fuzzylist(maybe=(1,)) != fuzzylist(0)
 
 def ComparableException(exc):
     """
