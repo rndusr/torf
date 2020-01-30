@@ -86,8 +86,9 @@ class fuzzylist(list):
         return len(self) > 0 or len(self.maybe) > 0
 
     def __repr__(self):
-        args = ', '.join(repr(item) for item in self)
-        s = f'{type(self).__name__}({args}'
+        s = f'{type(self).__name__}('
+        if super().__len__() > 0:
+            s += ', '.join(str(item) for item in super().__iter__())
         if self.maybe:
             s += f', maybe={repr(self.maybe)}'
         if self.max_maybe_items:
