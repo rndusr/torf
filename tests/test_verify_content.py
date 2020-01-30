@@ -59,7 +59,7 @@ class fuzzylist(list):
     """
     def __init__(self, *args, maybe=(),
                  max_maybe_items=collections.defaultdict(lambda: 1)):
-        self.maybe = tuple(maybe)
+        self.maybe = list(maybe)
         self.max_maybe_items = max_maybe_items
         super().__init__(args)
 
