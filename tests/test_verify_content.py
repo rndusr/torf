@@ -82,6 +82,9 @@ class fuzzylist(list):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __bool__(self):
+        return len(self) > 0 or len(self.maybe) > 0
+
     def __repr__(self):
         args = ', '.join(repr(item) for item in self)
         s = f'{type(self).__name__}({args}'
