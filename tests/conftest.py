@@ -24,9 +24,9 @@ def pytest_addoption(parser):
             setattr(namespace, self.dest, [int(value) for value in values.split(',')])
     parser.addoption('--piece-sizes', default=[8], action=IntList,
                      help='Comma-separated list of piece sizes to use for test torrents')
-    parser.addoption('--piece-counts', default=[1, 2, 3, 9, 10], action=IntList,
+    parser.addoption('--piece-counts', default=[1, 2, 3, 4, 5], action=IntList,
                      help='Comma-separated list of number of pieces to use for test torrents')
-    parser.addoption('--file-counts', default=[1, 3], action=IntList,
+    parser.addoption('--file-counts', default=[1, 2, 3], action=IntList,
                      help='Comma-separated list of number of files to use for test torrents')
 
 alphabet = 'abcdefghijklmnopqrstuvwxyz'
@@ -66,31 +66,15 @@ def pytest_generate_tests(metafunc):
                              ids=['callback' if c['enabled'] else ''
                                   for c in argvalues])
 
-def _generate_filespecs(filecount, piece_size, piece_count):
+def _generate_filespecs(file_count, piece_size, piece_count):
     filespecs = set()
-    if piece_count == 1:
-        # Whole stream <= piece_size * piece_count
-        for fsizes in itertools.product((piece_size // filecount,
-                                         piece_size // filecount - 1,
-                                         piece_size // filecount - 2), repeat=filecount):
-            filespecs.add(tuple((alphabet[i], max(1, fsize))
-                                for i,fsize in enumerate(fsizes)))
-
-        # Last file overlaps into second piece
-        for fsizes in itertools.product((piece_size // filecount + 1,
-                                         piece_size // filecount + 2), repeat=filecount):
-            filespecs.add(tuple((alphabet[i], max(1, fsize))
-                                for i,fsize in enumerate(fsizes)))
-    else:
-        # Each file is equal or slightly smaller/larger than piece_size
-        for fsizes in itertools.product((piece_size * piece_count - 1,
-                                         piece_size * piece_count,
-                                         piece_size * piece_count + 1), repeat=filecount):
-            filespecs.add(tuple((alphabet[i], max(1, fsize))
-                                for i,fsize in enumerate(fsizes)))
-    # Sets don't have order, but running tests in multiple threads requires them
-    # to be in the same order every time.
-    return sorted(filespecs)
+    if file_count <= 3:
+        for fsizes in itertools.product((piece_size * piece_count // file_count - 1,
+                                         piece_size * piece_count // file_count,
+                                         piece_size * piece_count // file_count + 1), repeat=file_count):
+            filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
+                                   for i,fsize in enumerate(fsizes)))
+    return sorted(filespecs, key=lambda f: sum(s[1] for s in f))
 
 def _display_filespecs(filespecs, file_count, piece_size):
     lines = []
@@ -100,7 +84,7 @@ def _display_filespecs(filespecs, file_count, piece_size):
                 ''.join(fn*fs for fn,fs in filespec))
         lines.append(''.join(line))
     print(f'{len(filespecs)} filespecs:')
-    for i,line in enumerate(sorted(lines)):
+    for i,line in enumerate(lines):
         if i % 10 == 0:
             header = [' ' * (((4*file_count) + (2*file_count-1)) + 1)]
             for i in range(6):
