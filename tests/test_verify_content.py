@@ -266,14 +266,13 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
 
     return piece_indexes
 
-def calc_good_pieces(filespecs, piece_size, interval, corruption_positions, files_missing):
+def calc_good_pieces(filespecs, piece_size, corruption_positions, files_missing):
     """Same as `calc_piece_indexes`, but exclude corrupt and skipped pieces"""
     good_pieces = collections.defaultdict(lambda: fuzzylist())
     corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
     debug(f'Calculating good pieces')
     debug(f'corrupt piece_indexes: {corr_pis}')
     debug(f'missing files: {files_missing}')
-    debug(f'interval: {interval}')
 
     # Pieces that exclusively belong to missing files are skipped
     skipped_pis = []
@@ -288,27 +287,15 @@ def calc_good_pieces(filespecs, piece_size, interval, corruption_positions, file
         skipped_pis.extend(range(first_skipped_piece_index, last_skipped_piece_index+1))
 
     all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing)
-    fake_seconds = 0
     for filename,all_pis in all_piece_indexes.items():
         good_pis = []
         for i,pi in enumerate(all_pis):
-            debug(f'{fake_seconds}:')
-            if pi in corr_pis or pi in skipped_pis:
-                debug(f'  {pi} is corrupt or skipped - resetting fake_seconds')
-                fake_seconds = 0
-            elif interval <= 0 or fake_seconds % interval == 0:
-                debug(f'  {interval} is zero or {fake_seconds} fits - appending {pi}')
+            if pi not in corr_pis and pi not in skipped_pis:
+                debug(f'  appending {pi}')
                 good_pis.append(pi)
-            fake_seconds += 1
-
         if good_pis:
             good_pieces[filename] = good_pis
 
-    # Ensure final piece_index unless it is corrupt or skipped
-    final_filename = filespecs[-1][0]
-    final_piece_index = all_piece_indexes[filename][-1]
-    if final_piece_index not in corr_pis and final_piece_index not in skipped_pis:
-        good_pieces[final_filename].append(final_piece_index)
     return good_pieces
 
 def calc_corruptions(filespecs, piece_size, corruption_positions):
@@ -384,52 +371,6 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
                                        max_maybe_items=maybe_double_pieces_done_counts)
     return fuzzy_pieces_done_list
 
-def apply_interval_to_list(lst, interval, error_items):
-    if interval <= 0:
-        return lst
-    else:
-        result = []
-        fake_seconds = 0
-        # Filter every call except:
-        # - each <interval>th call
-        # - calls that report an error
-        for i in range(len(lst)):
-            if lst[i] in error_items:
-                result.append(lst[i])
-                fake_seconds = 0
-            elif fake_seconds % interval == 0:
-                result.append(lst[i])
-            fake_seconds += 1
-        # Final item ignores interval
-        if result[-1] != lst[-1]:
-            result.append(lst[-1])
-        return result
-
-def apply_interval_to_dict(dct, interval, error_items):
-    if interval <= 0:
-        return dct
-    else:
-        # Turn mapping of keys to lists of <anything>
-        # into list of (sec, key, item) tuples
-        lst = []
-        fake_second = 0
-        for key in dct:
-            for item in dct[key]:
-                if item in error_items:
-                    lst.append((fake_second, key, item))
-                    fake_second = 0
-                elif fake_second % interval == 0:
-                    lst.append((fake_second, key, item))
-                fake_second += 1
-        # Final item ignores interval
-        if lst[-1][2] != item:
-            lst.append((lst[-1][0], key, item))
-        # Turn list back into dict
-        result = collections.defaultdict(lambda: [])
-        for _,key,item in lst:
-            result[key].append(item)
-        return result
-
 class CollectingCallback():
     """Collect call arguments and make basic assertments"""
     def __init__(self, torrent):
@@ -485,15 +426,13 @@ class _TestCaseBase():
         self.forced_piece_size = forced_piece_size
         self.reset()
 
-    def run(self, *_, with_callback, exp_return_value=None, interval=0, skip_file_on_first_error=False):
+    def run(self, *_, with_callback, exp_return_value=None, skip_file_on_first_error=False):
         debug(f'Original stream: {self.stream_original.hex()}')
         debug(f' Corrupt stream: {self.stream_corrupt.hex()}')
         debug(f'Corruption positions: {self.corruption_positions}')
         debug(f'Corrupt piece indexes: {set(corrpos // self.piece_size for corrpos in self.corruption_positions)}')
 
-        self.interval = interval
-        kwargs = {'interval': interval,
-                  'skip_file_on_first_error': skip_file_on_first_error,
+        kwargs = {'skip_file_on_first_error': skip_file_on_first_error,
                   'exp_return_value': exp_return_value}
         if not with_callback:
             exp_exceptions = self.exp_exceptions
@@ -523,14 +462,11 @@ class _TestCaseBase():
         debug(f'################ VERIFY WITH CALLBACK: kwargs={kwargs}')
         cb = CollectingCallback(self.torrent)
         kwargs['callback'] = cb
-        # Mock time.monotonic() so that each callback call is one second apart
-        # and we can test intervals.
-        with mock.patch('torf._generate.time_monotonic') as mock_monotonic:
-            mock_monotonic.side_effect = range(int(1e9))
-            if exp_return_value is not None:
-                assert self.torrent.verify(self.content_path, **kwargs) is exp_return_value
-            else:
-                self.torrent.verify(self.content_path, **kwargs)
+        kwargs['interval'] = 0
+        if exp_return_value is not None:
+            assert self.torrent.verify(self.content_path, **kwargs) is exp_return_value
+        else:
+            self.torrent.verify(self.content_path, **kwargs)
         # Last pieces_done value must be the total number of pieces so progress
         # is reported correctly
         assert cb.seen_pieces_done[-1] == self.torrent.pieces
@@ -558,27 +494,21 @@ class _TestCaseBase():
     @property
     def exp_pieces_done(self):
         if not hasattr(self, '_exp_pieces_done'):
-            exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
-            exp_pieces_done_errors = [pos // self.piece_size + 1
-                                      for pos in self.corruption_positions]
-            self._exp_pieces_done = apply_interval_to_list(exp_pieces_done, self.interval, exp_pieces_done_errors)
+            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
             debug(f'Expected pieces done: {self._exp_pieces_done}')
         return self._exp_pieces_done
 
     @property
     def exp_piece_indexes(self):
         if not hasattr(self, '_exp_piece_indexes'):
-            exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size, self.files_missing)
-            exp_error_piece_indexes = {pos // self.piece_size
-                                       for pos in self.corruption_positions}
-            self._exp_piece_indexes = apply_interval_to_dict(exp_piece_indexes, self.interval, exp_error_piece_indexes)
+            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size, self.files_missing)
             debug(f'Expected piece indexes: {dict(self._exp_piece_indexes)}')
         return dict(self._exp_piece_indexes)
 
     @property
     def exp_good_pieces(self):
         if not hasattr(self, '_exp_good_pieces'):
-            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.interval,
+            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size,
                                                      self.corruption_positions, self.files_missing)
             debug(f'Expected good pieces: {dict(self._exp_good_pieces)}')
         return dict(self._exp_good_pieces)
@@ -755,9 +685,7 @@ def test_validate_is_called_first(monkeypatch):
 def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
-    cb = tc.run(with_callback=callback['enabled'],
-                interval=callback['interval'],
-                exp_return_value=True)
+    cb = tc.run(with_callback=callback['enabled'], exp_return_value=True)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
@@ -772,9 +700,7 @@ def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespec
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
-    cb = tc.run(with_callback=callback['enabled'],
-                interval=callback['interval'],
-                exp_return_value=False)
+    cb = tc.run(with_callback=callback['enabled'], exp_return_value=False)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
@@ -790,9 +716,7 @@ def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, ca
     tc = mktestcase(filespecs, piece_size)
     for index in random_filespec_indexes(filespecs):
         tc.delete_file(index)
-    cb = tc.run(with_callback=callback['enabled'],
-                # interval=callback['interval'],
-                exp_return_value=False)
+    cb = tc.run(with_callback=callback['enabled'], exp_return_value=False)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
@@ -804,9 +728,6 @@ def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, ca
         assert cb.seen_exceptions == tc.exp_exceptions
 
 
-# TODO: Test callback with interval and success
-# TODO: Test callback with interval and various corruptions
-# TODO: Test callback with interval and various corruptions with skip_file_on_first_error
 # TODO: File is smaller
 # TODO: File is bigger
 
