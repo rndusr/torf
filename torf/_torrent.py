@@ -1120,14 +1120,11 @@ class Torrent():
                                      piece_size=self.piece_size,
                                      queue_size=threads+1,
                                      skip_file_on_first_error=skip_file_on_first_error)
-            # Try to deprecate this. Reader() should communicate to Hashers and
-            # Collector which files are deprecated
-            file_was_skipped=lambda f: f in reader.skipped_files
 
             # Pool of workers that pull from reader_thread's piece queue, calculate
             # the hashes, and quickly offload the results to a hash queue
             hasher_threadpool = generate.HasherPool(threads, reader.piece_queue,
-                                                    file_was_skipped=file_was_skipped)
+                                                    file_was_skipped=reader.file_was_skipped)
 
             # Pull from the hash queue; also call `callback` and maybe stop everything
             def collector_callback(filepath, pieces_done, piece_index, piece_hash, exc,
@@ -1161,7 +1158,7 @@ class Torrent():
                                  force_call=pieces_done >= pieces_total)
             collector_thread = generate.Collector(hasher_threadpool.hash_queue,
                                                   callback=collector_callback,
-                                                  file_was_skipped=file_was_skipped)
+                                                  file_was_skipped=reader.file_was_skipped)
             maybe_cancel.on_cancel(reader.stop,
                                    hasher_threadpool.stop,
                                    collector_thread.stop)
