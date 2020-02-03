@@ -321,9 +321,8 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     #
     # It's not as simple as range(1, <number of pieces>+1).  If a file is
     # missing, we get the same pieces_done value two times, once for "No such
-    # file" and once for "Corrupt piece".  If the missing file is smaller than
-    # piece_size, we get one additional identical pieces_done value for every
-    # file that is part of that piece.
+    # file" and maybe again for "Corrupt piece" if the piece contains parts of
+    # another file.
     files_missing = [str(filepath) for filepath in files_missing]
     debug(f'missing_files: {files_missing}')
     # List of pieces_done values that are reported once
@@ -563,9 +562,10 @@ class _TestCaseSinglefile(_TestCaseBase):
         debug(f'Removing file from file system: {os.path.basename(self.content_path)}')
         os.rename(self.content_path, str(self.content_path) + '.deleted')
         self.files_missing = [self.content_path]
-        self.stream_corrupt = b'\x00' * self.torrent.size
-        # A missing single file does not produce any corruption errors because
-        # the "No such file" error is enough.
+        self.stream_corrupt = b'\xCC' * self.torrent.size
+        # No need to update self.corruption_positions.  A missing single file
+        # does not produce any corruption errors because the "No such file"
+        # error is enough.
 
 class _TestCaseMultifile(_TestCaseBase):
     @property
