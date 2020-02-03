@@ -76,15 +76,16 @@ def pytest_generate_tests(metafunc):
                              ids=['callback' if c['enabled'] else ''
                                   for c in argvalues])
 
-def _generate_filespecs(file_count, piece_size, piece_count):
+def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
     filespecs = set()
-    if file_count <= 3:
-        for fsizes in itertools.product((piece_size * piece_count // file_count - 1,
-                                         piece_size * piece_count // file_count,
-                                         piece_size * piece_count // file_count + 1), repeat=file_count):
-            filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
-                                   for i,fsize in enumerate(fsizes)))
-    return sorted(filespecs, key=lambda f: sum(s[1] for s in f))
+    filesizes = [piece_size * piece_count // file_count - 1,
+                 piece_size * piece_count // file_count,
+                 piece_size * piece_count // file_count + 1]
+    for fsizes in itertools.product(filesizes, repeat=file_count):
+        filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
+                            for i,fsize in enumerate(fsizes)))
+    # Order must always be identical or xdist will complain with --numprocesses > 1
+    return sorted(sorted(filespecs), key=lambda f: sum(s[1] for s in f))
 
 def _display_filespecs(filespecs, file_count, piece_size):
     lines = []
