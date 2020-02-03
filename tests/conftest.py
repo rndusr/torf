@@ -98,11 +98,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
             i += 1
         if fuzzy:
             random.shuffle(filesizes)
-        if file_count > 5:
-            combinator = itertools.combinations
-        else:
-            combinator = itertools.permutations
-        for fsizes in combinator(filesizes, file_count):
+        for fsizes in itertools.combinations(filesizes, file_count):
             filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
                                 for i,fsize in enumerate(fsizes)))
     # Order must always be identical or xdist will complain with --numprocesses > 1
