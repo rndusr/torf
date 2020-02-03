@@ -188,8 +188,8 @@ class Reader():
                     piece_index = self._calc_piece_index() + 1
                     self._push(piece_index, None, filepath, exc)
                     # No need to read this file
-                    self.skip_file(filepath, piece_index)
                     self._dont_skip_next_piece(piece_index)
+                    self.skip_file(filepath, piece_index, force=True)
 
     def _read_file(self, filepath, trailing_bytes):
         piece_size = self._piece_size
@@ -240,7 +240,7 @@ class Reader():
                 piece_index = self._calc_piece_index(absolute_pos=file_beg)
                 debug(f'reader: Reporting read exception for piece index {piece_index} (file pos {file_beg}): {exc!r}')
                 self._push(piece_index, None, filepath, exc)
-                self.skip_file(filepath, piece_index)
+                self.skip_file(filepath, piece_index, force=True)
                 bytes_chunked, trailing_bytes = self._fake(
                     filepath, self._bytes_chunked+bytes_chunked, len(trailing_bytes))
 
@@ -257,8 +257,8 @@ class Reader():
             return True
         return False
 
-    def skip_file(self, filepath, piece_index):
-        if self._skip_file_on_first_error and filepath not in self._skip_files:
+    def skip_file(self, filepath, piece_index, force=False):
+        if (self._skip_file_on_first_error or force) and filepath not in self._skip_files:
             if piece_index not in self._noskip_piece_indexes:
                 debug(f'reader: Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
                       f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
