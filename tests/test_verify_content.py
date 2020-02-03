@@ -626,40 +626,34 @@ class _TestCaseMultifile(_TestCaseBase):
         filepath = self.content_path / filename
         os.rename(filepath, str(filepath) + '.deleted')
         self.files_missing.append(filepath)
+        self.content_corrupt[os.path.basename(filename)]['data'] = b'\xCC' * filesize
 
-        # Find the first byte of the first affected piece and the first byte of
-        # the last affected piece
-        file_beg,file_end = file_range(filename, self.filespecs)
-        piece_size = self.piece_size
-        debug(f'{filename} starts at {file_beg} and ends at {file_end} in stream')
-        first_affected_piece_pos = round_down_to_multiple(file_beg, piece_size)
-        last_affected_piece_pos = round_down_to_multiple(file_end, piece_size)
-        debug(f'First affected piece starts at {first_affected_piece_pos} '
-              f'and last affected piece starts at {last_affected_piece_pos}')
+        corruption_positions = set()
+        files_missing = [str(filepath) for filepath in self.files_missing]
 
-        # Pieces of missing files are always skipped--unless they overlap with
-        # an existing file, in which case they are reported as corrupt.
-        is_first_file = index == 0
-        is_last_file = index >= len(self.filespecs)-1
-        debug(f'is_first_file={is_first_file}, is_last_file={is_last_file}')
+        for removed_filepath in self.files_missing:
+            removed_filename = os.path.basename(removed_filepath)
+            # Find the first byte of the first affected piece and the first byte
+            # of the last affected piece
+            file_beg,file_end = file_range(removed_filename, self.filespecs)
+            debug(f'{removed_filename} starts at {file_beg} and ends at {file_end} in stream')
+            first_affected_piece_pos = round_down_to_multiple(file_beg, self.piece_size)
+            last_affected_piece_pos = round_down_to_multiple(file_end, self.piece_size)
+            debug(f'  First affected piece starts at {first_affected_piece_pos} '
+                  f'and last affected piece starts at {last_affected_piece_pos}')
 
-        file_starts_at_piece_boundary = file_beg % piece_size == 0
-        file_ends_at_piece_boundary = (file_end+1) % piece_size == 0
-        debug(f'file_starts_at_piece_boundary={file_starts_at_piece_boundary}, '
-              f'file_ends_at_piece_boundary={file_ends_at_piece_boundary}')
+            # Find files that share the first and last affected piece
+            for piece_index_pos in set((first_affected_piece_pos, last_affected_piece_pos)):
+                debug(f'Finding files affected by piece_index {piece_index_pos} being corrupt:')
+                for filepath in pos2files(piece_index_pos, self.filespecs_abspath, self.piece_size):
+                    debug(f'  {filepath}')
+                    if filepath not in files_missing:
+                        debug(f'  {os.path.basename(filepath)} exists, making '
+                              f'piece_index {piece_index_pos // self.piece_size} corrupt')
+                        corruption_positions.add(piece_index_pos)
 
-        if not is_first_file and not file_starts_at_piece_boundary:
-            # The first piece of the removed file corrupts the last piece of the
-            # preceding file.
-            debug(f'First piece of {filename} corrupts last piece of previous file')
-            self.corruption_positions.append(first_affected_piece_pos)
-        if not is_last_file and not file_ends_at_piece_boundary:
-            # The last piece of the removed file corrupts the last piece of the
-            # preceding file.
-            debug(f'Last piece of {filename} corrupts first piece of next file')
-            self.corruption_positions.append(last_affected_piece_pos)
+        self.corruption_positions = corruption_positions
         debug(f'Corruption positions after removing file: {self.corruption_positions}')
-        self.content_corrupt[os.path.basename(filename)]['data'] = b'\x00' * filesize
 
 @pytest.fixture
 def mktestcase(create_dir, create_file, forced_piece_size, create_torrent_file):
