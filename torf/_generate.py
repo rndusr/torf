@@ -260,11 +260,11 @@ class Reader():
     def skip_file(self, filepath, piece_index):
         if self._skip_file_on_first_error and filepath not in self._skip_files:
             if piece_index not in self._noskip_piece_indexes:
-                debug(f'Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
+                debug(f'reader: Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
                       f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
                 self._skip_files.add(filepath)
             else:
-                debug(f'Not skipping {os.path.basename(filepath)} because of expected '
+                debug(f'reader: Not skipping {os.path.basename(filepath)} because of expected '
                       f'corrupt piece_index {piece_index}: {self._noskip_piece_indexes}')
 
     # When we fake-read a file, the first piece of the file after the faked file
