@@ -251,18 +251,21 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
         else:
             pos_end = round_up_to_multiple(pos + filesize, piece_size)
         last_pi = pos_end // piece_size
-        pis = list(range(first_pi, last_pi))
-        if pis:
-            piece_indexes[filename] = pis
+        piece_indexes[filename].extend(range(first_pi, last_pi))
         pos += filesize
 
-    # For each missing file, the first piece of the file gets two calls, one for
-    # the "no such file" error and one for the "corrupt piece" error
+    # For each missing file, the first piece of the file may get two calls, one
+    # for the "no such file" error and one for the "corrupt piece" error
     for filepath in files_missing:
         filename = os.path.basename(filepath)
         file_beg,file_end = file_range(filename, filespecs)
         piece_index = file_beg // piece_size
-        piece_indexes[filename].insert(0, file_beg // piece_size)
+        piece_indexes[filename].maybe.append(piece_index)
+
+    # Remove empty lists, which we added to maintain file order
+    for k in tuple(piece_indexes):
+        if not piece_indexes[k]:
+            del piece_indexes[k]
 
     return piece_indexes
 
