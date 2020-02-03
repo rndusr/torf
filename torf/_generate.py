@@ -707,13 +707,13 @@ class CancelCallback():
     def __call__(self, cb_args, force_call=False):
         now = time_monotonic()
         prev_call_time = self._prev_call_time
+        # debug(f'CancelCallback: force_call={force_call}, prev_call_time={prev_call_time}, '
+        #       f'now={now}, self._interval={self._interval}: {cb_args[1:]}')
         if (force_call or                             # Special case (e.g. exception in Torrent.verify())
             prev_call_time is None or                 # This is the first call
             now - prev_call_time >= self._interval):  # Previous call was at least `interval` seconds ago
             self._prev_call_time = now
             try:
-                # debug(f'CancelCallback: force_call={force_call}, prev_call_time={prev_call_time}, '
-                #       f'now={now}, self._interval={self._interval}')
                 debug(f'CancelCallback: Calling callback with {cb_args[1:]}')
                 return_value = self._callback(*cb_args)
                 if return_value is not None:
