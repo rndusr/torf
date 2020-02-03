@@ -28,6 +28,8 @@ def pytest_addoption(parser):
                      help='Comma-separated list of number of pieces to use for test torrents')
     parser.addoption('--file-counts', default=[1, 2, 3], action=IntList,
                      help='Comma-separated list of number of files to use for test torrents')
+    parser.addoption('--fuzzy', action='store_true',
+                     help='Whether to randomize file sizes for --file-counts >= 4')
 
 alphabet = 'abcdefghijklmnopqrstuvwxyz'
 def pytest_generate_tests(metafunc):
@@ -46,7 +48,8 @@ def pytest_generate_tests(metafunc):
         for file_count in file_counts:
             for piece_size in piece_sizes:
                 for piece_count in piece_counts:
-                    filespecs = _generate_filespecs(file_count, piece_size, piece_count)
+                    filespecs = _generate_filespecs(file_count, piece_size, piece_count,
+                                                    fuzzy=metafunc.config.getoption('fuzzy'))
                     _display_filespecs(filespecs, file_count, piece_size)
                     # piece_size is connected to file sizes (i.e. filespecs)
                     for filespec in filespecs:
@@ -81,9 +84,27 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
     filesizes = [piece_size * piece_count // file_count - 1,
                  piece_size * piece_count // file_count,
                  piece_size * piece_count // file_count + 1]
-    for fsizes in itertools.product(filesizes, repeat=file_count):
-        filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
-                            for i,fsize in enumerate(fsizes)))
+    if file_count <= len(filesizes):
+        for fsizes in itertools.product(filesizes, repeat=file_count):
+            filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
+                                   for i,fsize in enumerate(fsizes)))
+    else:
+        # For itertools.permutations()/combinations() to work, we need at least
+        # as many file sizes as files.
+        i = 2
+        while len(filesizes) < file_count:
+            filesizes.append(max(1, piece_size * piece_count // file_count - i))
+            filesizes.append(piece_size * piece_count // file_count + i)
+            i += 1
+        if fuzzy:
+            random.shuffle(filesizes)
+        if file_count > 5:
+            combinator = itertools.combinations
+        else:
+            combinator = itertools.permutations
+        for fsizes in combinator(filesizes, file_count):
+            filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
+                                   for i,fsize in enumerate(fsizes)))
     # Order must always be identical or xdist will complain with --numprocesses > 1
     return sorted(sorted(filespecs), key=lambda f: sum(s[1] for s in f))
 
