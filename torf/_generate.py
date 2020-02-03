@@ -188,8 +188,8 @@ class Reader():
                     piece_index = self._calc_piece_index() + 1
                     self._push(piece_index, None, filepath, exc)
                     # No need to read this file
-                    self._dont_skip_next_piece(piece_index)
                     self.skip_file(filepath, piece_index, force=True)
+                    self._dont_skip_piece(piece_index)
 
     def _read_file(self, filepath, trailing_bytes):
         piece_size = self._piece_size
@@ -272,11 +272,11 @@ class Reader():
     # previous/faked file.  If skip_file_on_first_error is True, that means the
     # next file is skipped even if it is completely fine and we just couldn't
     # confirm that.
-    def _dont_skip_next_piece(self, piece_index):
+    def _dont_skip_piece(self, piece_index):
         if self._skip_file_on_first_error:
-            next_piece_index = piece_index + 1
-            debug(f'reader: Never skipping file at piece_index {next_piece_index}')
-            self._noskip_piece_indexes.add(next_piece_index)
+            debug(f'reader: Never skipping file at piece_index {piece_index}')
+            self._noskip_piece_indexes.add(piece_index)
+
 
     def _calc_piece_index(self, additional_bytes_chunked=0, absolute_pos=0):
         if absolute_pos:
