@@ -640,10 +640,12 @@ def test_validate_is_called_first(monkeypatch):
     assert str(excinfo.value) == f'Invalid metainfo: Mock error'
     mock_validate.assert_called_once_with()
 
-def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback):
+def test_verify_content_successfully(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
-    cb = tc.run(with_callback=callback['enabled'], exp_return_value=True)
+    cb = tc.run(with_callback=callback['enabled'],
+                exp_return_value=True)
+    # TODO: Move these to _TestCaseBase.run or something
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
@@ -654,11 +656,12 @@ def test_verify_content_successfully(mktestcase, piece_size, filespecs, callback
         debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == []
 
-def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespecs, callback):
+def test_verify_content_with_random_corruptions_and_no_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
-    cb = tc.run(with_callback=callback['enabled'], exp_return_value=False)
+    cb = tc.run(with_callback=callback['enabled'],
+                exp_return_value=False)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
@@ -669,12 +672,13 @@ def test_verify_content_with_random_corruptions(mktestcase, piece_size, filespec
         debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
-def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, callback, filespec_indexes):
+def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     for index in filespec_indexes:
         tc.delete_file(index)
-    cb = tc.run(with_callback=callback['enabled'], exp_return_value=False)
+    cb = tc.run(with_callback=callback['enabled'],
+                exp_return_value=False)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
         assert cb.seen_pieces_done == tc.exp_pieces_done
