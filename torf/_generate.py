@@ -392,7 +392,7 @@ class _FileFaker():
                 # Send b'' to guarantee a hash mismatch.  Sending fake bytes
                 # might *not* raise an error if they replicate the missing data.
                 debug(f'faker: Sending first fake piece_index {piece_index} as corrupt')
-                self._push(piece_index, b'', filepath, None)
+                self._reader._push(piece_index, b'', filepath, None)
 
             # Process first piece
             remaining_bytes -= self._piece_size
@@ -412,13 +412,12 @@ class _FileFaker():
                 break
             piece_index = self._calc_piece_index(bytes_chunked_total)
             debug(f'faker: {piece_index}: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
-            self._push(piece_index, None, filepath, None)
+            self._reader._push(piece_index, None, filepath, None)
         return bytes_chunked_total, remaining_bytes
 
     def _fake_last_piece(self, filepath, bytes_chunked_total, remaining_bytes):
         # Figure out what we want to do with remaining_bytes.
         debug(f'faker: Last piece: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
-
         next_filepath = self._get_next_filepath(filepath)
         piece_index = self._calc_piece_index(bytes_chunked_total)
         next_piece_index = self._calc_piece_index(bytes_chunked_total + remaining_bytes)
@@ -469,7 +468,7 @@ class _FileFaker():
                 # but update progress to 100%.
                 debug(f'faker: Suppressing corruption in final piece_index {next_piece_index}')
                 self.forced_error_piece_indexes.discard(next_piece_index)
-                self._push(next_piece_index, None, filepath, None)
+                self._reader._push(next_piece_index, None, filepath, None)
                 bytes_chunked_total += remaining_bytes
                 trailing_bytes = 0
             else:
@@ -490,15 +489,11 @@ class _FileFaker():
                     # to trigger the error.
                     debug(f'faker: Forcing corruption in final piece_index {piece_index} immediately')
                     assert piece_index == next_piece_index
-                    self._push(piece_index, b'', filepath, None)
+                    self._reader._push(piece_index, b'', filepath, None)
                     trailing_bytes = 0
 
         debug(f'faker: {piece_index}: Finished: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
         return bytes_chunked_total, trailing_bytes
-
-    def _push(self, piece_index, *args, **kwargs):
-        debug(f'faker: ]]] Pushing piece_index {piece_index}: {args}, {kwargs}')
-        self._reader._push(piece_index, *args, **kwargs)
 
     def _calc_piece_index(self, bytes_chunked_total):
         # `bytes_chunked_total` is the number of processed bytes, but we want
