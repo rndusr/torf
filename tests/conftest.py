@@ -38,24 +38,37 @@ def pytest_generate_tests(metafunc):
     file_counts = metafunc.config.getoption('file_counts')
     fixturenames = metafunc.fixturenames
     if 'filespecs' in fixturenames:
+        argnames, argvalues, ids = _parametrize_filespecs(file_counts, piece_sizes, piece_counts,
+                                                          filespec_indexes='filespec_indexes' in fixturenames,
+                                                          fuzzy=metafunc.config.getoption('fuzzy'))
+        metafunc.parametrize(argnames, argvalues, ids=ids)
+    else:
+        if 'piece_size' in fixturenames:
+            metafunc.parametrize('piece_size', piece_sizes)
+
+    if 'callback' in fixturenames:
+        argvalues = [{'enabled': True}, {'enabled': False}]
+        metafunc.parametrize('callback', argvalues,
+                             ids=['callback' if c['enabled'] else ''
+                                  for c in argvalues])
+
+def _parametrize_filespecs(file_counts, piece_sizes, piece_counts,
+                           filespec_indexes=False, fuzzy=False):
         argnames = ['filespecs', 'piece_size']
-        if 'filespec_index' in fixturenames:
-            argnames.append('filespec_index')
-        elif 'filespec_indexes' in fixturenames:
+        if filespec_indexes:
             argnames.append('filespec_indexes')
         argvalues = []
         ids = []
         for file_count in file_counts:
             for piece_size in piece_sizes:
                 for piece_count in piece_counts:
-                    filespecs = _generate_filespecs(file_count, piece_size, piece_count,
-                                                    fuzzy=metafunc.config.getoption('fuzzy'))
+                    filespecs = _generate_filespecs(file_count, piece_size, piece_count, fuzzy=fuzzy)
                     _display_filespecs(filespecs, file_count, piece_size)
                     # piece_size is connected to file sizes (i.e. filespecs)
                     for filespec in filespecs:
                         values = (filespec, piece_size)
                         # Generate combinations of file indexes
-                        if 'filespec_indexes' in fixturenames:
+                        if filespec_indexes:
                             for number_of_indexes in range(1, file_count+1):
                                 for indexes in itertools.combinations(range(0, file_count), number_of_indexes):
                                     argvalues.append(values + (indexes,))
@@ -68,16 +81,7 @@ def pytest_generate_tests(metafunc):
                             ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
                                        + f'-pc={piece_count}'
                                        + f'-ps={piece_size}')
-        metafunc.parametrize(argnames, argvalues, ids=ids)
-    else:
-        if 'piece_size' in fixturenames:
-            metafunc.parametrize('piece_size', piece_sizes)
-
-    if 'callback' in fixturenames:
-        argvalues = [{'enabled': True}, {'enabled': False}]
-        metafunc.parametrize('callback', argvalues,
-                             ids=['callback' if c['enabled'] else ''
-                                  for c in argvalues])
+        return argnames, argvalues, ids
 
 def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
     filespecs = set()
