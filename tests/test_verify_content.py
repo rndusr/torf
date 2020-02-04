@@ -14,20 +14,6 @@ import logging
 debug = logging.getLogger('test').debug
 from . import display_filespecs
 
-# class regex:
-#     """
-#     Instances of this object are equal to strings that match a regex
-#     https://kalnytskyi.com/howto/assert-str-matches-regex-in-pytest/
-#     """
-#     def __init__(self, pattern, flags=0):
-#         self._regex = re.compile(pattern, flags)
-
-#     def __eq__(self, other):
-#         return bool(self._regex.search(str(other)))
-
-#     def __repr__(self):
-#         return self._regex.pattern
-
 class fuzzylist(list):
     """
     List that is fuzzily equal to other lists
@@ -168,13 +154,6 @@ def find_common_member(lista, listb, first=True, last=False):
         return intersection[0] if first else intersection[-1]
     return None
 
-def file_size(filename, filespecs):
-    """Return `filename`'s size according to `filespecs`"""
-    for fn,size in filespecs:
-        if fn == filename:
-            return size
-    raise RuntimeError(f'Could not find {filename} in {filespecs}')
-
 def file_range(filename, filespecs):
     """Return `filename`'s first and last byte index in stream"""
     pos = 0
@@ -216,24 +195,6 @@ def pos2file(pos, filespecs, piece_size):
             return (filename, pos - p)
         p += filesize
     raise RuntimeError(f'Could not find file at position {pos} in {filespecs}')
-
-def next_file(filename, filespecs):
-    for i,(fn,_) in enumerate(filespecs):
-        if fn == filename:
-            try:
-                return filespecs[i+1]
-            except IndexError:
-                return None, None
-    raise RuntimeError(f'Could not find file {filename} in {filespecs}')
-
-def prev_file(filename, filespecs):
-    for i,(fn,_) in enumerate(reversed(filespecs)):
-        if fn == filename:
-            try:
-                return filespecs[i+1]
-            except IndexError:
-                return None, None
-    raise RuntimeError(f'Could not find file {filename} in {filespecs}')
 
 def calc_piece_indexes(filespecs, piece_size, files_missing):
     """
