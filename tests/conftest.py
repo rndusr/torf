@@ -81,9 +81,9 @@ def pytest_generate_tests(metafunc):
 
 def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
     filespecs = set()
-    filesizes = [piece_size * piece_count // file_count - 1,
+    filesizes = {max(1, piece_size * piece_count // file_count - 1),
                  piece_size * piece_count // file_count,
-                 piece_size * piece_count // file_count + 1]
+                 piece_size * piece_count // file_count + 1}
     if file_count <= len(filesizes):
         for fsizes in itertools.product(filesizes, repeat=file_count):
             filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
@@ -93,9 +93,10 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
         # as many file sizes as files.
         i = 2
         while len(filesizes) < file_count:
-            filesizes.append(max(1, piece_size * piece_count // file_count - i))
-            filesizes.append(piece_size * piece_count // file_count + i)
+            filesizes.add(max(1, piece_size * piece_count // file_count - i))
+            filesizes.add(piece_size * piece_count // file_count + i)
             i += 1
+        filesizes = list(sorted(filesizes))
         if fuzzy:
             random.shuffle(filesizes)
         for fsizes in itertools.combinations(filesizes, file_count):
