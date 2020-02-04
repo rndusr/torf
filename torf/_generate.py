@@ -433,12 +433,9 @@ class _FileFaker():
             trailing_bytes = remaining_bytes
             debug(f'faker: Pretending to read {trailing_bytes} trailing bytes from {os.path.basename(filepath)}')
 
-            # Does processing remaining_bytes start a new piece?  (This is not
-            # the case if multiple files end in the same piece.)
-            if next_piece_index != piece_index:
-                # The next piece will be corrupt, but we don't want to skip any
-                # files because because of that.
-                self._reader._dont_skip_piece(next_piece_index)
+            # The next piece will be corrupt, but we don't want to skip any
+            # files because because of that.
+            self._reader._dont_skip_piece(next_piece_index)
 
             if next_piece_index not in self.forced_error_piece_indexes:
                 # Force error in the piece that contains `filepath`'s
@@ -453,6 +450,11 @@ class _FileFaker():
             next_affected_files = self._files_in_piece(next_piece_index, exclude=filepath)
             debug(f'faker: Other affected files: {next_affected_files}')
             debug(f'faker: Faked files: {self._faked_files}')
+
+            if next_affected_files:
+                # The next piece will be corrupt, but we don't want to skip any
+                # files because because of that.
+                self._reader._dont_skip_piece(next_piece_index)
 
             # Do not report corruption in final piece if all of the files that
             # end in it have been faked.
