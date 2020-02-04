@@ -335,7 +335,7 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     return fuzzy_pieces_done_list
 
 class CollectingCallback():
-    """Collect call arguments and make basic assertments"""
+    """Collect call arguments and make basic assertions"""
     def __init__(self, torrent):
         super().__init__()
         self.torrent = torrent
