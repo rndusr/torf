@@ -357,7 +357,8 @@ class _FileFaker():
 
         self._faked_files.add(filepath)
         debug(f'faker: Done faking: {new_bytes_chunked_total} bytes chunked from stream, {trailing_bytes} trailing bytes')
-        return new_bytes_chunked_total - bytes_chunked_total, b'\x00' * trailing_bytes
+        bytes_chunked_diff = new_bytes_chunked_total - bytes_chunked_total
+        return bytes_chunked_diff, b'\x00' * trailing_bytes
 
     def _fake_first_piece(self, filepath, bytes_chunked_total, remaining_bytes, trailing_bytes):
         # Fake the first piece if there are any `trailing_bytes` from the
