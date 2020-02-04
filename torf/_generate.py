@@ -381,16 +381,14 @@ class _FileFaker():
             and first_piece_contains_bytes_from_previous_file
             and (first_piece_is_not_last_piece or final_piece_ends_at_piece_boundary)):
             debug(f'faker: Faking first piece_index: {piece_index}')
-            prev_affected_files = self._files_in_piece(piece_index)
+            prev_affected_files = self._files_in_piece(piece_index, exclude=filepath)
             debug(f'faker: Files affected by first faked piece_index:')
             for fp in prev_affected_files:
                 debug(f'faker:   {fp}')
 
             # Report completed piece as corrupt if `filepath` is not the only
-            # file in it (corrupting files we didn't fake) and if it wasn't
-            # already reported.
-            if len(prev_affected_files) >= 2 and \
-               any(fpath not in self._faked_files for fpath in prev_affected_files if fpath != filepath):
+            # file in it (corrupting files we didn't fake).
+            if any(fpath not in self._faked_files for fpath in prev_affected_files):
                 # Send b'' to guarantee a hash mismatch.  Sending fake bytes
                 # might *not* raise an error if they replicate the missing data.
                 debug(f'faker: Sending first fake piece_index {piece_index} as corrupt')
@@ -512,7 +510,7 @@ class _FileFaker():
         # the index of the last processed byte.
         return max(0, bytes_chunked_total - 1) // self._piece_size
 
-    def _files_in_piece(self, piece_index):
+    def _files_in_piece(self, piece_index, exclude=()):
         # Return list of filepaths that have bytes in piece at `piece_index`
         piece_beg = piece_index * self._piece_size
         piece_end = piece_beg + self._piece_size - 1
@@ -524,7 +522,8 @@ class _FileFaker():
             file_end = file_beg + fsize -1
             # File's last/first byte is between piece's first/last byte?
             if piece_beg <= file_beg <= piece_end or piece_beg <= file_end <= piece_end:
-                filepaths.append(fpath)
+                if fpath not in exclude:
+                    filepaths.append(fpath)
             pos += fsize
         return filepaths
 
