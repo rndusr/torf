@@ -130,8 +130,7 @@ class Reader():
         self._piece_size = piece_size
         self._piece_queue = ExhaustableQueue(name='pieces', maxsize=queue_size)
         self._bytes_chunked = 0  # Number of bytes sent off as piece_size'd chunks
-        self._fake = _FileFaker(self._filepaths, file_sizes, piece_size,
-                                self._push, self._dont_skip_piece)
+        self._fake = _FileFaker(self, self._filepaths, file_sizes, piece_size)
         self._skip_file_on_first_error = skip_file_on_first_error
         self._skipped_files = set()
         self._noskip_piece_indexes = set()
@@ -337,13 +336,12 @@ class Reader():
 class _FileFaker():
     # Pretend to read `filepath` to properly report progress and read following
     # files in the stream without shifting their pieces.
-    def __init__(self, filepaths, file_sizes, piece_size, push, dont_skip_piece):
+    def __init__(self, reader, filepaths, file_sizes, piece_size):
+        self._reader = reader
         self._filepaths = filepaths
         self._file_sizes = file_sizes
         self._piece_size = piece_size
         self._faked_files = set()
-        self._push_func = push
-        self._dont_skip_piece = dont_skip_piece
         self.forced_error_piece_indexes = set()
         self.stop = False
 
@@ -356,7 +354,7 @@ class _FileFaker():
 
         # Calculate how many bytes we need to fake.
         debug(f'reader: Fake reading {os.path.basename(filepath)} after chunking {bytes_chunked_total} bytes from stream')
-        file_beg,_ = self._calc_file_range(filepath)
+        file_beg,_ = self._reader._calc_file_range(filepath)
         remaining_bytes = file_beg - bytes_chunked_total + self._file_sizes[filepath]
         debug(f'faker: Remaining bytes to fake: {file_beg} - {bytes_chunked_total} + '
               f'{self._file_sizes[filepath]} = {remaining_bytes}')
@@ -379,7 +377,7 @@ class _FileFaker():
         piece_index = self._calc_piece_index(bytes_chunked_total + trailing_bytes)
         first_piece_contains_bytes_from_previous_file = bool(trailing_bytes)
         we_have_enough_bytes_for_complete_piece = remaining_bytes + trailing_bytes >= self._piece_size
-        file_beg, file_end = self._calc_file_range(filepath)
+        file_beg, file_end = self._reader._calc_file_range(filepath)
         first_piece_is_not_last_piece = file_beg // self._piece_size != file_end // self._piece_size
         final_piece_ends_at_piece_boundary = remaining_bytes % self._piece_size == 0
         debug(f'faker: Faking first piece_index {piece_index}: bytes_chunked_total: {bytes_chunked_total}, '
@@ -457,7 +455,7 @@ class _FileFaker():
             if next_piece_index != piece_index:
                 # The next piece will be corrupt, but we don't want to skip any
                 # files because because of that.
-                self._dont_skip_piece(next_piece_index)
+                self._reader._dont_skip_piece(next_piece_index)
 
             if next_piece_index not in self.forced_error_piece_indexes:
                 # Force error in the piece that contains our trailing_bytes.
@@ -518,28 +516,12 @@ class _FileFaker():
 
     def _push(self, piece_index, *args, **kwargs):
         debug(f'faker: ]]] Pushing piece_index {piece_index}: {args}, {kwargs}')
-        self._push_func(piece_index, *args, **kwargs)
+        self._reader._push(piece_index, *args, **kwargs)
 
-    # TODO: This should be two methods:
-    #       - One that gets a number of bytes (e.g. bytes_chunked)
-    #       - One that gets an index/position in the stream
     def _calc_piece_index(self, bytes_chunked_total):
         # `bytes_chunked_total` is the number of processed bytes, but we want
         # the index of the last processed byte.
         return max(0, bytes_chunked_total - 1) // self._piece_size
-
-    def _calc_file_range(self, filepath):
-        # Return the index of `filepath`'s first and last byte in the
-        # concatenated stream of all files
-        pos = 0
-        for fp in self._filepaths:
-            if fp == filepath:
-                beg = pos
-                end = beg + self._file_sizes[fp] - 1
-                return beg, end
-            else:
-                pos += self._file_sizes[fp]
-        raise RuntimeError(f'Unknown file path: {filepath}')
 
     def _files_in_piece(self, piece_index):
         # Return list of filepaths that have bytes in piece at `piece_index`
