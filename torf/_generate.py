@@ -302,14 +302,13 @@ class Reader():
             # We know this piece is corrupt, even if padding bytes replicate the
             # missing data.  Exceptions from upstream (e.g. ReadError) take
             # precedence over corruption errors.  Ignore faked pieces (`piece`
-            # is None) because there is no point in corrupting unknown pieces.
+            # is None) because they only exist to report progress.
             debug(f'reader: Forcing hash mismatch for piece_index {piece_index} (original piece: {piece}, exc: {exc})')
             piece = b''
         elif piece is not None:
             piece = bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
-        debug(f'reader: >>> Pushed piece_index {piece_index} [{self._piece_queue.qsize()}]: '
-              f'{piece}, {os.path.basename(filepath)}, {exc}')
+        debug(f'reader: >>> Pushed piece_index {piece_index}')
 
     def stop(self):
         if not self._stop:
@@ -321,6 +320,7 @@ class Reader():
     @property
     def piece_queue(self):
         return self._piece_queue
+
 
 class _FileFaker():
     # Pretend to read `filepath` to properly report progress and read following
@@ -360,7 +360,7 @@ class _FileFaker():
         return new_bytes_chunked_total - bytes_chunked_total, b'\x00' * trailing_bytes
 
     def _fake_first_piece(self, filepath, bytes_chunked_total, remaining_bytes, trailing_bytes):
-        # Fake the first piece that might contain `trailing_bytes` from the
+        # Fake the first piece if there are any `trailing_bytes` from the
         # previous file.  Note that we might not have enough bytes for a full
         # piece.
         piece_index = self._calc_piece_index(bytes_chunked_total + trailing_bytes)
@@ -425,8 +425,6 @@ class _FileFaker():
               f'next_filepath={next_filepath}')
 
         if next_filepath is not None:
-            debug(f'faker: There is another file after {filepath}')
-
             # Fake trailing_bytes so the next piece isn't shifted in the stream.
             trailing_bytes = remaining_bytes
             debug(f'faker: Pretending to read {trailing_bytes} trailing bytes from {os.path.basename(filepath)}')
@@ -439,17 +437,15 @@ class _FileFaker():
                 self._reader._dont_skip_piece(next_piece_index)
 
             if next_piece_index not in self.forced_error_piece_indexes:
-                # Force error in the piece that contains our trailing_bytes.
-                # This is necessary because any padding/fake bytes can be
-                # identical to the original/missing bytes, meaning that we don't
-                # report an error for the next piece.
+                # Force error in the piece that contains `filepath`'s
+                # trailing_bytes.  This is necessary because any padding/fake
+                # bytes can be identical to the original/missing bytes, meaning
+                # that we don't report an error for the next piece.
                 self.forced_error_piece_indexes.add(next_piece_index)
-                debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes} '
-                      f'because following files are affected')
+                debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes}')
 
         else:
             # This is the last file in the stream
-            debug('faker: Finished faking the final file')
             debug(f'faker: Files in piece_index {piece_index}: {self._files_in_piece(piece_index)}')
             debug(f'faker: Files in next_piece_index {next_piece_index}: {self._files_in_piece(next_piece_index)}')
             debug(f'faker: Faked files: {self._faked_files}')
@@ -553,7 +549,7 @@ class HasherPool():
                 break
             else:
                 self._work(*task)
-        debug(f'{name}: Bye, piece_queue has {piece_queue.qsize()} items left')
+        # debug(f'{name}: Bye, piece_queue has {piece_queue.qsize()} items left')
 
     def _work(self, piece_index, piece, filepath, exc):
         # name = threading.current_thread().name
@@ -615,15 +611,14 @@ class Collector(Worker):
 
         # Sort hashes by piece_index and concatenate them
         self._hashes = b''.join(hash for index,hash in sorted(self._hashes_unsorted))
-        debug(f'collector: Collected {len(self._hashes_unsorted)} pieces')
-        debug(f'collector: Bye, hash_queue has {self._hash_queue.qsize()} items left')
+        # debug(f'collector: Collected {len(self._hashes_unsorted)} pieces')
+        # debug(f'collector: Bye, hash_queue has {self._hash_queue.qsize()} items left')
 
     def _work(self, piece_index, piece_hash, filepath, exc):
         # A piece can be reported twice, but we don't want to increase
-        # pieces_done in that case
+        # pieces_done in that case; the set's length is the number of seen
+        # pieces.
         self._pieces_seen.add(piece_index)
-        # In case a piece from a skipped file was already hashed and enqueued,
-        # act like drop the hash and report it as skipped.
         if self._file_was_skipped(filepath):
             piece_hash = None
         if exc is not None:
@@ -643,7 +638,7 @@ class Collector(Worker):
 
     def stop(self):
         if not self._stop:
-            debug(f'collector: Setting stop flag')
+            # debug(f'collector: Setting stop flag')
             self._stop = True
         return self
 
