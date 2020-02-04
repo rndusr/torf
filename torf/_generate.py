@@ -396,6 +396,7 @@ class _FileFaker():
                 # might *not* raise an error if they replicate the missing data.
                 debug(f'faker: Sending first fake piece_index {piece_index} as corrupt')
                 self._reader._push(piece_index, b'', filepath, None)
+                self._reader._dont_skip_piece(piece_index)
 
             # Process first piece
             remaining_bytes -= self._piece_size
