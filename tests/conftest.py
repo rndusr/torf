@@ -86,7 +86,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
                  piece_size * piece_count // file_count + 1}
     if file_count <= len(filesizes):
         for fsizes in itertools.product(filesizes, repeat=file_count):
-            filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
+            filespecs.add(tuple((alphabet[i], fsize)
                                 for i,fsize in enumerate(fsizes)))
     else:
         # For itertools.permutations()/combinations() to work, we need at least
@@ -100,7 +100,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
         if fuzzy:
             random.shuffle(filesizes)
         for fsizes in itertools.combinations(filesizes, file_count):
-            filespecs.add(tuple((alphabet[i], max(1, int(fsize)))
+            filespecs.add(tuple((alphabet[i], fsize)
                                 for i,fsize in enumerate(fsizes)))
     # Order must always be identical or xdist will complain with --numprocesses > 1
     return sorted(sorted(filespecs), key=lambda f: sum(s[1] for s in f))
