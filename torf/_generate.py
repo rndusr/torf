@@ -96,7 +96,7 @@ class Worker():
         self._name = str(name)
         self._worker = worker
         self._thread = threading.Thread(name=self._name,
-                                        target=self.run_and_catch_exceptions)
+                                        target=self._run_and_catch_exceptions)
         self._thread.start()
 
     @property
@@ -107,7 +107,7 @@ class Worker():
     def name(self):
         return self._name
 
-    def run_and_catch_exceptions(self):
+    def _run_and_catch_exceptions(self):
         try:
             self._worker()
         except BaseException as e:
