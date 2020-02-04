@@ -133,7 +133,7 @@ class Reader():
         self._fake = _FileFaker(self._filepaths, file_sizes, piece_size,
                                 self._push, self._dont_skip_piece)
         self._skip_file_on_first_error = skip_file_on_first_error
-        self._skip_files = set()
+        self._skipped_files = set()
         self._noskip_piece_indexes = set()
         self._stop = False
 
@@ -253,16 +253,16 @@ class Reader():
         return self._skip_files
 
     def file_was_skipped(self, filepath):
-        if self._skip_file_on_first_error and filepath in self._skip_files:
+        if self._skip_file_on_first_error and filepath in self._skipped_files:
             return True
         return False
 
     def skip_file(self, filepath, piece_index, force=False):
-        if (self._skip_file_on_first_error or force) and filepath not in self._skip_files:
+        if (self._skip_file_on_first_error or force) and filepath not in self._skipped_files:
             if piece_index not in self._noskip_piece_indexes:
                 debug(f'reader: Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
                       f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
-                self._skip_files.add(filepath)
+                self._skipped_files.add(filepath)
             else:
                 debug(f'reader: Not skipping {os.path.basename(filepath)} because of expected '
                       f'corrupt piece_index {piece_index}: {self._noskip_piece_indexes}')
@@ -276,7 +276,6 @@ class Reader():
         if self._skip_file_on_first_error:
             debug(f'reader: Never skipping file at piece_index {piece_index}')
             self._noskip_piece_indexes.add(piece_index)
-
 
     def _calc_piece_index(self, additional_bytes_chunked=0, absolute_pos=0):
         if absolute_pos:
@@ -342,13 +341,13 @@ class Reader():
 class _FileFaker():
     # Pretend to read `filepath` to properly report progress and read following
     # files in the stream without shifting their pieces.
-    def __init__(self, filepaths, file_sizes, piece_size, push, noskip):
+    def __init__(self, filepaths, file_sizes, piece_size, push, dont_skip_piece):
         self._filepaths = filepaths
         self._file_sizes = file_sizes
         self._piece_size = piece_size
         self._faked_files = set()
         self._push_func = push
-        self._noskip = noskip
+        self._dont_skip_piece = dont_skip_piece
         self.forced_error_piece_indexes = set()
         self.stop = False
 
@@ -462,7 +461,7 @@ class _FileFaker():
             if next_piece_index != piece_index:
                 # The next piece will be corrupt, but we don't want to skip any
                 # files because because of that.
-                self._noskip(next_piece_index)
+                self._dont_skip_piece(next_piece_index)
 
             if next_piece_index not in self.forced_error_piece_indexes:
                 # Force error in the piece that contains our trailing_bytes.
