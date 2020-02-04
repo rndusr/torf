@@ -311,17 +311,6 @@ class Reader():
         debug(f'reader: >>> Pushed piece_index {piece_index} [{self._piece_queue.qsize()}]: '
               f'{piece}, {os.path.basename(filepath)}, {exc}')
 
-    def _get_next_filepath(self, filepath):
-        try:
-            index = self._filepaths.index(filepath)
-        except ValueError:
-            pass
-        else:
-            try:
-                return self._filepaths[index+1]
-            except IndexError:
-                pass
-
     def stop(self):
         if not self._stop:
             debug(f'reader: Setting stop flag')
