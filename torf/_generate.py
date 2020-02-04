@@ -248,10 +248,6 @@ class Reader():
               f'from {os.path.basename(filepath)}: {debug.pretty_bytes(trailing_bytes)}')
         return bytes_chunked, trailing_bytes
 
-    @property
-    def skipped_files(self):
-        return self._skip_files
-
     def file_was_skipped(self, filepath):
         if self._skip_file_on_first_error and filepath in self._skipped_files:
             return True
