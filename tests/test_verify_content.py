@@ -686,6 +686,24 @@ def test_verify_content_with_missing_files(mktestcase, piece_size, filespecs, ca
         assert cb.seen_exceptions == tc.exp_exceptions
 
 
+def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
+    display_filespecs(filespecs, piece_size)
+    tc = mktestcase(filespecs, piece_size)
+    for index in filespec_indexes:
+        tc.delete_file(index)
+    cb = tc.run(with_callback=callback['enabled'],
+                skip_file_on_first_error=True,
+                exp_return_value=False)
+    if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
+        assert cb.seen_good_pieces == tc.exp_good_pieces
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
+        assert cb.seen_exceptions == tc.exp_exceptions
+
 # TODO: File is smaller
 # TODO: File is bigger
 
