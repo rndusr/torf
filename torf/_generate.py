@@ -424,11 +424,6 @@ class _FileFaker():
         next_piece_index = self._calc_piece_index(bytes_chunked_total + remaining_bytes)
         debug(f'faker: piece_index={piece_index}, next_piece_index={next_piece_index}, '
               f'next_filepath={next_filepath}')
-        debug(f'next_piece_index = self._calc_piece_index({bytes_chunked_total} + {remaining_bytes})')
-        next_affected_files = self._files_in_piece(next_piece_index)
-        debug(f'faker: Files affected by next_piece_index {next_piece_index}:')
-        for fp in next_affected_files:
-            debug(f'faker:   {fp}')
 
         if next_filepath is not None:
             debug(f'faker: There is another file after {filepath}')
@@ -451,7 +446,7 @@ class _FileFaker():
                 # report an error for the next piece.
                 self.forced_error_piece_indexes.add(next_piece_index)
                 debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes} '
-                      f'because following files are affected: {next_affected_files}')
+                      f'because following files are affected')
 
         else:
             # This is the last file in the stream
@@ -486,7 +481,7 @@ class _FileFaker():
                 # must remember to enforce that.
                 self.forced_error_piece_indexes.add(next_piece_index)
                 debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes} '
-                      f'because other files are affected: {next_affected_files}')
+                      f'because other files are affected')
                 if not remaining_bytes:
                     # If we already pushed all pieces, marking the final piece
                     # for a forced error doesn't do anything.  Reader.read()
