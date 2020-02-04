@@ -447,20 +447,13 @@ class _FileFaker():
 
         else:
             # This is the last file in the stream
-            debug(f'faker: Files in piece_index {piece_index}: {self._files_in_piece(piece_index)}')
-            debug(f'faker: Files in next_piece_index {next_piece_index}: {self._files_in_piece(next_piece_index)}')
+            next_affected_files = self._files_in_piece(next_piece_index, exclude=filepath)
+            debug(f'faker: Other affected files: {next_affected_files}')
             debug(f'faker: Faked files: {self._faked_files}')
 
-            # Report the final piece in the stream as corrupt if any of the
-            # files that end in it have not been faked yet.
-            suppress_final_piece_error = True
-            for fpath in self._files_in_piece(next_piece_index):
-                if fpath != filepath and fpath not in self._faked_files:
-                    debug(f'faker: {fpath} was not faked (yet?)')
-                    suppress_final_piece_error = False
-                    break
-
-            if suppress_final_piece_error:
+            # Do not report corruption in final piece if all of the files that
+            # end in it have been faked.
+            if all(fpath in self._faked_files for fpath in next_affected_files):
                 # Don't report error by returning no trailing_bytes,
                 # but update progress to 100%.
                 debug(f'faker: Suppressing corruption in final piece_index {next_piece_index}')
