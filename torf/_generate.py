@@ -249,7 +249,9 @@ class Reader():
 
     def file_was_skipped(self, filepath):
         if self._skip_file_on_first_error and filepath in self._skipped_files:
-            return True
+            file_beg,_ = self._calc_file_range(filepath)
+            if self._calc_piece_index(absolute_pos=file_beg) not in self._noskip_piece_indexes:
+                return True
         return False
 
     def skip_file(self, filepath, piece_index, force=False):
