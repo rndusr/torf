@@ -6,6 +6,7 @@ import os
 import shutil
 import random
 import collections
+import itertools
 import re
 import math
 import errno
@@ -43,25 +44,31 @@ class fuzzylist(list):
     Unlike `set(...) == set(...)`, this doesn't remove duplicate items and
     allows unhashable items.
     """
-    def __init__(self, *args, maybe=(),
-                 max_maybe_items=collections.defaultdict(lambda: 1)):
+    def __init__(self, *args, maybe=(), max_maybe_items={}):
         self.maybe = list(maybe)
         self.max_maybe_items = max_maybe_items
         super().__init__(args)
 
     def __eq__(self, other):
         if tuple(self) != tuple(other):
-            self_maybe = self.maybe
+            # Check if either list contains any disallowed items, accepting
+            # items from `maybe`.
             other_maybe = getattr(other, 'maybe', ())
             for item in self:
                 if item not in other and item not in other_maybe:
                     return False
+            self_maybe = self.maybe
             for item in other:
                 if item not in self and item not in self_maybe:
                     return False
-            # Check if any optional items exist too often
-            for item,maxcount in self.max_maybe_items.items():
-                if other.count(item) > maxcount:
+            # Check if either list contains an excess of items.
+            other_max = getattr(other, 'max_maybe_items', {})
+            for item in itertools.chain(self, self.maybe):
+                if self.count(item) > other_max.get(item, 1):
+                    return False
+            self_max = self.max_maybe_items
+            for item in itertools.chain(other, other_maybe):
+                if other.count(item) > self_max.get(item, 1):
                     return False
         return True
 
@@ -99,6 +106,8 @@ def test_fuzzylist():
     assert fuzzylist(maybe=(0,)) == fuzzylist(0)
     assert fuzzylist(0) != fuzzylist(maybe=(1,))
     assert fuzzylist(maybe=(1,)) != fuzzylist(0)
+    assert [1, 1, 2, 3] != fuzzylist(1, 2, 3)
+    assert fuzzylist(1, 2, 3) != [1, 1, 2, 3]
 
 def ComparableException(exc):
     """
