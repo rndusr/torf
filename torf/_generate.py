@@ -160,7 +160,7 @@ class Reader():
                 assert len(trailing_bytes) < self._piece_size, trailing_bytes
 
             # Unless the torrent's total size is divisible by its piece size,
-            # the last bytes from the last file aren't processed yet.
+            # the final bytes from the final file aren't processed yet.
             if len(trailing_bytes) > 0 and not self._stop:
                 debug(f'reader: {len(trailing_bytes)} final bytes of all files: {debug.pretty_bytes(trailing_bytes)}')
                 self._bytes_chunked += len(trailing_bytes)
@@ -310,7 +310,7 @@ class Reader():
         elif piece is not None:
             piece = bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
-        debug(f'reader: >>> Pushed piece_index {piece_index}')
+        debug(f'reader: >>> Pushed piece_index {piece_index}: {piece}, {os.path.basename(filepath)}, {exc}')
 
     def stop(self):
         if not self._stop:
@@ -371,18 +371,18 @@ class _FileFaker():
         we_have_enough_bytes_for_complete_piece = remaining_bytes + trailing_bytes >= self._piece_size
         file_beg, file_end = self._reader._calc_file_range(filepath)
         first_piece_is_not_last_piece = file_beg // self._piece_size != file_end // self._piece_size
-        final_piece_ends_at_piece_boundary = remaining_bytes % self._piece_size == 0
+        last_piece_ends_at_piece_boundary = remaining_bytes % self._piece_size == 0
         debug(f'faker: Faking first piece_index {piece_index}: bytes_chunked_total: {bytes_chunked_total}, '
               f'remaining_bytes: {remaining_bytes}, trailing_bytes: {trailing_bytes}, '
               f'file_beg: {file_beg}, file_end: {file_end}')
         debug(f'faker:   first_piece_contains_bytes_from_previous_file: {first_piece_contains_bytes_from_previous_file}')
         debug(f'faker:         we_have_enough_bytes_for_complete_piece: {we_have_enough_bytes_for_complete_piece}')
         debug(f'faker:                   first_piece_is_not_last_piece: {first_piece_is_not_last_piece}')
-        debug(f'faker:              final_piece_ends_at_piece_boundary: {final_piece_ends_at_piece_boundary}')
+        debug(f'faker:              last_piece_ends_at_piece_boundary: {last_piece_ends_at_piece_boundary}')
 
         if (we_have_enough_bytes_for_complete_piece
             and first_piece_contains_bytes_from_previous_file
-            and (first_piece_is_not_last_piece or final_piece_ends_at_piece_boundary)):
+            and (first_piece_is_not_last_piece or last_piece_ends_at_piece_boundary)):
             debug(f'faker: Faking first piece_index: {piece_index}')
             prev_affected_files = self._files_in_piece(piece_index, exclude=filepath)
             debug(f'faker: Files affected by first faked piece_index:')
@@ -446,7 +446,7 @@ class _FileFaker():
                 debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes}')
 
         else:
-            # This is the last file in the stream
+            # This is the final file in the stream
             next_affected_files = self._files_in_piece(next_piece_index, exclude=filepath)
             debug(f'faker: Other affected files: {next_affected_files}')
             debug(f'faker: Faked files: {self._faked_files}')
@@ -467,7 +467,7 @@ class _FileFaker():
                 bytes_chunked_total += remaining_bytes
                 trailing_bytes = 0
             else:
-                # Fake last few bytes in the stream
+                # Fake final few bytes in the stream
                 trailing_bytes = remaining_bytes
                 debug(f'faker: Pretending to read {trailing_bytes} trailing bytes from {os.path.basename(filepath)}')
                 # trailing_bytes could be identical to the missing bytes which
@@ -478,10 +478,10 @@ class _FileFaker():
                       f'because other files are affected')
                 if not remaining_bytes:
                     # If we already pushed all pieces, marking the final piece
-                    # for a forced error doesn't do anything.  Reader.read()
+                    # for a forced error doesn't do anything.  (Reader.read()
                     # will do nothing after looping over all files.)  In that
                     # case push a corrupt piece with the final piece index again
-                    # to trigger the error.
+                    # to trigger the corruption error.
                     debug(f'faker: Forcing corruption in final piece_index {piece_index} immediately')
                     assert piece_index == next_piece_index
                     self._reader._push(piece_index, b'', filepath, None)
@@ -499,7 +499,6 @@ class _FileFaker():
         # Return list of filepaths that have bytes in piece at `piece_index`
         piece_beg = piece_index * self._piece_size
         piece_end = piece_beg + self._piece_size - 1
-        # debug(f'First byte in piece_index {piece_index} is at pos {piece_beg}, last at {piece_end}')
         pos = 0
         filepaths = []
         for fpath,fsize in self._file_sizes.items():
