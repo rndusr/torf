@@ -46,14 +46,14 @@ class fuzzylist(list):
     """
     def __init__(self, *args, maybe=(), max_maybe_items={}):
         self.maybe = list(maybe)
-        self.max_maybe_items = max_maybe_items
+        self.max_maybe_items = dict(max_maybe_items)
         super().__init__(args)
 
     def __eq__(self, other):
         if tuple(self) != tuple(other):
             # Check if either list contains any disallowed items, accepting
             # items from `maybe`.
-            other_maybe = getattr(other, 'maybe', ())
+            other_maybe = getattr(other, 'maybe', [])
             for item in self:
                 if item not in other and item not in other_maybe:
                     return False
@@ -64,11 +64,15 @@ class fuzzylist(list):
             # Check if either list contains an excess of items.
             other_max = getattr(other, 'max_maybe_items', {})
             for item in itertools.chain(self, self.maybe):
-                if self.count(item) > other_max.get(item, 1):
+                maxcount = max(other_max.get(item, 1),
+                               (other + other_maybe).count(item))
+                if self.count(item) > maxcount:
                     return False
             self_max = self.max_maybe_items
             for item in itertools.chain(other, other_maybe):
-                if other.count(item) > self_max.get(item, 1):
+                maxcount = max(self_max.get(item, 1),
+                               (self + self_maybe).count(item))
+                if other.count(item) > maxcount:
                     return False
         return True
 
@@ -108,6 +112,8 @@ def test_fuzzylist():
     assert fuzzylist(maybe=(1,)) != fuzzylist(0)
     assert [1, 1, 2, 3] != fuzzylist(1, 2, 3)
     assert fuzzylist(1, 2, 3) != [1, 1, 2, 3]
+    assert fuzzylist(0, 0, 1) == fuzzylist(0, 1, maybe=[0])
+    assert fuzzylist(0, 1, maybe=[0]) == fuzzylist(0, 0, 1)
 
 def ComparableException(exc):
     """
