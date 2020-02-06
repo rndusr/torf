@@ -316,37 +316,51 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     pieces_done = 1
     calc_pd = lambda pos: (pos // piece_size) + 1   # pieces_done
 
+    debug(f'{bytes_left} bytes left')
+    prev_pi = -1
     while bytes_left > 0:
         filepath,_ = pos2file(pos, filespecs_abspath, piece_size)
         file_beg,file_end = file_range(filepath, filespecs_abspath)
+        file_size = file_end - file_beg + 1
         current_pi = pos // piece_size
         file_beg_pi = file_beg // piece_size
         file_end_pi = file_end // piece_size
 
         debug(f'{pos}: {os.path.basename(filepath)}, pi={current_pi}, beg={file_beg}, end={file_end}, '
-              f'file_beg_pi={file_beg_pi}, file_end_pi={file_end_pi}')
+              f'size={file_size}, file_beg_pi={file_beg_pi}, file_end_pi={file_end_pi}')
 
         # If this piece contains the first byte of a file, find the last file in
         # this piece that is missing.  Any piece after this piece may be
         # reported twice for the "No such file" error.  We can't predict which
         # piece will be reported twice, but it must be one piece.
         if current_pi == file_beg_pi:
-            debug(f'  Reading the first piece of {os.path.basename(filepath)}')
             first_piece_files = pos2files(file_beg, filespecs_abspath, piece_size)
             debug(f'  ? first_piece_files: {first_piece_files}')
             missing_file = find_common_member(files_missing, first_piece_files, last=True)
             if missing_file:
                 debug(f'  ! missing: {os.path.basename(missing_file)}')
-                for pieces_done in range(calc_pd(pos), file_end_pi+1):
+                debug(f'for pieces_done in range(calc_pd({file_beg}), calc_pd({file_end}+1)+1):')
+                for pieces_done in range(calc_pd(file_beg), calc_pd(file_end+1)+1):
                     maybe_double_pieces_done.append(pieces_done)
                     maybe_double_pieces_done_counts[pieces_done] = 2
                 files_missing.remove(missing_file)     # Don't report the same missing file twice
 
-        # Every piece is reported regularly, "No such file" errors are additional
-        pieces_done_list.append(calc_pd(pos))
+        # Report normal progress ("No such file" errors are additional)
+        if current_pi != prev_pi:
+            debug(f'  . progress: {calc_pd(pos)}')
+            pieces_done_list.append(calc_pd(pos))
 
-        bytes_left -= piece_size
-        pos += piece_size
+        debug(f'bytes_done = min({file_size}, {piece_size}, {file_end} - {pos} + 1)')
+        bytes_done = min(file_size, piece_size, file_end - pos + 1)
+        bytes_left -= bytes_done
+        pos += bytes_done
+        debug(f'{bytes_done} bytes done, {bytes_left} bytes left')
+        prev_pi = current_pi
+
+    # Does the final file end in an incomplete piece?
+    if current_pi != file_end_pi:
+        debug(f'  . progress: {calc_pd(file_end)}')
+        pieces_done_list.append(calc_pd(file_end))
 
     fuzzy_pieces_done_list = fuzzylist(*pieces_done_list,
                                        maybe=maybe_double_pieces_done,
