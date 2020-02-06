@@ -313,6 +313,7 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     maybe_double_pieces_done_counts = {}
     pos = 0
     bytes_left = sum(filesize for _,filesize in filespecs_abspath)
+    total_size = bytes_left
     pieces_done = 1
     calc_pd = lambda pos: (pos // piece_size) + 1   # pieces_done
 
@@ -331,16 +332,19 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
 
         # If this piece contains the first byte of a file, find the last file in
         # this piece that is missing.  Any piece after this piece may be
-        # reported twice for the "No such file" error.  We can't predict which
-        # piece will be reported twice, but it must be one piece.
+        # reported twice: "No such file" and "corrupt piece" if adjacent file(s)
+        # are affected.  We can't predict which piece will be reported twice,
+        # but it must be one piece.
         if current_pi == file_beg_pi:
             first_piece_files = pos2files(file_beg, filespecs_abspath, piece_size)
             debug(f'  ? first_piece_files: {first_piece_files}')
             missing_file = find_common_member(files_missing, first_piece_files, last=True)
             if missing_file:
                 debug(f'  ! missing: {os.path.basename(missing_file)}')
-                debug(f'for pieces_done in range(calc_pd({file_beg}), calc_pd({file_end}+1)+1):')
-                for pieces_done in range(calc_pd(file_beg), calc_pd(file_end+1)+1):
+                # Because we're working in multiple threads, we the corruption
+                # may be reported anywhere from the corrupt file's beginning to
+                # the final piece in the stream.
+                for pieces_done in range(calc_pd(file_beg), calc_pd(total_size-1)+1):
                     maybe_double_pieces_done.append(pieces_done)
                     maybe_double_pieces_done_counts[pieces_done] = 2
                 files_missing.remove(missing_file)     # Don't report the same missing file twice
