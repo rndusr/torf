@@ -21,12 +21,12 @@ import itertools
 def pytest_addoption(parser):
     class IntList(argparse.Action):
         def __call__(self, parser, namespace, values, option_string=None):
-            setattr(namespace, self.dest, [int(value) for value in values.split(',')])
-    parser.addoption('--piece-sizes', default=[8], action=IntList,
+            setattr(namespace, self.dest, tuple(int(value) for value in values.split(',')))
+    parser.addoption('--piece-sizes', default=(8,), action=IntList,
                      help='Comma-separated list of piece sizes to use for test torrents')
-    parser.addoption('--piece-counts', default=[1, 2, 3, 4, 5], action=IntList,
+    parser.addoption('--piece-counts', default=(1, 2, 3, 4, 6), action=IntList,
                      help='Comma-separated list of number of pieces to use for test torrents')
-    parser.addoption('--file-counts', default=[1, 2, 3], action=IntList,
+    parser.addoption('--file-counts', default=(1, 2, 3), action=IntList,
                      help='Comma-separated list of number of files to use for test torrents')
     parser.addoption('--fuzzy', action='store_true',
                      help='Whether to randomize file sizes for --file-counts >= 4')
