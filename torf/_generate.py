@@ -343,6 +343,7 @@ class _FileFaker():
         self._filepaths = filepaths
         self._file_sizes = file_sizes
         self._piece_size = piece_size
+        self._faked_pieces = set()
         self._faked_files = set()
         self.forced_error_piece_indexes = set()
         self.stop = False
@@ -367,6 +368,9 @@ class _FileFaker():
             filepath, new_bytes_chunked_total, remaining_bytes)
         _debug(f'faker: Remaining bytes to fake: {file_beg} - {bytes_chunked_total} + '
                f'{self._file_sizes[filepath]} = {remaining_bytes}')
+
+        self._faked_pieces.add(self._calc_piece_index(file_beg))
+        _debug(f'faker: Initial faked pieces: {self._faked_pieces}')
 
         self._faked_files.add(filepath)
         _debug(f'faker: Done faking: {bytes_chunked} bytes chunked from stream, {trailing_bytes} trailing bytes')
@@ -404,9 +408,9 @@ class _FileFaker():
             if any(fpath not in self._faked_files for fpath in prev_affected_files):
                 # Send b'' to guarantee a hash mismatch.  Sending fake bytes
                 # might *not* raise an error if they replicate the missing data.
-                self._reader._push(piece_index, b'', filepath, None)
                 _debug(f'faker: Sending first fake piece_index {piece_index} as corrupt')
                 self._reader._dont_skip_piece(piece_index)
+                self._push(piece_index, b'', filepath, None, force=True)
 
             # Process first piece
             remaining_bytes -= self._piece_size
@@ -425,8 +429,8 @@ class _FileFaker():
                 _debug(f'faker: Found stop signal while fake-reading from {os.path.basename(filepath)}')
                 break
             piece_index = self._calc_piece_index(bytes_chunked_total)
-            self._reader._push(piece_index, None, filepath, None)
             _debug(f'faker: {piece_index}: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
+            self._push(piece_index, None, filepath, None)
         return bytes_chunked_total, remaining_bytes
 
     def _fake_last_piece(self, filepath, bytes_chunked_total, remaining_bytes):
@@ -499,6 +503,13 @@ class _FileFaker():
 
         _debug(f'faker: {piece_index}: Finished: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
         return bytes_chunked_total, trailing_bytes
+
+    def _push(self, piece_index, *args, force=False, **kwargs):
+        if not force and piece_index in self._faked_pieces:
+            _debug(f'faker: Already faked piece_index {piece_index}: {self._faked_pieces}')
+        else:
+            self._faked_pieces.add(piece_index)
+            self._reader._push(piece_index, *args, **kwargs)
 
     def _calc_piece_index(self, bytes_chunked_total):
         # `bytes_chunked_total` is the number of processed bytes, but we want
