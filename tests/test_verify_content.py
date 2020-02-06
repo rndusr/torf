@@ -135,11 +135,15 @@ def ComparableException(exc):
             return isinstance(cls, mcls._cls) or isinstance(cls, mcls)
 
     # Make subclass of the same name with "Comparable" prepended
-    bases = (type(exc),)
     clsname = 'Comparable' + type(exc).__name__
+    bases = (type(exc),)
+    attrs = {}
     def __eq__(self, other, _real_cls=type(exc)):
         return isinstance(other, (type(self), _real_cls)) and str(self) == str(other)
-    attrs = {'__eq__': __eq__}
+    attrs['__eq__'] = __eq__
+    def __hash__(self):
+        return hash(str(self))
+    attrs['__hash__'] = __hash__
     cls = ComparableExceptionMeta(clsname, bases, attrs)
     if isinstance(exc, torf.TorfError):
         return cls(*exc.posargs, **exc.kwargs)
