@@ -54,59 +54,75 @@ def pytest_generate_tests(metafunc):
 
 def _parametrize_filespecs(file_counts, piece_sizes, piece_counts,
                            filespec_indexes=False, fuzzy=False):
-        argnames = ['filespecs', 'piece_size']
-        if filespec_indexes:
-            argnames.append('filespec_indexes')
-        argvalues = []
-        ids = []
-        for file_count in file_counts:
-            for piece_size in piece_sizes:
-                for piece_count in piece_counts:
-                    filespecs = _generate_filespecs(file_count, piece_size, piece_count, fuzzy=fuzzy)
-                    _display_filespecs(filespecs, file_count, piece_size)
-                    # piece_size is connected to file sizes (i.e. filespecs)
-                    for filespec in filespecs:
-                        values = (filespec, piece_size)
-                        # Generate combinations of file indexes
-                        if filespec_indexes:
-                            for number_of_indexes in range(1, file_count+1):
-                                for indexes in itertools.combinations(range(0, file_count), number_of_indexes):
-                                    argvalues.append(values + (indexes,))
-                                    ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
-                                               + f'-pc={piece_count}'
-                                               + f'-ps={piece_size}'
-                                               + f'-fsi={",".join(str(i) for i in indexes)}')
-                        else:
-                            argvalues.append(values)
-                            ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
-                                       + f'-pc={piece_count}'
-                                       + f'-ps={piece_size}')
-        return argnames, argvalues, ids
+    argnames = ['filespecs', 'piece_size']
+    if filespec_indexes:
+        argnames.append('filespec_indexes')
+    argvalues = []
+    ids = []
+    for file_count in file_counts:
+        for piece_size in piece_sizes:
+            for piece_count in piece_counts:
+                filespecs = _generate_filespecs(file_count, piece_size, piece_count, fuzzy=fuzzy)
+                _display_filespecs(filespecs, file_count, piece_size)
+                # piece_size is connected to file sizes (i.e. filespecs)
+                for filespec in filespecs:
+                    values = (filespec, piece_size)
+                    # Generate combinations of file indexes
+                    if filespec_indexes:
+                        for number_of_indexes in range(1, file_count+1):
+                            for indexes in itertools.combinations(range(0, file_count), number_of_indexes):
+                                argvalues.append(values + (indexes,))
+                                ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                           + f'-pc={piece_count}'
+                                           + f'-ps={piece_size}'
+                                           + f'-fsi={",".join(str(i) for i in indexes)}')
+                    else:
+                        argvalues.append(values)
+                        ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                   + f'-pc={piece_count}'
+                                   + f'-ps={piece_size}')
+    return argnames, argvalues, ids
 
 def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
-    filespecs = set()
-    filesizes = {max(1, piece_size * piece_count // file_count - 1),
-                 piece_size * piece_count // file_count,
-                 piece_size * piece_count // file_count + 1}
-    if file_count <= len(filesizes):
-        for fsizes in itertools.product(filesizes, repeat=file_count):
-            filespecs.add(tuple((alphabet[i], fsize)
-                                for i,fsize in enumerate(fsizes)))
+    filesizes = (max(1, (piece_size * piece_count // file_count) - 1),
+                 (piece_size * piece_count // file_count),
+                 (piece_size * piece_count // file_count) + 1)
+    if file_count == 1:
+        return (((alphabet[0], filesizes[0]),),
+                ((alphabet[0], filesizes[1]),),
+                ((alphabet[0], filesizes[2]),))
+    elif file_count == 2:
+        return (((alphabet[0], filesizes[1]), (alphabet[1], filesizes[0])),
+                ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[2])),
+                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[1])),
+                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1])),
+                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[2])))
+    elif file_count == 3:
+        return (((alphabet[0], filesizes[0]), (alphabet[1], filesizes[0]), (alphabet[2], filesizes[0])),
+                ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
+                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[0])),
+                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
+                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[1])),
+                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[1])),
+                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
+                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[2])))
     else:
         # For itertools.combinations() to produce more than one item, we need at
         # least one more file size than files.
+        filesizes = set(filesizes)
         i = 2
         while len(filesizes) < file_count+1:
             filesizes.add(max(1, piece_size * piece_count // file_count - i))
             filesizes.add(piece_size * piece_count // file_count + i)
             i += 1
         filesizes = list(sorted(filesizes))
+        filespecs = set()
         if fuzzy:
             random.shuffle(filesizes)
         for fsizes in itertools.combinations(filesizes, file_count):
             filespecs.add(tuple((alphabet[i], fsize)
                                 for i,fsize in enumerate(fsizes)))
-    # Order must always be identical or xdist will complain with --numprocesses > 1
+    # Ensure identical order or xdist will complain with --numprocesses > 1
     return sorted(sorted(filespecs), key=lambda f: sum(s[1] for s in f))
 
 def _display_filespecs(filespecs, file_count, piece_size):
