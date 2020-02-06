@@ -21,4 +21,3 @@ __version__ = '3.0.0'
 from ._errors import *
 from ._torrent import Torrent
 from ._magnet import Magnet
-from ._debug import enable_debugging
