@@ -726,7 +726,6 @@ def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_siz
         debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
-
 def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
