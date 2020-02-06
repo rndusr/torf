@@ -359,18 +359,26 @@ class _FileFaker():
         _debug(f'reader: Fake reading {os.path.basename(filepath)} after chunking {bytes_chunked_total} bytes from stream')
         file_beg,_ = self._reader._calc_file_range(filepath)
         remaining_bytes = file_beg - bytes_chunked_total + self._file_sizes[filepath]
-
-        new_bytes_chunked_total, remaining_bytes = self._fake_first_piece(
-            filepath, bytes_chunked_total, remaining_bytes, trailing_bytes)
-        new_bytes_chunked_total, remaining_bytes = self._fake_middle_pieces(
-            filepath, new_bytes_chunked_total, remaining_bytes)
-        new_bytes_chunked_total, trailing_bytes = self._fake_last_piece(
-            filepath, new_bytes_chunked_total, remaining_bytes)
         _debug(f'faker: Remaining bytes to fake: {file_beg} - {bytes_chunked_total} + '
                f'{self._file_sizes[filepath]} = {remaining_bytes}')
 
         self._faked_pieces.add(self._calc_piece_index(file_beg))
         _debug(f'faker: Initial faked pieces: {self._faked_pieces}')
+
+        if not self.stop:
+            new_bytes_chunked_total, remaining_bytes = self._fake_first_piece(
+                filepath, bytes_chunked_total, remaining_bytes, trailing_bytes)
+        if not self.stop:
+            new_bytes_chunked_total, remaining_bytes = self._fake_middle_pieces(
+                filepath, new_bytes_chunked_total, remaining_bytes)
+        if not self.stop:
+            new_bytes_chunked_total, trailing_bytes = self._fake_last_piece(
+                filepath, new_bytes_chunked_total, remaining_bytes)
+
+        if self.stop:
+            bytes_chunked = self._file_sizes[filepath]
+        else:
+            bytes_chunked = new_bytes_chunked_total - bytes_chunked_total
 
         self._faked_files.add(filepath)
         _debug(f'faker: Done faking: {bytes_chunked} bytes chunked from stream, {trailing_bytes} trailing bytes')
