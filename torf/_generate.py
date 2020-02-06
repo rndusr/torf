@@ -495,17 +495,6 @@ class _FileFaker():
                 # means the next piece would not raise a hash mismatch, so we
                 # must remember to enforce that.
                 self.forced_error_piece_indexes.add(next_piece_index)
-                if not remaining_bytes:
-                    # If we already pushed all pieces, marking the final piece
-                    # for a forced error doesn't do anything.  (Reader.read()
-                    # will do nothing after looping over all files.)  In that
-                    # case push a corrupt piece with the final piece index again
-                    # to trigger the corruption error.
-                    debug(f'faker: Forcing corruption in final piece_index {piece_index} immediately')
-                    assert piece_index == next_piece_index
-                    self._reader._push(piece_index, b'', filepath, None)
-                    trailing_bytes = 0
-
                 _debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes} '
                        f'because other files are affected')
 
