@@ -249,7 +249,7 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
 
     return piece_indexes
 
-def calc_good_pieces(filespecs, piece_size, corruption_positions, files_missing):
+def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions):
     """Same as `calc_piece_indexes`, but exclude corrupt and skipped pieces"""
     good_pieces = collections.defaultdict(lambda: fuzzylist())
     corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
@@ -508,8 +508,8 @@ class _TestCaseBase():
     @property
     def exp_good_pieces(self):
         if not hasattr(self, '_exp_good_pieces'):
-            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size,
-                                                     self.corruption_positions, self.files_missing)
+            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.files_missing,
+                                                     self.corruption_positions)
             debug(f'Expected good pieces: {dict(self._exp_good_pieces)}')
         return dict(self._exp_good_pieces)
 
