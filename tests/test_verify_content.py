@@ -299,10 +299,10 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     # The callback gets the number of verified pieces (pieces_done).  This
     # function calculates the expected values for that argument.
     #
-    # It's not as simple as range(1, <number of pieces>+1).  If a file is
-    # missing, we get the same pieces_done value two times, once for "No such
-    # file" and maybe again for "Corrupt piece" if the piece contains parts of
-    # another file.
+    # It's not as simple as range(1, <number of pieces>+1).  For example, if a
+    # file is missing, we get the same pieces_done value two times, once for "No
+    # such file" and maybe again for "Corrupt piece" if the piece contains parts
+    # of another file.
     files_missing = [str(filepath) for filepath in files_missing]
     debug(f'missing_files: {files_missing}')
     # List of pieces_done values that are reported once
