@@ -547,9 +547,9 @@ class _TestCaseSinglefile(_TestCaseBase):
             with self.create_torrent_file(path=self.content_path) as torrent_filepath:
                 self.torrent = torf.Torrent.read(torrent_filepath)
 
-    def corrupt_stream(self):
+    def corrupt_stream(self, *positions):
         # Introduce random number of corruptions without changing stream length
-        corruption_positions = random_positions(self.stream_corrupt)
+        corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)
         for corrpos in corruption_positions:
             debug(f'Introducing corruption at index {corrpos}')
             self.stream_corrupt[corrpos] = (self.stream_corrupt[corrpos] + 1) % 256
@@ -604,10 +604,10 @@ class _TestCaseMultifile(_TestCaseBase):
     def stream_corrupt(self):
         return b''.join((f['data'] for f in self.content_corrupt.values()))
 
-    def corrupt_stream(self):
+    def corrupt_stream(self, *positions):
         # Introduce random number of corruptions in random files without
         # changing stream length
-        corruption_positions = random_positions(self.stream_corrupt)
+        corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)
         for corrpos_in_stream in corruption_positions:
             filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)
             debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
