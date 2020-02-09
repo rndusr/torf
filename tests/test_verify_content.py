@@ -474,7 +474,7 @@ class _TestCaseBase():
 
     def reset(self):
         self.raised_exception = None
-        self.corruption_positions = []
+        self.corruption_positions = set()
         self.files_missing = []
         for attr in ('_exp_exceptions', '_exp_pieces_done',
                      '_exp_piece_indexes', '_exp_good_pieces',
@@ -554,7 +554,7 @@ class _TestCaseSinglefile(_TestCaseBase):
             debug(f'Introducing corruption at index {corrpos}')
             self.stream_corrupt[corrpos] = (self.stream_corrupt[corrpos] + 1) % 256
             self.content_path.write_bytes(self.stream_corrupt)
-        self.corruption_positions.extend(corruption_positions)
+        self.corruption_positions.update(corruption_positions)
 
     def delete_file(self, index):
         debug(f'Removing file from file system: {os.path.basename(self.content_path)}')
@@ -615,7 +615,7 @@ class _TestCaseMultifile(_TestCaseBase):
             fileinfo = self.content_corrupt[filename]
             fileinfo['data'][corrpos_in_file] = (fileinfo['data'][corrpos_in_file] + 1) % 256
             fileinfo['path'].write_bytes(fileinfo['data'])
-        self.corruption_positions.extend(corruption_positions)
+        self.corruption_positions.update(corruption_positions)
 
     def delete_file(self, index):
         # Remove file at `index` in filespecs from file system
