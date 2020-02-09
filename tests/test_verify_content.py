@@ -251,34 +251,33 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
 
 def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions):
     """Same as `calc_piece_indexes`, but exclude corrupt and skipped pieces"""
-    good_pieces = collections.defaultdict(lambda: fuzzylist())
     corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
     debug(f'Calculating good pieces')
     debug(f'corrupt piece_indexes: {corr_pis}')
     debug(f'missing files: {files_missing}')
 
-    # Pieces that exclusively belong to missing files are skipped
-    skipped_pis = []
+    # Find pieces that exclusively belong to missing files
+    missing_pis = set()
     for filepath in files_missing:
         file_beg,file_end = file_range(os.path.basename(filepath), filespecs)
-        first_skipped_piece_index = file_beg // piece_size
-        last_skipped_piece_index = file_end // piece_size
+        first_missing_pi = file_beg // piece_size
+        last_missing_pi = file_end // piece_size
         affected_files_beg = pos2files(file_beg, filespecs, piece_size)
         affected_files_end = pos2files(file_end, filespecs, piece_size)
         debug(f'affected_files_beg: {affected_files_beg}')
         debug(f'affected_files_end: {affected_files_end}')
-        skipped_pis.extend(range(first_skipped_piece_index, last_skipped_piece_index+1))
+        missing_pis.update(range(first_missing_pi, last_missing_pi+1))
 
     all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing)
-    for filename,all_pis in all_piece_indexes.items():
-        good_pis = []
-        for i,pi in enumerate(all_pis):
-            if pi not in corr_pis and pi not in skipped_pis:
-                debug(f'  appending {pi}')
-                good_pis.append(pi)
-        if good_pis:
-            good_pieces[filename] = good_pis
+    debug(f'all piece_indexes: {all_piece_indexes}')
 
+    # Remove pieces that are either corrupt or in missing_pis
+    good_pieces = collections.defaultdict(lambda: fuzzylist())
+    for fname,all_pis in all_piece_indexes.items():
+        for i,pi in enumerate(all_pis):
+            if pi not in corr_pis and pi not in missing_pis:
+                good_pieces[fname].append(pi)
+    debug(f'corruptions and missing files removed: {good_pieces}')
     return good_pieces
 
 def calc_corruptions(filespecs, piece_size, corruption_positions):
