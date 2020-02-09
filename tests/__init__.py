@@ -4,7 +4,7 @@ debug = logging.getLogger('test').debug
 def display_filespecs(filespecs, piece_size):
     filecount = len(filespecs)
     header = ['.' + ' ' * (((4*filecount) + (2*filecount-1)) + 2 - 1)]
-    for i in range(6):
+    for i in range(8):
         header.append(str(i) + ' '*(piece_size-1))
     line = (', '.join(f'{fn}:{fs:2d}' for fn,fs in filespecs),
             ' - ',
