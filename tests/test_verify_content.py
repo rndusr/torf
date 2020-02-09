@@ -354,11 +354,11 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
             debug(f'  . progress: {calc_pd(pos)}')
             pieces_done_list.append(calc_pd(pos))
 
-        debug(f'bytes_done = min({file_size}, {piece_size}, {file_end} - {pos} + 1)')
+        debug(f'  bytes_done = min({file_size}, {piece_size}, {file_end} - {pos} + 1)')
         bytes_done = min(file_size, piece_size, file_end - pos + 1)
         bytes_left -= bytes_done
         pos += bytes_done
-        debug(f'{bytes_done} bytes done, {bytes_left} bytes left')
+        debug(f'  {bytes_done} bytes done, {bytes_left} bytes left')
         prev_pi = current_pi
 
     # Does the final file end in an incomplete piece?
