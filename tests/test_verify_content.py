@@ -607,8 +607,11 @@ class _TestCaseBase():
         if not hasattr(self, '_exp_good_pieces'):
             self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.files_missing,
                                                      self.corruption_positions)
-            debug(f'Expected good pieces: {dict(self._exp_good_pieces)}')
-        return dict(self._exp_good_pieces)
+            if self.skip_file_on_first_error:
+                self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces, self.filespecs, self.piece_size,
+                                                         self.corruption_positions)
+            debug(f'Expected good pieces: {self._exp_good_pieces}')
+        return self._exp_good_pieces
 
     @property
     def exp_corruptions(self):
