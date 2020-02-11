@@ -366,6 +366,7 @@ class _FileFaker():
         self._faked_pieces.add(self._calc_piece_index(file_beg))
         _debug(f'faker: Initial faked pieces: {self._faked_pieces}')
 
+        new_bytes_chunked_total = 0
         if not self.stop:
             new_bytes_chunked_total, remaining_bytes = self._fake_first_piece(
                 filepath, bytes_chunked_total, remaining_bytes, trailing_bytes)
