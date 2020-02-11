@@ -82,6 +82,12 @@ class fuzzylist(list):
     def __bool__(self):
         return len(self) > 0 or len(self.maybe) > 0
 
+    def __add__(self, other):
+        items = super().__add__(other)
+        maybe = self.maybe + getattr(other, 'maybe', [])
+        max_maybe_items = {**self.max_maybe_items, **getattr(other, 'max_maybe_items', {})}
+        return type(self)(*items, maybe=maybe, max_maybe_items=max_maybe_items)
+
     def __repr__(self):
         s = f'{type(self).__name__}('
         if super().__len__() > 0:
