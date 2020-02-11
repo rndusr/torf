@@ -220,8 +220,9 @@ class Reader():
                     break
                 elif self.file_was_skipped(filepath):
                     _debug(f'reader: Skipping {os.path.basename(filepath)} while chunking it')
-                    bytes_chunked, trailing_bytes = self._fake(
+                    fake_bytes_chunked, trailing_bytes = self._fake(
                         filepath, self._bytes_chunked+bytes_chunked, len(trailing_bytes))
+                    bytes_chunked += fake_bytes_chunked
                     break
                 else:
                     # Concatenate piece_size'd chunks across files until we have
