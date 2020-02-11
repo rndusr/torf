@@ -223,6 +223,21 @@ def file_range(filename, filespecs):
         pos += size
     raise RuntimeError(f'Could not find {filename} in {filespecs}')
 
+def file_piece_indexes(filename, filespecs, piece_size, exclusive=False):
+    """
+    Return list of indexes of pieces that contain bytes from `filename`
+
+    If `exclusive` is True, don't include pieces that contain bytes from
+    multiple files.
+    """
+    file_beg,file_end = file_range(filename, filespecs)
+    first_piece_index_pos = round_down_to_multiple(file_beg, piece_size)
+    piece_indexes = []
+    for pos in range(first_piece_index_pos, file_end + 1, piece_size):
+        if not exclusive or len(pos2files(pos, filespecs, piece_size)) == 1:
+            piece_indexes.append(pos // piece_size)
+    return piece_indexes
+
 def pos2files(pos, filespecs, piece_size, include_file_at_pos=True):
     """
     Calculate which piece the byte at `pos` belongs to and return a list of file
