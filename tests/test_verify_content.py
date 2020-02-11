@@ -336,6 +336,47 @@ def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions)
     debug(f'corruptions and missing files removed: {good_pieces}')
     return good_pieces
 
+def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
+    """
+    Remove piece_indexes and files from `good_pieces` when
+    skip_file_on_first_error is True
+    """
+    # Find out which piece_indexes to skip
+    skipped_pis = set()
+    for corrpos in sorted(corruption_positions):
+        corr_pi = corrpos // piece_size
+        affected_files = pos2files(corrpos, filespecs, piece_size)
+        debug(f'corruption at position {corrpos}, piece_index {corr_pi}: {affected_files}')
+        for file in affected_files:
+            file_pis_exclusive = file_piece_indexes(file, filespecs, piece_size, exclusive=True)
+            debug(f'  {file} piece_indexes exclusive: {file_pis_exclusive}')
+            file_pis = file_piece_indexes(file, filespecs, piece_size, exclusive=False)
+            debug(f'  {file} piece_indexes non-exclusive: {file_pis}')
+            try:
+                first_corr_index_in_file = file_pis.index(corr_pi)
+            except ValueError:
+                # Skip all pieces in `file` that don't contain bytes from other files
+                debug(f'  piece_index {corr_pi} is not part of {file}: {file_pis_exclusive}')
+                skipped_pis.update(file_pis_exclusive)
+            else:
+                # Skip all pieces after the first corrupted piece in `file`
+                debug(f'  first corruption in {file} is at {first_corr_index_in_file} in file {file}')
+                skipped_pis.update(file_pis[first_corr_index_in_file+1:])
+            debug(f'updated skipped_pis: {skipped_pis}')
+
+    # Make skipped piece_indexes optional while unskipped piece_indexes stay
+    # mandatory.
+    debug(f'skipping piece_indexes: {skipped_pis}')
+    good_pieces_skipped = collections.defaultdict(lambda: fuzzylist())
+    for fname,pis in good_pieces.items():
+        for pi in pis:
+            if pi in skipped_pis:
+                good_pieces_skipped[fname].maybe.append(pi)
+            else:
+                good_pieces_skipped[fname].append(pi)
+    debug(f'skipped good_pieces: {good_pieces_skipped}')
+    return fuzzydict(good_pieces_skipped)
+
 def calc_corruptions(filespecs, piece_size, corruption_positions):
     """Map file names to (piece_index, exception) tuples"""
     corrupt_pieces = []
