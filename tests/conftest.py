@@ -110,6 +110,9 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
         # For itertools.combinations() to produce more than one item, we need at
         # least one more file size than files.
         filesizes = set(filesizes)
+        filesizes.update((piece_size // 2,
+                          piece_size // 3,
+                          1))
         i = 2
         while len(filesizes) < file_count+1:
             filesizes.add(max(1, piece_size * piece_count // file_count - i))
