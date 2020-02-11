@@ -121,6 +121,41 @@ def test_fuzzylist():
     assert fuzzylist(0, 0, 1) == fuzzylist(0, 1, maybe=[0])
     assert fuzzylist(0, 1, maybe=[0]) == fuzzylist(0, 0, 1)
 
+class fuzzydict(dict):
+    """
+    Dictionary that ignores empty `fuzzylist` values when determining equality,
+    e.g. fuzzydict(x=fuzzylist()) == {}
+    """
+    def __eq__(self, other):
+        if super().__eq__(other):
+            return True
+        elif not isinstance(other, dict):
+            return NotImplemented
+        keys_same = set(self).intersection(other)
+        for k in keys_same:
+            if self[k] != other[k]:
+                return False
+        keys_diff = set(self).difference(other)
+        for k in keys_diff:
+            sv = self.get(k, fuzzylist())
+            ov = other.get(k, fuzzylist())
+            if sv != ov:
+                return False
+        return True
+
+    def __repr__(self):
+        return f'{type(self).__name__}({super().__repr__()})'
+
+def test_fuzzydict():
+    x = fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3)))
+    assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) == {'a': 'foo'}
+    assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) == {'a': 'foo', 'b': []}
+    assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) != {'a': 'foo', 'b': ['bar']}
+    assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) != {'b': []}
+    assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) != {}
+    assert fuzzydict(b=fuzzylist(maybe=(1, 2, 3))) == {}
+    assert fuzzydict(b=fuzzylist(maybe=(1, 2, 3))) == {'x': fuzzylist(maybe=(4, 5, 6))}
+
 def ComparableException(exc):
     """
     Horrible hack that allows us to compare exceptions comfortably
