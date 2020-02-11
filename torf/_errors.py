@@ -198,7 +198,7 @@ class VerifyContentError(TorfError):
         if len(file_sizes) < 1:
             raise RuntimeError('file_sizes argument is empty: {file_sizes!r}')
         elif len(file_sizes) == 1:
-            corrupt_files = file_sizes[0][0]
+            corrupt_files = (file_sizes[0][0],)
         else:
             corrupt_files = []
 
