@@ -416,7 +416,8 @@ def create_file(tmp_path):
 def create_dir(tmp_path):
     def _create_dir(tmp_path, dirname, *files):
         content_path = tmp_path / dirname
-        content_path.mkdir()
+        if not os.path.exists(content_path):
+            content_path.mkdir()
         for filepath, spec in files:
             parts = [part for part in filepath.split(os.sep) if part]
             dirpath = content_path
