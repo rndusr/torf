@@ -306,7 +306,7 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
     return piece_indexes
 
 def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions):
-    """Same as `calc_piece_indexes`, but exclude corrupt and skipped pieces"""
+    """Same as `calc_piece_indexes`, but exclude corrupt pieces and pieces of missing files"""
     corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
     debug(f'Calculating good pieces')
     debug(f'corrupt piece_indexes: {corr_pis}')
