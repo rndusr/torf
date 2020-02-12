@@ -255,8 +255,6 @@ class Reader():
                 bytes_chunked, trailing_bytes = self._fake(
                     filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
 
-        _debug(f'reader: Remembering {len(trailing_bytes)} trailing bytes '
-               f'from {os.path.basename(filepath)}: {_pretty_bytes(trailing_bytes)}')
         return bytes_chunked, trailing_bytes
 
     def file_was_skipped(self, filepath):
