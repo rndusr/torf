@@ -24,7 +24,7 @@ def pytest_addoption(parser):
             setattr(namespace, self.dest, tuple(int(value) for value in values.split(',')))
     parser.addoption('--piece-sizes', default=(8,), action=IntList,
                      help='Comma-separated list of piece sizes to use for test torrents')
-    parser.addoption('--piece-counts', default=(1, 2, 3, 4, 6), action=IntList,
+    parser.addoption('--piece-counts', default=(1, 2, 3, 4, 6, 9), action=IntList,
                      help='Comma-separated list of number of pieces to use for test torrents')
     parser.addoption('--file-counts', default=(1, 2, 3, 4), action=IntList,
                      help='Comma-separated list of number of files to use for test torrents')
