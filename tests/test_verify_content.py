@@ -3,12 +3,9 @@ import torf
 import pytest
 from unittest import mock
 import os
-import shutil
 import random
 import collections
 import itertools
-import re
-import math
 import errno
 
 import logging
