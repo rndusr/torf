@@ -159,7 +159,7 @@ class Reader():
                 elif self.file_was_skipped(filepath):
                     _debug(f'reader: Skipping {os.path.basename(filepath)} before opening it')
                     bytes_chunked, trailing_bytes = self._fake(
-                        filepath, self._bytes_chunked, len(trailing_bytes))
+                        filepath, self._bytes_chunked, trailing_bytes)
                 else:
                     self._check_file_size(filepath)
                     bytes_chunked, trailing_bytes = self._read_file(filepath, trailing_bytes)
@@ -221,7 +221,7 @@ class Reader():
                 elif self.file_was_skipped(filepath):
                     _debug(f'reader: Skipping {os.path.basename(filepath)} while chunking it')
                     fake_bytes_chunked, trailing_bytes = self._fake(
-                        filepath, self._bytes_chunked+bytes_chunked, len(trailing_bytes))
+                        filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
                     bytes_chunked += fake_bytes_chunked
                     break
                 else:
@@ -253,7 +253,7 @@ class Reader():
                 self._push(piece_index, None, filepath, exc)
                 self.skip_file(filepath, piece_index, force=True)
                 bytes_chunked, trailing_bytes = self._fake(
-                    filepath, self._bytes_chunked+bytes_chunked, len(trailing_bytes))
+                    filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
 
         _debug(f'reader: Remembering {len(trailing_bytes)} trailing bytes '
                f'from {os.path.basename(filepath)}: {_pretty_bytes(trailing_bytes)}')
@@ -383,21 +383,23 @@ class _FileFaker():
             bytes_chunked = new_bytes_chunked_total - bytes_chunked_total
 
         self._faked_files.add(filepath)
-        _debug(f'faker: Done faking: {bytes_chunked} bytes chunked from stream, {trailing_bytes} trailing bytes')
-        return bytes_chunked, b'\x00' * trailing_bytes
+        _debug(f'faker: Done faking: {bytes_chunked} bytes chunked from {os.path.basename(filepath)}, '
+               f'{new_bytes_chunked_total} from stream, {len(trailing_bytes)} trailing_bytes: {_pretty_bytes(trailing_bytes)}')
+        return bytes_chunked, trailing_bytes
 
     def _fake_first_piece(self, filepath, bytes_chunked_total, remaining_bytes, trailing_bytes):
         # Fake the first piece if there are any `trailing_bytes` from the
         # previous file.  Note that we might not have enough bytes for a full
         # piece.
-        piece_index = self._calc_piece_index(bytes_chunked_total + trailing_bytes)
-        first_piece_contains_bytes_from_previous_file = bool(trailing_bytes)
-        we_have_enough_bytes_for_complete_piece = remaining_bytes + trailing_bytes >= self._piece_size
+        trailing_bytes_len = len(trailing_bytes)
+        piece_index = self._calc_piece_index(bytes_chunked_total + trailing_bytes_len)
+        first_piece_contains_bytes_from_previous_file = bool(trailing_bytes_len)
+        we_have_enough_bytes_for_complete_piece = remaining_bytes + trailing_bytes_len >= self._piece_size
         file_beg, file_end = self._reader._calc_file_range(filepath)
         first_piece_is_not_last_piece = file_beg // self._piece_size != file_end // self._piece_size
         last_piece_ends_at_piece_boundary = remaining_bytes % self._piece_size == 0
         _debug(f'faker: Faking first piece_index {piece_index}: bytes_chunked_total: {bytes_chunked_total}, '
-               f'remaining_bytes: {remaining_bytes}, trailing_bytes: {trailing_bytes}, '
+               f'remaining_bytes: {remaining_bytes}, trailing_bytes: {trailing_bytes_len}, '
                f'file_beg: {file_beg}, file_end: {file_end}')
         _debug(f'faker:   first_piece_contains_bytes_from_previous_file: {first_piece_contains_bytes_from_previous_file}')
         _debug(f'faker:         we_have_enough_bytes_for_complete_piece: {we_have_enough_bytes_for_complete_piece}')
@@ -454,8 +456,7 @@ class _FileFaker():
 
         if next_filepath is not None:
             # Fake trailing_bytes so the next piece isn't shifted in the stream.
-            trailing_bytes = remaining_bytes
-            _debug(f'faker: Pretending to read {trailing_bytes} trailing bytes from {os.path.basename(filepath)}')
+            trailing_bytes = self._get_trailing_bytes(filepath, remaining_bytes)
 
             # The next piece will be corrupt, but we don't want to skip any
             # files because because of that.
@@ -488,11 +489,11 @@ class _FileFaker():
                 self.forced_error_piece_indexes.discard(next_piece_index)
                 self._push(next_piece_index, None, filepath, None)
                 bytes_chunked_total += remaining_bytes
-                trailing_bytes = 0
+                trailing_bytes = b''
             else:
                 # Fake final few bytes in the stream
-                trailing_bytes = remaining_bytes
-                _debug(f'faker: Pretending to read {trailing_bytes} trailing bytes from {os.path.basename(filepath)}')
+                trailing_bytes = self._get_trailing_bytes(filepath, remaining_bytes)
+
                 # trailing_bytes could be identical to the missing bytes which
                 # means the next piece would not raise a hash mismatch, so we
                 # must remember to enforce that.
@@ -502,6 +503,24 @@ class _FileFaker():
 
         _debug(f'faker: {piece_index}: Finished: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
         return bytes_chunked_total, trailing_bytes
+
+    def _get_trailing_bytes(self, filepath, remaining_bytes):
+        try:
+            # Read trailing_bytes from the end of `filepath`.  Even if
+            # `filepath` is corrupt, its final bytes may be fine and the first
+            # piece of the next file can be saved.
+            _debug(f'reader: Seeking to {-remaining_bytes} in {os.path.basename(filepath)}')
+            with open(filepath, 'rb') as f:
+                f.seek(-remaining_bytes, os.SEEK_END)
+                trailing_bytes = f.read(remaining_bytes)
+            _debug(f'reader: Read {len(trailing_bytes)} trailing bytes '
+                   f'from {os.path.basename(filepath)}: {_pretty_bytes(trailing_bytes)}')
+        except OSError:
+            # Fake trailing_bytes with padding bytes to maintain piece offsets.
+            trailing_bytes = b'\x00' * remaining_bytes
+            _debug(f'reader: Reading from {os.path.basename(filepath)} failed, pretending to have read '
+                   f'{len(trailing_bytes)} trailing bytes: {_pretty_bytes(trailing_bytes)}')
+        return trailing_bytes
 
     def _push(self, piece_index, *args, force=False, **kwargs):
         if not force and piece_index in self._faked_pieces:
