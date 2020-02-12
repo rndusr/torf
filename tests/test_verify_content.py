@@ -384,8 +384,7 @@ def calc_corruptions(filespecs, piece_size, corruption_positions):
     for corrpos in sorted(corruption_positions):
         corr_pi = corrpos // piece_size
         if corr_pi not in reported:
-            exc = torf.VerifyContentError(corr_pi, piece_size, filespecs)
-            # debug(f'### Corruption position {corrpos} is in piece index {corr_pi}: {exc}')
+            exc = ComparableException(torf.VerifyContentError(corr_pi, piece_size, filespecs))
             corrupt_pieces.append(exc)
             reported.append(corr_pi)
     return corrupt_pieces
@@ -616,8 +615,7 @@ class _TestCaseBase():
     @property
     def exp_corruptions(self):
         if not hasattr(self, '_exp_corruptions'):
-            self._exp_corruptions = [ComparableException(exc) for exc in
-                                     calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)]
+            self._exp_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
             debug(f'Expected corruptions: {self._exp_corruptions}')
         return self._exp_corruptions
 
