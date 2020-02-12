@@ -620,15 +620,6 @@ class _TestCaseBase():
                 delattr(self, attr)
 
     @property
-    def exp_exceptions(self):
-        if not hasattr(self, '_exp_exceptions'):
-            self._exp_exceptions = self.exp_files_missing + self.exp_corruptions
-            debug(f'Expected exceptions:')
-            for e in self._exp_exceptions:
-                debug(e)
-        return self._exp_exceptions
-
-    @property
     def exp_pieces_done(self):
         if not hasattr(self, '_exp_pieces_done'):
             self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
@@ -657,16 +648,33 @@ class _TestCaseBase():
     def exp_corruptions(self):
         if not hasattr(self, '_exp_corruptions'):
             self._exp_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
+            if self.skip_file_on_first_error:
+                self._exp_corruptions = skip_corruptions(self._exp_corruptions, self.filespecs_abspath,
+                                                         self.piece_size, self.corruption_positions)
             debug(f'Expected corruptions: {self._exp_corruptions}')
         return self._exp_corruptions
 
     @property
     def exp_files_missing(self):
         if not hasattr(self, '_exp_files_missing'):
-            self._exp_files_missing = [ComparableException(torf.ReadError(errno.ENOENT, filepath))
-                                       for filepath in self.files_missing]
+            self._exp_files_missing = fuzzylist(*(ComparableException(torf.ReadError(errno.ENOENT, filepath))
+                                                  for filepath in self.files_missing))
             debug(f'Expected files missing: {self._exp_files_missing}')
         return self._exp_files_missing
+
+    @property
+    def exp_exceptions(self):
+        if not hasattr(self, '_exp_exceptions'):
+            debug(f'self._exp_exceptions = {self.exp_files_missing!r} + {self.exp_corruptions!r}')
+            self._exp_exceptions = self.exp_files_missing + self.exp_corruptions
+            debug(f'                     = {self._exp_exceptions!r}')
+            debug(f'Expected exceptions:')
+            for e in self._exp_exceptions:
+                debug(repr(e))
+            debug(f'Tolerated exceptions:')
+            for e in self._exp_exceptions.maybe:
+                debug(repr(e))
+        return self._exp_exceptions
 
 class _TestCaseSinglefile(_TestCaseBase):
     @property
@@ -837,6 +845,23 @@ def test_verify_content_with_random_corruptions_and_no_skipping(mktestcase, piec
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
     cb = tc.run(with_callback=callback['enabled'],
+                exp_return_value=False)
+    if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
+        assert cb.seen_good_pieces == tc.exp_good_pieces
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
+        assert cb.seen_exceptions == tc.exp_exceptions
+
+def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_size, callback, filespecs):
+    display_filespecs(filespecs, piece_size)
+    tc = mktestcase(filespecs, piece_size)
+    tc.corrupt_stream()
+    cb = tc.run(with_callback=callback['enabled'],
+                skip_file_on_first_error=True,
                 exp_return_value=False)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
