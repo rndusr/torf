@@ -389,6 +389,47 @@ def calc_corruptions(filespecs, piece_size, corruption_positions):
             reported.append(corr_pi)
     return corrupt_pieces
 
+def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_positions):
+    """Make every non-first corruption optional"""
+    debug(f'Skipping corruptions: {all_corruptions}')
+    pis_seen = set()
+    files_seen = set()
+    corruptions = fuzzylist()
+    for exc in all_corruptions:
+        # Corruptions for files we haven't seen yet must be reported
+        if any(f not in files_seen for f in exc.files):
+            debug(f'mandatory: {exc}')
+            files_seen.update(exc.files)
+            pis_seen.add(exc.piece_index)
+            corruptions.append(exc)
+        # Corruptions for files we already have seen may still be reported
+        # because skipping is racy and it's impossible to predict how many
+        # pieces are processed before the skip manifests.
+        else:
+            debug(f'optional: {exc}')
+            corruptions.maybe.append(exc)
+            pis_seen.add(exc.piece_index)
+
+    # Because we fake skipped files, their last piece is be reported as corrupt
+    # if it contains bytes from the next file even if there is no corruption in
+    # the skipped file's last piece.  But this is not guaranteed because it's
+    # possible the corrupt file is fully processed before its corruption is
+    # noticed.
+    for corrpos in corruption_positions:
+        # Find all files that are affected by the corruption
+        affected_files = pos2files(corrpos, filespecs, piece_size)
+        debug(f'  affected_files: {affected_files}')
+        # Find piece_index of the end of the last affected file
+        _,file_end = file_range(affected_files[-1], filespecs)
+        piece_index = file_end // piece_size
+        debug(f'  {affected_files[-1]} ends at piece_index {piece_index}')
+        # Add optional exception for that piece
+        exc = ComparableException(torf.VerifyContentError(piece_index, piece_size, filespecs))
+        debug(f'Adding possible exception for last affected file {affected_files[-1]}: {exc}')
+        corruptions.maybe.append(exc)
+
+    return corruptions
+
 def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     debug(f'Calculating pieces_done')
     # The callback gets the number of verified pieces (pieces_done).  This
