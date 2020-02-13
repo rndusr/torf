@@ -204,13 +204,6 @@ def round_down_to_multiple(n, x):
     else:
         return n
 
-def find_common_member(lista, listb, first=True, last=False):
-    """Find members common to `lista` and `listb`, then return the first or last one"""
-    intersection = tuple(set(lista).intersection(listb))
-    if intersection:
-        return intersection[0] if first else intersection[-1]
-    return None
-
 def file_range(filename, filespecs):
     """Return `filename`'s first and last byte index in stream"""
     pos = 0
@@ -438,70 +431,60 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     # of another file.
     files_missing = [str(filepath) for filepath in files_missing]
     debug(f'missing_files: {files_missing}')
-    # List of pieces_done values that are reported once
+    # List of pieces_done values that are reported at least once
     pieces_done_list = []
     # List of pieces_done values that may appear multiple times
-    maybe_double_pieces_done = []
+    maybes = set()
     # Map pieces_done values to the number of times they may appear
-    maybe_double_pieces_done_counts = {}
+    max_maybe_items = collections.defaultdict(lambda: 1)
     pos = 0
     bytes_left = sum(filesize for _,filesize in filespecs_abspath)
     total_size = bytes_left
-    pieces_done = 1
     calc_pd = lambda pos: (pos // piece_size) + 1   # pieces_done
-
     debug(f'{bytes_left} bytes left')
     prev_pi = -1
+    # Iterate over each piece
     while bytes_left > 0:
-        filepath,_ = pos2file(pos, filespecs_abspath, piece_size)
-        file_beg,file_end = file_range(filepath, filespecs_abspath)
-        file_size = file_end - file_beg + 1
         current_pi = pos // piece_size
-        file_beg_pi = file_beg // piece_size
-        file_end_pi = file_end // piece_size
+        debug(f'{pos}: pi={current_pi}')
 
-        debug(f'{pos}: {os.path.basename(filepath)}, pi={current_pi}, beg={file_beg}, end={file_end}, '
-              f'size={file_size}, file_beg_pi={file_beg_pi}, file_end_pi={file_end_pi}')
-
-        # If this piece contains the first byte of a file, find the last file in
-        # this piece that is missing.  Any piece after this piece may be
-        # reported twice: "No such file" and "corrupt piece" if adjacent file(s)
-        # are affected.  We can't predict which piece will be reported twice,
-        # but it must be one piece.
-        if current_pi == file_beg_pi:
-            first_piece_files = pos2files(file_beg, filespecs_abspath, piece_size)
-            debug(f'  ? first_piece_files: {first_piece_files}')
-            missing_file = find_common_member(files_missing, first_piece_files, last=True)
-            if missing_file:
-                debug(f'  ! missing: {os.path.basename(missing_file)}')
-                # Because we're working in multiple threads, we the corruption
-                # may be reported anywhere from the corrupt file's beginning to
-                # the final piece in the stream.
-                for pieces_done in range(calc_pd(file_beg), calc_pd(total_size-1)+1):
-                    maybe_double_pieces_done.append(pieces_done)
-                    maybe_double_pieces_done_counts[pieces_done] = 2
-                files_missing.remove(missing_file)     # Don't report the same missing file twice
-
-        # Report normal progress ("No such file" errors are additional)
+        # Report normal progress (errors are additional)
         if current_pi != prev_pi:
             debug(f'  . progress: {calc_pd(pos)}')
             pieces_done_list.append(calc_pd(pos))
 
-        debug(f'  bytes_done = min({file_size}, {piece_size}, {file_end} - {pos} + 1)')
-        bytes_done = min(file_size, piece_size, file_end - pos + 1)
+        # Find all files that begin in this piece
+        all_files = pos2files(pos, filespecs_abspath, piece_size)
+        debug(f'  ? all files: {all_files}')
+        files_beg = [f for f in all_files
+                     if file_range(f, filespecs_abspath)[0] // piece_size == current_pi]
+        debug(f'  ? files beginning: {files_beg}')
+
+        # Each file that begins in current_pi and is missing may be reported
+        # once again anywhere between now and the final piece.
+        for f in files_beg:
+            if f in files_missing:
+                debug(f'  ! missing: {f}')
+                # Because we're working in multiple threads, the corruption may
+                # be reported anywhere from the missing file's first piece to
+                # the final piece in the stream.
+                for pieces_done in range(calc_pd(pos), calc_pd(total_size-1)+1):
+                    maybes.add(pieces_done)
+                    max_maybe_items[pieces_done] += 1
+                debug(f'    + optional: {pieces_done} * {max_maybe_items[pieces_done]}')
+                files_missing.remove(f)   # Don't report the same missing file again
+
+        _,last_file_end = file_range(all_files[-1], filespecs_abspath)
+        debug(f'  bytes_done = min({piece_size}, {last_file_end} - {pos} + 1)')
+        bytes_done = min(piece_size, last_file_end - pos + 1)
         bytes_left -= bytes_done
         pos += bytes_done
         debug(f'  {bytes_done} bytes done, {bytes_left} bytes left')
         prev_pi = current_pi
 
-    # Does the final file end in an incomplete piece?
-    if current_pi != file_end_pi:
-        debug(f'  . progress: {calc_pd(file_end)}')
-        pieces_done_list.append(calc_pd(file_end))
-
     fuzzy_pieces_done_list = fuzzylist(*pieces_done_list,
-                                       maybe=maybe_double_pieces_done,
-                                       max_maybe_items=maybe_double_pieces_done_counts)
+                                       maybe=sorted(maybes),
+                                       max_maybe_items=max_maybe_items)
     return fuzzy_pieces_done_list
 
 class CollectingCallback():
