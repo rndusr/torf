@@ -200,7 +200,7 @@ class Reader():
                     self._push(piece_index, None, filepath, exc)
                     # No need to read this file
                     self.skip_file(filepath, piece_index, force=True)
-                    self._dont_skip_piece(piece_index)
+                    self._dont_skip_piece(piece_index+1)
 
     def _read_file(self, filepath, trailing_bytes):
         piece_size = self._piece_size
