@@ -161,8 +161,9 @@ class Reader():
                     _debug(f'reader: Skipping {os.path.basename(filepath)} before opening it')
                     bytes_chunked, trailing_bytes = self._fake(
                         filepath, self._bytes_chunked, trailing_bytes)
+                elif not self._has_expected_size(filepath):
+                    bytes_chunked, trailing_bytes = 0, b''
                 else:
-                    self._check_file_size(filepath)
                     bytes_chunked, trailing_bytes = self._read_file(filepath, trailing_bytes)
                 self._bytes_chunked += bytes_chunked
                 _debug(f'reader: Finished reading {os.path.basename(filepath)}: '
@@ -183,7 +184,7 @@ class Reader():
             self._stop = True
             _debug(f'reader: Bye')
 
-    def _check_file_size(self, filepath):
+    def _has_expected_size(self, filepath):
         spec_filesize = self._file_sizes[filepath]
         if spec_filesize is not None:
             try:
@@ -201,6 +202,8 @@ class Reader():
                     # No need to read this file
                     self.skip_file(filepath, piece_index, force=True)
                     self._dont_skip_piece(piece_index+1)
+                    return False
+        return True
 
     def _read_file(self, filepath, trailing_bytes):
         piece_size = self._piece_size
