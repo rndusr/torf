@@ -209,12 +209,9 @@ class Reader():
         piece_size = self._piece_size
         bytes_chunked = 0
         try:
-            # If file size is specified, ensure that we read exactly the
-            # expected number of bytes.  Otherwise a shorter/longer file would
-            # shift piece offsets of following files and make the whole stream
-            # look corrupted even if it isn't.
+            # Read piece_size'd chunks from filepath.  Insert the last bytes
+            # from the previous file at the beginning.
             chunks = utils.read_chunks(filepath, piece_size,
-                                       filesize=spec_filesize,
                                        prepend=trailing_bytes)
             for chunk in chunks:
                 _debug(f'reader: Read {len(chunk)} bytes from {os.path.basename(filepath)}: {_pretty_bytes(chunk)}')
