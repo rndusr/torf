@@ -207,7 +207,6 @@ class Reader():
 
     def _read_file(self, filepath, trailing_bytes):
         piece_size = self._piece_size
-        spec_filesize = self._file_sizes[filepath]
         bytes_chunked = 0
         try:
             # If file size is specified, ensure that we read exactly the
@@ -243,7 +242,7 @@ class Reader():
                         trailing_bytes = chunk
 
         except Exception as exc:
-            if spec_filesize is None:
+            if self._file_sizes[filepath] is None:
                 # We cannot calculate piece_index unless we know file's size,
                 # and there's no point in going on if we don't know where a
                 # piece begins and ends
