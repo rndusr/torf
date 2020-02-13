@@ -63,85 +63,20 @@ def validated_url(url):
         raise error.URLError(url)
 
 
-class _FixedSizeFile():
-    """
-    File-like object with a guaranteed size
-
-    If `filepath` is smaller than `size`, it is padded with null bytes.  If it
-    is larger, EOF is reported after reading `size` bytes.
-
-    If reading from `filepath` raises an `OSError`, a `ReadError` is raised.
-    """
-    def __init__(self, filepath, size):
-        try:
-            self._stream = io.FileIO(filepath, mode='r')
-        except OSError as e:
-            raise error.ReadError(e.errno, filepath)
-        self.name = str(filepath)
-        self._spec_size = size
-        self._real_size = os.path.getsize(self.name)
-        self._pos = 0
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, _, __, ___):
-        if self._stream is not None:
-            self._stream.close()
-
-    def read(self, length):
-        oldpos = self._pos
-        spec_size = self._spec_size
-        real_size = self._real_size
-        try:
-            chunk = self._stream.read(length)
-        except OSError as e:
-            raise error.ReadError(e.errno, self.name)
-
-        exp_chunk_length = max(0, min(length, spec_size - oldpos))
-        chunk_length = len(chunk)
-        newpos = self._pos + chunk_length
-
-        if newpos > spec_size:
-            # We've read more bytes than we expected.  Shorten `chunk` so that
-            # we returned exactly `spec_size` bytes in total.
-            chunk = chunk[:exp_chunk_length]
-
-        elif chunk_length < exp_chunk_length:
-            # File is shorter than `spec_size`.  Pad chunk with null bytes.
-            nulls = exp_chunk_length - chunk_length
-            chunk += b'\x00' * nulls
-            newpos += nulls
-
-        self._pos = newpos
-        return chunk
-
-def read_chunks(filepath, chunksize, filesize=None, prepend=bytes()):
+def read_chunks(filepath, chunksize, prepend=bytes()):
     """
     Generator that yields chunks from file
 
-    If `filesize` is not None, it is the expected size of `filepath` in bytes.
-    If `filepath` has a different size, it is transparently cropped or padded
-    with null bytes to match the expected size.
-
     `prepend` is prepended to the content of `filepath`.
     """
-    if filesize is not None:
-        cm = _FixedSizeFile(filepath, size=filesize)
-    else:
-        try:
-            cm = open(filepath, 'rb')
-        except OSError as e:
-            raise error.ReadError(e.errno, filepath)
+    chunk = b''
+    for pos in range(0, len(prepend), chunksize):
+        chunk = prepend[pos:pos + chunksize]
+        if len(chunk) == chunksize:
+            yield chunk
+            chunk = b''
     try:
-        chunk = b''
-        for pos in range(0, len(prepend), chunksize):
-            chunk = prepend[pos:pos + chunksize]
-            if len(chunk) == chunksize:
-                yield chunk
-                chunk = b''
-
-        with cm as f:
+        with open(filepath, 'rb') as f:
             # Fill last chunk from prepended bytes with first bytes from file
             if chunk:
                 chunk += f.read(chunksize - len(chunk))
