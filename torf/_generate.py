@@ -511,9 +511,10 @@ class _FileFaker():
             # Read trailing_bytes from the end of `filepath`.  Even if
             # `filepath` is corrupt, its final bytes may be fine and the first
             # piece of the next file can be saved.
-            _debug(f'reader: Seeking to {-remaining_bytes} in {os.path.basename(filepath)}')
+            seek_pos = min(remaining_bytes, self._file_sizes[filepath])
+            _debug(f'reader: Seeking to {-seek_pos} in {os.path.basename(filepath)}')
             with open(filepath, 'rb') as f:
-                f.seek(-remaining_bytes, os.SEEK_END)
+                f.seek(-seek_pos, os.SEEK_END)
                 trailing_bytes = f.read(remaining_bytes)
             _debug(f'reader: Read {len(trailing_bytes)} trailing bytes '
                    f'from {os.path.basename(filepath)}: {_pretty_bytes(trailing_bytes)}')
