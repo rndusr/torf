@@ -145,6 +145,7 @@ class Reader():
         self._skip_file_on_first_error = skip_file_on_first_error
         self._skipped_files = set()
         self._noskip_piece_indexes = set()
+        self._forced_error_piece_indexes = set()
         self._stop = False
 
     def read(self):
@@ -310,7 +311,8 @@ class Reader():
         if self._stop:
             _debug(f'reader: Found stop signal just before sending piece_index {piece_index}')
             return
-        elif piece_index in self._fake.forced_error_piece_indexes and exc is None and piece is not None:
+        elif piece_index in self._forced_error_piece_indexes \
+             and exc is None and piece is not None:
             # We know this piece is corrupt, even if padding bytes replicate the
             # missing data.  Exceptions from upstream (e.g. ReadError) take
             # precedence over corruption errors.  Ignore faked pieces (`piece`
@@ -344,7 +346,6 @@ class _FileFaker():
         self._piece_size = piece_size
         self._faked_pieces = set()
         self._faked_files = set()
-        self.forced_error_piece_indexes = set()
         self.stop = False
 
     def __call__(self, filepath, bytes_chunked_total, trailing_bytes):
@@ -451,6 +452,7 @@ class _FileFaker():
         next_piece_index = self._calc_piece_index(bytes_chunked_total + remaining_bytes)
         _debug(f'faker: piece_index={piece_index}, next_piece_index={next_piece_index}, '
                f'next_filepath={next_filepath}')
+        forced_error_piece_indexes = self._reader._forced_error_piece_indexes
 
         if next_filepath is not None:
             # Fake trailing_bytes so the next piece isn't shifted in the stream.
@@ -460,13 +462,13 @@ class _FileFaker():
             # files because because of that.
             self._reader._dont_skip_piece(next_piece_index)
 
-            if next_piece_index not in self.forced_error_piece_indexes:
+            if next_piece_index not in forced_error_piece_indexes:
                 # Force error in the piece that contains `filepath`'s
                 # trailing_bytes.  This is necessary because any padding/fake
                 # bytes can be identical to the original/missing bytes, meaning
                 # that we don't report an error for the next piece.
-                self.forced_error_piece_indexes.add(next_piece_index)
-                _debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes}')
+                forced_error_piece_indexes.add(next_piece_index)
+                _debug(f'faker: Updated forced error piece_indexes: {forced_error_piece_indexes}')
         else:
             # This is the final file in the stream
             next_affected_files = self._files_in_piece(next_piece_index, exclude=filepath)
@@ -484,7 +486,7 @@ class _FileFaker():
                 # Don't report error by returning no trailing_bytes,
                 # but update progress to 100%.
                 _debug(f'faker: Suppressing corruption in final piece_index {next_piece_index}')
-                self.forced_error_piece_indexes.discard(next_piece_index)
+                forced_error_piece_indexes.discard(next_piece_index)
                 self._push(next_piece_index, None, filepath, None)
                 bytes_chunked_total += remaining_bytes
                 trailing_bytes = b''
@@ -495,8 +497,8 @@ class _FileFaker():
                 # trailing_bytes could be identical to the missing bytes which
                 # means the next piece would not raise a hash mismatch, so we
                 # must remember to enforce that.
-                self.forced_error_piece_indexes.add(next_piece_index)
-                _debug(f'faker: Updated forced error piece_indexes: {self.forced_error_piece_indexes} '
+                forced_error_piece_indexes.add(next_piece_index)
+                _debug(f'faker: Updated forced error piece_indexes: {forced_error_piece_indexes} '
                        f'because other files are affected')
 
         _debug(f'faker: {piece_index}: Finished: Chunked {bytes_chunked_total} bytes, {remaining_bytes} bytes remaining')
