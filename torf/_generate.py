@@ -199,11 +199,12 @@ class Reader():
                     exc = error.VerifyFileSizeError(filepath,
                                                     actual_size=filesize,
                                                     expected_size=spec_filesize)
-                    piece_index = self._calc_piece_index()
+                    # Get index of the next byte we would chunk
+                    piece_index = self._calc_piece_index(1)
                     self._push(piece_index, None, filepath, exc)
                     # No need to read this file
                     self.skip_file(filepath, piece_index, force=True)
-                    self._dont_skip_piece(piece_index+1)
+                    self._dont_skip_piece(piece_index + 1)
                     return False
         return True
 
