@@ -346,8 +346,8 @@ def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions)
 
 def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
     """
-    Remove piece_indexes and files from `good_pieces` when
-    skip_file_on_first_error is True
+    For each file in `good_pieces`, remove piece_indexes between the first
+    corruption and the end of the file
     """
     # Find out which piece_indexes to skip
     skipped_pis = set()
