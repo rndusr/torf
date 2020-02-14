@@ -162,7 +162,9 @@ class Reader():
                     bytes_chunked, trailing_bytes = self._fake(
                         filepath, self._bytes_chunked, trailing_bytes)
                 elif not self._has_expected_size(filepath):
-                    bytes_chunked, trailing_bytes = 0, b''
+                    _debug(f'reader: Faking {os.path.basename(filepath)} because of mismatching size')
+                    bytes_chunked, trailing_bytes = self._fake(
+                        filepath, self._bytes_chunked, trailing_bytes)
                 else:
                     bytes_chunked, trailing_bytes = self._read_file(filepath, trailing_bytes)
                 self._bytes_chunked += bytes_chunked
