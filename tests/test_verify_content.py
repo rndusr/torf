@@ -728,15 +728,10 @@ class _TestCaseMultifile(_TestCaseBase):
         create_dir_args = []
         for filename,filesize in filespecs:
             data = b'\x00' * filesize
-            self.content_original[filename] = {'size': filesize,
-                                               'data': data}
-            self.content_corrupt[filename] = {'size': filesize,
-                                              'data': bytearray(data)}
+            self.content_original[filename] = data
+            self.content_corrupt[filename] = bytearray(data)
             create_dir_args.append((filename, data))
         self.content_path = self.create_dir('content', *create_dir_args)
-        for filename,fileinfo in self.content_original.items():
-            fileinfo['path'] = self.content_path / filename
-            self.content_corrupt[filename]['path'] = fileinfo['path']
         debug(f'Content: {self.content_original}')
         with self.forced_piece_size(piece_size):
             with self.create_torrent_file(path=self.content_path) as torrent_filepath:
@@ -744,11 +739,11 @@ class _TestCaseMultifile(_TestCaseBase):
 
     @property
     def stream_original(self):
-        return b''.join((f['data'] for f in self.content_original.values()))
+        return b''.join((data for data in self.content_original.values()))
 
     @property
     def stream_corrupt(self):
-        return b''.join((f['data'] for f in self.content_corrupt.values()))
+        return b''.join((data for data in self.content_corrupt.values()))
 
     def corrupt_stream(self, *positions):
         # Introduce random number of corruptions in random files without
@@ -758,9 +753,9 @@ class _TestCaseMultifile(_TestCaseBase):
             filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)
             debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
                   f'{corrpos_in_file} in file {filename}')
-            fileinfo = self.content_corrupt[filename]
-            fileinfo['data'][corrpos_in_file] = (fileinfo['data'][corrpos_in_file] + 1) % 256
-            fileinfo['path'].write_bytes(fileinfo['data'])
+            data = self.content_corrupt[filename]
+            data[corrpos_in_file] = (data[corrpos_in_file] + 1) % 256
+            (self.content_path / filename).write_bytes(data)
         self.corruption_positions.update(corruption_positions)
 
     def delete_file(self, index):
@@ -770,7 +765,7 @@ class _TestCaseMultifile(_TestCaseBase):
         filepath = self.content_path / filename
         os.rename(filepath, str(filepath) + '.deleted')
         self.files_missing.append(filepath)
-        self.content_corrupt[os.path.basename(filename)]['data'] = b'\xCC' * filesize
+        self.content_corrupt[os.path.basename(filename)] = b'\xCC' * filesize
 
         corruption_positions = set()
         files_missing = [str(filepath) for filepath in self.files_missing]
