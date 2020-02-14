@@ -158,7 +158,7 @@ class Reader():
                     _debug(f'reader: Stopped reading after piece_index {self._calc_piece_index()}')
                     break
                 elif self.file_was_skipped(filepath):
-                    _debug(f'reader: Skipping {os.path.basename(filepath)} before opening it')
+                    _debug(f'reader: Faking {os.path.basename(filepath)} before opening it')
                     bytes_chunked, trailing_bytes = self._fake(
                         filepath, self._bytes_chunked, trailing_bytes)
                 elif not self._has_expected_size(filepath):
@@ -222,7 +222,7 @@ class Reader():
                     _debug(f'reader: Found stop signal while reading from {os.path.basename(filepath)}')
                     break
                 elif self.file_was_skipped(filepath):
-                    _debug(f'reader: Skipping {os.path.basename(filepath)} while chunking it')
+                    _debug(f'reader: Faking {os.path.basename(filepath)} while chunking it')
                     fake_bytes_chunked, trailing_bytes = self._fake(
                         filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
                     bytes_chunked += fake_bytes_chunked
