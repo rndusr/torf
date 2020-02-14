@@ -193,6 +193,24 @@ def random_positions(stream):
     positions = random.sample(range(len(stream)), k=min(len(stream), 5))
     return sorted(positions[:random.randint(1, len(positions))])
 
+def change_file_size(filepath, original_size):
+    """Randomly change size of `filepath` on disk and return new contents"""
+    diff_range = list(range(-original_size, original_size+1))
+    diff_range.remove(0)
+    diff = random.choice(diff_range)
+    if diff > 0:
+        # Make file longer
+        with open(filepath, 'ab') as f:
+            f.write(b'\xAA' * diff)
+    elif diff < 0:
+        # Make file shorter
+        with open(filepath, 'ab') as f:
+            f.seek(diff, os.SEEK_END)
+            f.truncate()
+    assert os.path.getsize(filepath) == original_size + diff
+    with open(filepath, 'rb') as f:
+        return f.read()
+
 def round_up_to_multiple(n, x):
     """Round `n` up to the next multiple of `x`"""
     return n - n % -x
