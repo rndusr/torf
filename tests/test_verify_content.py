@@ -189,8 +189,8 @@ def ComparableException(exc):
         raise exc
 
 def random_positions(stream):
-    """Return list of 1, 2 or 3 random indexes in `stream`"""
-    positions = random.sample(range(len(stream)), k=3)
+    """Return list of 1 to 5 random indexes in `stream`"""
+    positions = random.sample(range(len(stream)), k=min(len(stream), 5))
     return sorted(positions[:random.randint(1, len(positions))])
 
 def round_up_to_multiple(n, x):
