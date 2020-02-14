@@ -542,6 +542,17 @@ class _TestCaseBase():
         self.forced_piece_size = forced_piece_size
         self.reset()
 
+    def reset(self):
+        self.raised_exception = None
+        self.corruption_positions = set()
+        self.files_missing = []
+        self.files_missized = []
+        for attr in ('_exp_exceptions', '_exp_pieces_done',
+                     '_exp_piece_indexes', '_exp_good_pieces',
+                     '_exp_exc_corruptions', '_exp_exc_files_missing'):
+            if hasattr(self, attr):
+                delattr(self, attr)
+
     def run(self, *_, with_callback, exp_return_value=None, skip_file_on_first_error=False):
         debug(f'Original stream: {self.stream_original.hex()}')
         debug(f' Corrupt stream: {self.stream_corrupt.hex()}')
@@ -589,16 +600,6 @@ class _TestCaseBase():
         assert cb.seen_pieces_done[-1] == self.torrent.pieces
         return cb
 
-    def reset(self):
-        self.raised_exception = None
-        self.corruption_positions = set()
-        self.files_missing = []
-        for attr in ('_exp_exceptions', '_exp_pieces_done',
-                     '_exp_piece_indexes', '_exp_good_pieces',
-                     '_exp_corruptions', '_exp_files_missing'):
-            if hasattr(self, attr):
-                delattr(self, attr)
-
     @property
     def exp_pieces_done(self):
         if not hasattr(self, '_exp_pieces_done'):
@@ -625,28 +626,28 @@ class _TestCaseBase():
         return self._exp_good_pieces
 
     @property
-    def exp_corruptions(self):
-        if not hasattr(self, '_exp_corruptions'):
-            self._exp_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
+    def exp_exc_corruptions(self):
+        if not hasattr(self, '_exp_exc_corruptions'):
+            self._exp_exc_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
             if self.skip_file_on_first_error:
-                self._exp_corruptions = skip_corruptions(self._exp_corruptions, self.filespecs_abspath,
-                                                         self.piece_size, self.corruption_positions)
-            debug(f'Expected corruptions: {self._exp_corruptions}')
-        return self._exp_corruptions
+                self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,
+                                                             self.piece_size, self.corruption_positions)
+            debug(f'Expected corruptions: {self._exp_exc_corruptions}')
+        return self._exp_exc_corruptions
 
     @property
-    def exp_files_missing(self):
-        if not hasattr(self, '_exp_files_missing'):
-            self._exp_files_missing = fuzzylist(*(ComparableException(torf.ReadError(errno.ENOENT, filepath))
-                                                  for filepath in self.files_missing))
-            debug(f'Expected files missing: {self._exp_files_missing}')
-        return self._exp_files_missing
+    def exp_exc_files_missing(self):
+        if not hasattr(self, '_exp_exc_files_missing'):
+            self._exp_exc_files_missing = fuzzylist(*(ComparableException(torf.ReadError(errno.ENOENT, filepath))
+                                                      for filepath in self.files_missing))
+            debug(f'Expected files missing: {self._exp_exc_files_missing}')
+        return self._exp_exc_files_missing
 
     @property
     def exp_exceptions(self):
         if not hasattr(self, '_exp_exceptions'):
-            debug(f'self._exp_exceptions = {self.exp_files_missing!r} + {self.exp_corruptions!r}')
-            self._exp_exceptions = self.exp_files_missing + self.exp_corruptions
+            debug(f'self._exp_exceptions = {self.exp_exc_files_missing!r} + {self.exp_exc_corruptions!r}')
+            self._exp_exceptions = self.exp_exc_files_missing + self.exp_exc_corruptions
             debug(f'                     = {self._exp_exceptions!r}')
             debug(f'Expected exceptions:')
             for e in self._exp_exceptions:
