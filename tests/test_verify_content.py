@@ -199,6 +199,7 @@ def change_file_size(filepath, original_size):
     diff_range.remove(0)
     diff = random.choice(diff_range)
     data = open(filepath, 'rb').read()
+    debug(f'  Original data ({len(data)} bytes): {data}')
     if diff > 0:
         # Make file longer
         if random.choice((1, 0)):
@@ -218,6 +219,7 @@ def change_file_size(filepath, original_size):
         f.write(data)
         f.truncate()
     assert os.path.getsize(filepath) == original_size + diff
+    debug(f'  Changed data ({len(data)} bytes): {data}')
     with open(filepath, 'rb') as f:
         return f.read()
 
@@ -323,16 +325,20 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
 
     return piece_indexes
 
-def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions):
-    """Same as `calc_piece_indexes`, but exclude corrupt pieces and pieces of missing files"""
+def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions, files_missized):
+    """
+    Same as `calc_piece_indexes`, but exclude corrupt pieces and pieces of
+    missing or missized files
+    """
     corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
     debug(f'Calculating good pieces')
     debug(f'corrupt piece_indexes: {corr_pis}')
     debug(f'missing files: {files_missing}')
+    debug(f'missized files: {files_missized}')
 
-    # Find pieces that exclusively belong to missing files
+    # Find pieces that exclusively belong to missing or missized files
     missing_pis = set()
-    for filepath in files_missing:
+    for filepath in itertools.chain(files_missing, files_missized):
         file_beg,file_end = file_range(os.path.basename(filepath), filespecs)
         first_missing_pi = file_beg // piece_size
         last_missing_pi = file_end // piece_size
@@ -351,7 +357,7 @@ def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions)
         for i,pi in enumerate(all_pis):
             if pi not in corr_pis and pi not in missing_pis:
                 good_pieces[fname].append(pi)
-    debug(f'corruptions and missing files removed: {good_pieces}')
+    debug(f'corruptions and missing/missized files removed: {good_pieces}')
     return good_pieces
 
 def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
@@ -448,7 +454,7 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
 
     return corruptions
 
-def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
+def calc_pieces_done(filespecs_abspath, piece_size, files_missing, files_missized):
     debug(f'Calculating pieces_done')
     # The callback gets the number of verified pieces (pieces_done).  This
     # function calculates the expected values for that argument.
@@ -457,8 +463,10 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
     # file is missing, we get the same pieces_done value two times, once for "No
     # such file" and maybe again for "Corrupt piece" if the piece contains parts
     # of another file.
-    files_missing = [str(filepath) for filepath in files_missing]
-    debug(f'missing_files: {files_missing}')
+    files_missing = {str(filepath) for filepath in files_missing}
+    debug(f'files_missing: {files_missing}')
+    files_missized = {str(filepath) for filepath in files_missized}
+    debug(f'files_missized: {files_missized}')
     # List of pieces_done values that are reported at least once
     pieces_done_list = []
     # List of pieces_done values that may appear multiple times
@@ -488,19 +496,21 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing):
                      if file_range(f, filespecs_abspath)[0] // piece_size == current_pi]
         debug(f'  ? files beginning: {files_beg}')
 
-        # Each file that begins in current_pi and is missing may be reported
-        # once again anywhere between now and the final piece.
+        # Each file that begins in current_pi and is missing or missized may be
+        # reported once again anywhere between now and the final piece.
         for f in files_beg:
-            if f in files_missing:
-                debug(f'  ! missing: {f}')
+            if f in files_missing or f in files_missized:
+                debug(f'  ! missing or missized: {f}')
                 # Because we're working in multiple threads, the corruption may
-                # be reported anywhere from the missing file's first piece to
-                # the final piece in the stream.
+                # be reported anywhere from the missing/missized file's first
+                # piece to the final piece in the stream.
                 for pieces_done in range(calc_pd(pos), calc_pd(total_size-1)+1):
                     maybes.add(pieces_done)
                     max_maybe_items[pieces_done] += 1
                 debug(f'    + optional: {pieces_done} * {max_maybe_items[pieces_done]}')
-                files_missing.remove(f)   # Don't report the same missing file again
+            # Don't report the same missing file again
+            if f in files_missing: files_missing.remove(f)
+            if f in files_missized: files_missized.remove(f)
 
         _,last_file_end = file_range(all_files[-1], filespecs_abspath)
         debug(f'  bytes_done = min({piece_size}, {last_file_end} - {pos} + 1)')
@@ -577,7 +587,7 @@ class _TestCaseBase():
         self.files_missized = []
         for attr in ('_exp_exceptions', '_exp_pieces_done',
                      '_exp_piece_indexes', '_exp_good_pieces',
-                     '_exp_exc_corruptions', '_exp_exc_files_missing'):
+                     '_exp_exc_corruptions', '_exp_exc_files_missing', '_exp_exc_files_missized'):
             if hasattr(self, attr):
                 delattr(self, attr)
 
@@ -631,7 +641,8 @@ class _TestCaseBase():
     @property
     def exp_pieces_done(self):
         if not hasattr(self, '_exp_pieces_done'):
-            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size, self.files_missing)
+            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size,
+                                                     self.files_missing, self.files_missized)
             debug(f'Expected pieces done: {self._exp_pieces_done}')
         return self._exp_pieces_done
 
@@ -646,7 +657,7 @@ class _TestCaseBase():
     def exp_good_pieces(self):
         if not hasattr(self, '_exp_good_pieces'):
             self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.files_missing,
-                                                     self.corruption_positions)
+                                                     self.corruption_positions, self.files_missized)
             if self.skip_file_on_first_error:
                 self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces, self.filespecs, self.piece_size,
                                                          self.corruption_positions)
@@ -672,10 +683,24 @@ class _TestCaseBase():
         return self._exp_exc_files_missing
 
     @property
+    def exp_exc_files_missized(self):
+        if not hasattr(self, '_exp_exc_files_missized'):
+            def mkexc(filepath):
+                fsize_orig = self.get_original_filesize(filepath)
+                fsize_actual = self.get_actual_filesize(filepath)
+                return ComparableException(torf.VerifyFileSizeError(
+                    filepath, actual_size=fsize_actual, expected_size=fsize_orig))
+            self._exp_exc_files_missized = fuzzylist(*(mkexc(filepath) for filepath in self.files_missized))
+            debug(f'Expected files missing: {self._exp_exc_files_missized}')
+        return self._exp_exc_files_missized
+
+    @property
     def exp_exceptions(self):
         if not hasattr(self, '_exp_exceptions'):
             debug(f'self._exp_exceptions = {self.exp_exc_files_missing!r} + {self.exp_exc_corruptions!r}')
-            self._exp_exceptions = self.exp_exc_files_missing + self.exp_exc_corruptions
+            self._exp_exceptions = (self.exp_exc_files_missing
+                                    + self.exp_exc_files_missized
+                                    + self.exp_exc_corruptions)
             debug(f'                     = {self._exp_exceptions!r}')
             debug(f'Expected exceptions:')
             for e in self._exp_exceptions:
@@ -720,6 +745,17 @@ class _TestCaseSinglefile(_TestCaseBase):
         # No need to update self.corruption_positions.  A missing single file
         # does not produce any corruption errors because the "No such file"
         # error is enough.
+
+    def change_file_size(self):
+        debug(f'Changing file size in file system: {os.path.basename(self.content_path)}')
+        self.stream_corrupt = change_file_size(self.content_path, self.torrent.size)
+        self.files_missized.append(self.content_path)
+
+    def get_original_filesize(self, filepath):
+        return len(self.stream_original)
+
+    def get_actual_filesize(self, filepath):
+        return len(self.stream_corrupt)
 
 class _TestCaseMultifile(_TestCaseBase):
     @property
@@ -803,6 +839,41 @@ class _TestCaseMultifile(_TestCaseBase):
 
         self.corruption_positions = corruption_positions
         debug(f'Corruption positions after removing file: {self.corruption_positions}')
+
+    def change_file_size(self):
+        # Pick random file
+        filename = random.choice(tuple(self.content_original))
+        filepath = self.content_path / filename
+        debug(f'Changing file size in file system: {filepath}')
+
+        # Change file size
+        self.content_corrupt[filename] = change_file_size(
+            filepath, len(self.content_original[filename]))
+        self.files_missized.append(filepath)
+
+        # Check if the beginning of adjacent files will be corrupted
+        file_beg,file_end = file_range(filename, self.filespecs)
+        debug(f'  Original file beginning and end in stream: {file_beg}, {file_end}')
+        if file_beg % self.piece_size != 0:
+            debug(f'  Beginning corrupts previous piece: {file_beg // self.piece_size}')
+            self.corruption_positions.add(file_beg)
+
+        # Check if the end of adjacent files will be corrupted
+        if (file_end + 1) % self.piece_size != 0:
+            filepath,_ = pos2file(file_end, self.filespecs_abspath, self.piece_size)
+            if (filepath not in self.files_missing and
+                filepath not in self.files_missized and
+                filepath != self.filespecs_abspath[-1][0]):
+                debug(f'  End corrupts next piece: {(file_end + 1) // self.piece_size}')
+                self.corruption_positions.add(file_end)
+
+        debug(f'Corruption positions after changing file size: {self.corruption_positions}')
+
+    def get_original_filesize(self, filepath):
+        return len(self.content_original[os.path.basename(filepath)])
+
+    def get_actual_filesize(self, filepath):
+        return len(self.content_corrupt[os.path.basename(filepath)])
 
 @pytest.fixture
 def mktestcase(create_dir, create_file, forced_piece_size, create_torrent_file):
@@ -901,6 +972,22 @@ def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, 
         tc.delete_file(index)
     cb = tc.run(with_callback=callback['enabled'],
                 skip_file_on_first_error=True,
+                exp_return_value=False)
+    if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
+        assert cb.seen_good_pieces == tc.exp_good_pieces
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
+        assert cb.seen_exceptions == tc.exp_exceptions
+
+def test_verify_content_with_changed_file_size(mktestcase, piece_size, callback, filespecs):
+    display_filespecs(filespecs, piece_size)
+    tc = mktestcase(filespecs, piece_size)
+    tc.change_file_size()
+    cb = tc.run(with_callback=callback['enabled'],
                 exp_return_value=False)
     if callback['enabled']:
         debug(f'seen_pieces_done: {cb.seen_pieces_done}')
