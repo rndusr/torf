@@ -198,15 +198,25 @@ def change_file_size(filepath, original_size):
     diff_range = list(range(-original_size, original_size+1))
     diff_range.remove(0)
     diff = random.choice(diff_range)
+    data = open(filepath, 'rb').read()
     if diff > 0:
         # Make file longer
-        with open(filepath, 'ab') as f:
-            f.write(b'\xAA' * diff)
+        if random.choice((1, 0)):
+            # Insert at beginning of file
+            data = b'\xA0' * diff + data
+        else:
+            # Insert at end of file
+            data = data + b'\xA0' * diff
     elif diff < 0:
-        # Make file shorter
-        with open(filepath, 'ab') as f:
-            f.seek(diff, os.SEEK_END)
-            f.truncate()
+        if random.choice((1, 0)):
+            # Remove bytes from beginning of file
+            data = data[abs(diff):]
+        else:
+            # Remove bytes from end of file
+            data = data[:diff]
+    with open(filepath, 'wb') as f:
+        f.write(data)
+        f.truncate()
     assert os.path.getsize(filepath) == original_size + diff
     with open(filepath, 'rb') as f:
         return f.read()
