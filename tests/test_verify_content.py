@@ -291,7 +291,7 @@ def pos2file(pos, filespecs, piece_size):
         p += filesize
     raise RuntimeError(f'Could not find file at position {pos} in {filespecs}')
 
-def calc_piece_indexes(filespecs, piece_size, files_missing):
+def calc_piece_indexes(filespecs, piece_size, files_missing, files_missized):
     """
     Turn a list of (filename, filesize) tuples into a dictionary that maps file
     names to the piece indexes they cover. Pieces that overlap multiple files
@@ -310,9 +310,10 @@ def calc_piece_indexes(filespecs, piece_size, files_missing):
         piece_indexes[filename].extend(range(first_pi, last_pi))
         pos += filesize
 
-    # For each missing file, the first piece of the file may get two calls, one
-    # for the "no such file" error and one for the "corrupt piece" error
-    for filepath in files_missing:
+    # For each missing/missized file, the first piece of the file may get two
+    # calls, one for the "no such file"/"wrong file size" error and one for the
+    # "corrupt piece" error.
+    for filepath in itertools.chain(files_missing, files_missized):
         filename = os.path.basename(filepath)
         file_beg,file_end = file_range(filename, filespecs)
         piece_index = file_beg // piece_size
@@ -348,7 +349,7 @@ def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions,
         debug(f'affected_files_end: {affected_files_end}')
         missing_pis.update(range(first_missing_pi, last_missing_pi+1))
 
-    all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing)
+    all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing, files_missized)
     debug(f'all piece_indexes: {all_piece_indexes}')
 
     # Remove pieces that are either corrupt or in missing_pis
@@ -649,7 +650,8 @@ class _TestCaseBase():
     @property
     def exp_piece_indexes(self):
         if not hasattr(self, '_exp_piece_indexes'):
-            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size, self.files_missing)
+            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size,
+                                                         self.files_missing, self.files_missized)
             debug(f'Expected piece indexes: {dict(self._exp_piece_indexes)}')
         return dict(self._exp_piece_indexes)
 
