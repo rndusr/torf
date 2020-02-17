@@ -845,31 +845,34 @@ class _TestCaseMultifile(_TestCaseBase):
         self.files_missing.append(filepath)
         self.content_corrupt[os.path.basename(filename)] = b'\xCC' * filesize
 
+        # Re-calculate corruptions for adjacent files of all missing files
         corruption_positions = set()
-        files_missing = [str(filepath) for filepath in self.files_missing]
-
         for removed_filepath in self.files_missing:
-            removed_filename = os.path.basename(removed_filepath)
             # Find the first byte of the first affected piece and the first byte
-            # of the last affected piece
+            # of the last affected piece and mark them as corrupt
+            removed_filename = os.path.basename(removed_filepath)
             file_beg,file_end = file_range(removed_filename, self.filespecs)
-            debug(f'{removed_filename} starts at {file_beg} and ends at {file_end} in stream')
+            debug(f'  {removed_filename} starts at {file_beg} and ends at {file_end} in stream')
             first_affected_piece_pos = round_down_to_multiple(file_beg, self.piece_size)
             last_affected_piece_pos = round_down_to_multiple(file_end, self.piece_size)
             debug(f'  First affected piece starts at {first_affected_piece_pos} '
                   f'and last affected piece starts at {last_affected_piece_pos}')
+            corruption_positions.add(first_affected_piece_pos)
+            corruption_positions.add(last_affected_piece_pos)
 
-            # Find files that share the first and last affected piece
-            for piece_index_pos in set((first_affected_piece_pos, last_affected_piece_pos)):
-                debug(f'Finding files affected by piece_index {piece_index_pos} being corrupt:')
-                for filepath in pos2files(piece_index_pos, self.filespecs_abspath, self.piece_size):
-                    debug(f'  {filepath}')
-                    if filepath not in files_missing:
-                        debug(f'  {os.path.basename(filepath)} exists, making '
-                              f'piece_index {piece_index_pos // self.piece_size} corrupt')
-                        corruption_positions.add(piece_index_pos)
+        self.corruption_positions.update(corruption_positions)
 
-        self.corruption_positions = corruption_positions
+        # Finally, remove corruptions that exclusively belong to
+        # missing/missized files because they are always skipped
+        skipped_files = {str(filepath) for filepath in itertools.chain(self.files_missing,
+                                                                       self.files_missized)}
+        debug(f'  skipped_files: {skipped_files}')
+        for corrpos in tuple(self.corruption_positions):
+            affected_files = pos2files(corrpos, self.filespecs_abspath, self.piece_size)
+            if all(f in skipped_files for f in affected_files):
+                debug(f'  only skipped file {filepath} is affected by corruption at position {corrpos}')
+                self.corruption_positions.remove(corrpos)
+
         debug(f'Corruption positions after removing file: {self.corruption_positions}')
 
     def change_file_size(self):
