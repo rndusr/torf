@@ -435,9 +435,9 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
             corruptions.maybe.append(exc)
             pis_seen.add(exc.piece_index)
 
-    # Because we fake skipped files, their last piece is be reported as corrupt
-    # if it contains bytes from the next file even if there is no corruption in
-    # the skipped file's last piece.  But this is not guaranteed because it's
+    # Because we fake skipped files, their last piece is reported as corrupt if
+    # it contains bytes from the next file even if there is no corruption in the
+    # skipped file's last piece.  But this is not guaranteed because it's
     # possible the corrupt file is fully processed before its corruption is
     # noticed.
     for corrpos in corruption_positions:
