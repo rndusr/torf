@@ -412,7 +412,7 @@ def calc_corruptions(filespecs, piece_size, corruption_positions):
             exc = ComparableException(torf.VerifyContentError(corr_pi, piece_size, filespecs))
             corrupt_pieces.append(exc)
             reported.append(corr_pi)
-    return corrupt_pieces
+    return fuzzylist(*corrupt_pieces)
 
 def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_positions):
     """Make every non-first corruption optional"""
