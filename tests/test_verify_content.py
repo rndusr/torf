@@ -450,8 +450,9 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
         debug(f'  {affected_files[-1]} ends at piece_index {piece_index}')
         # Add optional exception for that piece
         exc = ComparableException(torf.VerifyContentError(piece_index, piece_size, filespecs))
-        debug(f'Adding possible exception for last affected file {affected_files[-1]}: {exc}')
-        corruptions.maybe.append(exc)
+        if exc not in itertools.chain(corruptions, corruptions.maybe):
+            debug(f'Adding possible exception for last affected file {affected_files[-1]}: {exc}')
+            corruptions.maybe.append(exc)
 
     return corruptions
 
