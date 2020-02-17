@@ -1174,7 +1174,7 @@ class Torrent():
                 if collector_thread.exception is not None:
                     exception = collector_thread.exception
 
-        # Raise exception unless the callback function already handled it
+        # Raise exception unless it was passed to callback
         if exception:
             if raise_exceptions:
                 raise exception
