@@ -707,11 +707,46 @@ class _TestCaseBase():
     @property
     def exp_exceptions(self):
         if not hasattr(self, '_exp_exceptions'):
-            debug(f'self._exp_exceptions = {self.exp_exc_files_missing!r} + {self.exp_exc_corruptions!r}')
-            self._exp_exceptions = (self.exp_exc_files_missing
-                                    + self.exp_exc_files_missized
-                                    + self.exp_exc_corruptions)
-            debug(f'                     = {self._exp_exceptions!r}')
+            debug(f'Calculating expected exceptions:')
+            for exc in itertools.chain(self.exp_exc_files_missing,
+                                       self.exp_exc_files_missized,
+                                       self.exp_exc_corruptions):
+                debug(f'  {str(exc)}')
+
+            # Exceptions that must be reported
+            mandatory = set(self.exp_exc_files_missing)
+            maybe = set()
+
+            # Files with wrong size must be reported if they are not also missing
+            mandatory_files = set(exc.path for exc in mandatory)
+            for exc in self.exp_exc_files_missized:
+                if exc.filepath not in mandatory_files:
+                    mandatory.add(exc)
+
+            # If there are no missing or missized files, corruptions are mandatory
+            if not mandatory:
+                debug(f'  all corruption exceptions are mandatory')
+                mandatory.update(self.exp_exc_corruptions)
+                maybe.update(self.exp_exc_corruptions.maybe)
+            else:
+                # Corruptions must be reported if they don't exist in missing or
+                # missized files.
+                for exc in self.exp_exc_corruptions:
+                    if any(filepath in itertools.chain(self.files_missing, self.files_missized)
+                           for filepath in exc.files):
+                        debug(f'  expecting non-missing/missized: {str(exc)}')
+                        mandatory.add(exc)
+                    elif not all(filepath in itertools.chain(self.files_missing, self.files_missized)
+                                 for filepath in exc.files):
+                        debug(f'  expecting side-effect: {str(exc)}')
+                        mandatory.add(exc)
+
+                # Also allow corruptions that are already classified as optional.
+                for exc in self.exp_exc_corruptions.maybe:
+                    debug(f'  also allowing {str(exc)}')
+                    maybe.add(exc)
+
+            self._exp_exceptions = fuzzylist(*mandatory, maybe=maybe)
             debug(f'Expected exceptions:')
             for e in self._exp_exceptions:
                 debug(repr(e))
@@ -819,13 +854,15 @@ class _TestCaseMultifile(_TestCaseBase):
             filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)
             if filename in error_files:
                 continue
-            debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
-                  f'{corrpos_in_file} in file {filename}')
-            data = self.content_corrupt[filename]
-            data[corrpos_in_file] = (data[corrpos_in_file] + 1) % 256
-            (self.content_path / filename).write_bytes(data)
-            self.files_corrupt.append(str(self.content_path / filename))
-        self.corruption_positions.update(corruption_positions)
+            else:
+                debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
+                      f'{corrpos_in_file} in file {filename}')
+                self.corruption_positions.add(corrpos_in_stream)
+                data = self.content_corrupt[filename]
+                data[corrpos_in_file] = (data[corrpos_in_file] + 1) % 256
+                (self.content_path / filename).write_bytes(data)
+                self.files_corrupt.append(str(self.content_path / filename))
+        debug(f'Corruption positions after corrupting stream: {self.corruption_positions}')
 
     def delete_file(self, index=None):
         if index is None:
@@ -861,19 +898,19 @@ class _TestCaseMultifile(_TestCaseBase):
             corruption_positions.add(last_affected_piece_pos)
 
         self.corruption_positions.update(corruption_positions)
+        self._remove_skipped_corruptions()
+        debug(f'Corruption positions after removing file: {self.corruption_positions}')
 
+    def _remove_skipped_corruptions(self):
         # Finally, remove corruptions that exclusively belong to
         # missing/missized files because they are always skipped
-        skipped_files = {str(filepath) for filepath in itertools.chain(self.files_missing,
-                                                                       self.files_missized)}
+        skipped_files = {str(filepath) for filepath in itertools.chain(self.files_missing, self.files_missized)}
         debug(f'  skipped_files: {skipped_files}')
         for corrpos in tuple(self.corruption_positions):
             affected_files = pos2files(corrpos, self.filespecs_abspath, self.piece_size)
             if all(f in skipped_files for f in affected_files):
-                debug(f'  only skipped file {filepath} is affected by corruption at position {corrpos}')
+                debug(f'  only skipped files are affected by corruption at position {corrpos}')
                 self.corruption_positions.remove(corrpos)
-
-        debug(f'Corruption positions after removing file: {self.corruption_positions}')
 
     def change_file_size(self):
         # Pick random file
@@ -908,6 +945,7 @@ class _TestCaseMultifile(_TestCaseBase):
                 debug(f'  End corrupts next piece: {(file_end + 1) // self.piece_size}')
                 self.corruption_positions.add(file_end)
 
+        self._remove_skipped_corruptions()
         debug(f'Corruption positions after changing file size: {self.corruption_positions}')
 
     def get_original_filesize(self, filepath):
