@@ -582,7 +582,6 @@ class _TestCaseBase():
         self.reset()
 
     def reset(self):
-        self.raised_exception = None
         self.corruption_positions = set()
         self.files_missing = []
         self.files_missized = []
@@ -605,7 +604,6 @@ class _TestCaseBase():
             exp_exceptions = self.exp_exceptions
             if not exp_exceptions:
                 self._run_without_callback(**kwargs)
-                self.raised_exception = None
             else:
                 exp_exception_types = tuple(set(type(exc) for exc in exp_exceptions))
                 with pytest.raises(exp_exception_types) as e:
@@ -614,7 +612,6 @@ class _TestCaseBase():
                 # always, so we expect one of the possible exceptions to be
                 # raised.
                 assert e.value in exp_exceptions
-                self.raised_exception = e.value
         else:
             return self._run_with_callback(**kwargs)
 
