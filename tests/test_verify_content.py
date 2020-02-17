@@ -985,7 +985,7 @@ def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, 
         debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
-def test_verify_content_with_changed_file_size(mktestcase, piece_size, callback, filespecs):
+def test_verify_content_with_changed_file_size_and_no_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
     tc = mktestcase(filespecs, piece_size)
     tc.change_file_size()
@@ -1001,8 +1001,23 @@ def test_verify_content_with_changed_file_size(mktestcase, piece_size, callback,
         debug(f'seen_exceptions: {cb.seen_exceptions}')
         assert cb.seen_exceptions == tc.exp_exceptions
 
-# TODO: File is smaller
-# TODO: File is bigger
+def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_size, callback, filespecs):
+    display_filespecs(filespecs, piece_size)
+    tc = mktestcase(filespecs, piece_size)
+    tc.change_file_size()
+    cb = tc.run(with_callback=callback['enabled'],
+                skip_file_on_first_error=True,
+                exp_return_value=False)
+    if callback['enabled']:
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
+        assert cb.seen_pieces_done == tc.exp_pieces_done
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
+        assert cb.seen_piece_indexes == tc.exp_piece_indexes
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
+        assert cb.seen_good_pieces == tc.exp_good_pieces
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
+        assert cb.seen_exceptions == tc.exp_exceptions
+
 
 
 # # def test_verify_content__file_is_smaller(create_dir, create_torrent_file, forced_piece_size):
