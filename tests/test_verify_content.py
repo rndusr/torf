@@ -750,7 +750,7 @@ class _TestCaseSinglefile(_TestCaseBase):
             self.content_path.write_bytes(self.stream_corrupt)
         self.corruption_positions.update(corruption_positions)
 
-    def delete_file(self, index):
+    def delete_file(self, index=None):
         # Check if this file already has other errors
         if self.corruption_positions or self.files_missized:
             return
@@ -827,7 +827,9 @@ class _TestCaseMultifile(_TestCaseBase):
             self.files_corrupt.append(str(self.content_path / filename))
         self.corruption_positions.update(corruption_positions)
 
-    def delete_file(self, index):
+    def delete_file(self, index=None):
+        if index is None:
+            index = random.choice(range(len(self.filespecs)))
         # Remove file at `index` in filespecs from file system
         filename,filesize = self.filespecs[index]
 
