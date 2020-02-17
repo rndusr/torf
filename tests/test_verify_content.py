@@ -933,7 +933,7 @@ class _TestCaseMultifile(_TestCaseBase):
         file_beg,file_end = file_range(filename, self.filespecs)
         debug(f'  Original file beginning and end in stream: {file_beg}, {file_end}')
         if file_beg % self.piece_size != 0:
-            debug(f'  Beginning corrupts previous piece: {file_beg // self.piece_size}')
+            debug(f'  Beginning corrupts previous file at piece_index {file_beg // self.piece_size}')
             self.corruption_positions.add(file_beg)
 
         # Check if the end of adjacent files will be corrupted
@@ -942,7 +942,7 @@ class _TestCaseMultifile(_TestCaseBase):
             if (filepath not in self.files_missing and
                 filepath not in self.files_missized and
                 filepath != self.filespecs_abspath[-1][0]):
-                debug(f'  End corrupts next piece: {(file_end + 1) // self.piece_size}')
+                debug(f'  End corrupts next file at piece_index {(file_end + 1) // self.piece_size}')
                 self.corruption_positions.add(file_end)
 
         self._remove_skipped_corruptions()
