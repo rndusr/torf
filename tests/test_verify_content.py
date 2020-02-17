@@ -585,6 +585,7 @@ class _TestCaseBase():
 
     def reset(self):
         self.corruption_positions = set()
+        self.files_corrupt = []
         self.files_missing = []
         self.files_missized = []
         for attr in ('_exp_exceptions', '_exp_pieces_done',
@@ -738,6 +739,9 @@ class _TestCaseSinglefile(_TestCaseBase):
                 self.torrent = torf.Torrent.read(torrent_filepath)
 
     def corrupt_stream(self, *positions):
+        # Check if this file already has other errors
+        if self.files_missing or self.files_missized:
+            return
         # Introduce random number of corruptions without changing stream length
         corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)
         for corrpos in corruption_positions:
@@ -747,6 +751,9 @@ class _TestCaseSinglefile(_TestCaseBase):
         self.corruption_positions.update(corruption_positions)
 
     def delete_file(self, index):
+        # Check if this file already has other errors
+        if self.corruption_positions or self.files_missized:
+            return
         debug(f'Removing file from file system: {os.path.basename(self.content_path)}')
         os.rename(self.content_path, str(self.content_path) + '.deleted')
         self.files_missing = [self.content_path]
@@ -756,6 +763,9 @@ class _TestCaseSinglefile(_TestCaseBase):
         # error is enough.
 
     def change_file_size(self):
+        # Check if this file already has other errors
+        if self.corruption_positions or self.files_missing:
+            return
         debug(f'Changing file size in file system: {os.path.basename(self.content_path)}')
         self.stream_corrupt = change_file_size(self.content_path, self.torrent.size)
         self.files_missized.append(self.content_path)
@@ -801,21 +811,32 @@ class _TestCaseMultifile(_TestCaseBase):
         return b''.join((data for data in self.content_corrupt.values()))
 
     def corrupt_stream(self, *positions):
-        # Introduce random number of corruptions in random files without
-        # changing stream length
-        corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)
+        # Introduce corruptions without changing stream length
+        error_files = set(os.path.basename(f) for f in itertools.chain(
+            self.files_missing, self.files_missized))
+        corruption_positions = set(random_positions(self.stream_original) if not positions else positions)
         for corrpos_in_stream in corruption_positions:
             filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)
+            if filename in error_files:
+                continue
             debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
                   f'{corrpos_in_file} in file {filename}')
             data = self.content_corrupt[filename]
             data[corrpos_in_file] = (data[corrpos_in_file] + 1) % 256
             (self.content_path / filename).write_bytes(data)
+            self.files_corrupt.append(str(self.content_path / filename))
         self.corruption_positions.update(corruption_positions)
 
     def delete_file(self, index):
         # Remove file at `index` in filespecs from file system
         filename,filesize = self.filespecs[index]
+
+        # Don't delete corrupt/missing file
+        error_files = set(os.path.basename(f) for f in itertools.chain(
+            self.files_corrupt, self.files_missized))
+        if filename in error_files:
+            return
+
         debug(f'Removing file from file system: {os.path.basename(filename)}')
         filepath = self.content_path / filename
         os.rename(filepath, str(filepath) + '.deleted')
@@ -854,6 +875,12 @@ class _TestCaseMultifile(_TestCaseBase):
         filename = random.choice(tuple(self.content_original))
         filepath = self.content_path / filename
         debug(f'Changing file size in file system: {filepath}')
+
+        # Don't change corrupt/missing file
+        error_files = set(os.path.basename(f) for f in itertools.chain(
+            self.files_missing, self.files_corrupt))
+        if filename in error_files:
+            return
 
         # Change file size
         self.content_corrupt[filename] = change_file_size(
