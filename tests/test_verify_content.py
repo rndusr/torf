@@ -200,6 +200,7 @@ def change_file_size(filepath, original_size):
     diff = random.choice(diff_range)
     data = open(filepath, 'rb').read()
     debug(f'  Original data ({len(data)} bytes): {data}')
+    debug(f'  diff: {diff}')
     if diff > 0:
         # Make file longer
         if random.choice((1, 0)):
@@ -423,7 +424,7 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
     for exc in all_corruptions:
         # Corruptions for files we haven't seen yet must be reported
         if any(f not in files_seen for f in exc.files):
-            debug(f'mandatory: {exc}')
+            debug(f'  mandatory: {exc}')
             files_seen.update(exc.files)
             pis_seen.add(exc.piece_index)
             corruptions.append(exc)
@@ -431,7 +432,7 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
         # because skipping is racy and it's impossible to predict how many
         # pieces are processed before the skip manifests.
         else:
-            debug(f'optional: {exc}')
+            debug(f'  optional: {exc}')
             corruptions.maybe.append(exc)
             pis_seen.add(exc.piece_index)
 
