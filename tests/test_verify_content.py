@@ -698,7 +698,7 @@ class _TestCaseBase():
                 return ComparableException(torf.VerifyFileSizeError(
                     filepath, actual_size=fsize_actual, expected_size=fsize_orig))
             self._exp_exc_files_missized = fuzzylist(*(mkexc(filepath) for filepath in self.files_missized))
-            debug(f'Expected files missing: {self._exp_exc_files_missized}')
+            debug(f'Expected files missized: {self._exp_exc_files_missized}')
         return self._exp_exc_files_missized
 
     @property
