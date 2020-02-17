@@ -632,9 +632,17 @@ class _TestCaseBase():
         else:
             self.torrent.verify(self.content_path, **kwargs)
         # Last pieces_done value must be the total number of pieces so progress
-        # is reported correctly
+        # is finalized correctly, e.g. progress bar ends at 100%
         assert cb.seen_pieces_done[-1] == self.torrent.pieces
-        return cb
+
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
+        assert cb.seen_exceptions == self.exp_exceptions
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
+        assert cb.seen_piece_indexes == self.exp_piece_indexes
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
+        assert cb.seen_pieces_done == self.exp_pieces_done
+        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
+        assert cb.seen_good_pieces == self.exp_good_pieces
 
     @property
     def exp_pieces_done(self):
@@ -903,16 +911,6 @@ def test_verify_content_successfully(mktestcase, piece_size, callback, filespecs
     tc = mktestcase(filespecs, piece_size)
     cb = tc.run(with_callback=callback['enabled'],
                 exp_return_value=True)
-    # TODO: Move these to _TestCaseBase.run or something
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_piece_indexes
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == []
 
 def test_verify_content_with_random_corruptions_and_no_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
@@ -920,15 +918,6 @@ def test_verify_content_with_random_corruptions_and_no_skipping(mktestcase, piec
     tc.corrupt_stream()
     cb = tc.run(with_callback=callback['enabled'],
                 exp_return_value=False)
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_good_pieces
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
@@ -937,15 +926,6 @@ def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_s
     cb = tc.run(with_callback=callback['enabled'],
                 skip_file_on_first_error=True,
                 exp_return_value=False)
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_good_pieces
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
     display_filespecs(filespecs, piece_size)
@@ -954,15 +934,6 @@ def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_siz
         tc.delete_file(index)
     cb = tc.run(with_callback=callback['enabled'],
                 exp_return_value=False)
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_good_pieces
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
     display_filespecs(filespecs, piece_size)
@@ -972,15 +943,6 @@ def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, 
     cb = tc.run(with_callback=callback['enabled'],
                 skip_file_on_first_error=True,
                 exp_return_value=False)
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_good_pieces
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_changed_file_size_and_no_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
@@ -988,15 +950,6 @@ def test_verify_content_with_changed_file_size_and_no_skipping(mktestcase, piece
     tc.change_file_size()
     cb = tc.run(with_callback=callback['enabled'],
                 exp_return_value=False)
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_good_pieces
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == tc.exp_exceptions
 
 def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)
@@ -1005,15 +958,6 @@ def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_si
     cb = tc.run(with_callback=callback['enabled'],
                 skip_file_on_first_error=True,
                 exp_return_value=False)
-    if callback['enabled']:
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == tc.exp_pieces_done
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == tc.exp_piece_indexes
-        debug(f'seen_good_pieces: {cb.seen_good_pieces}')
-        assert cb.seen_good_pieces == tc.exp_good_pieces
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == tc.exp_exceptions
 
 
 
