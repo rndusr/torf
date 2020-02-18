@@ -1031,6 +1031,18 @@ def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_si
                 skip_file_on_first_error=True,
                 exp_return_value=False)
 
+def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callback, filespecs):
+    display_filespecs(filespecs, piece_size)
+    tc = mktestcase(filespecs, piece_size)
+    # Introduce 2 or 3 errors in random order
+    errorizers = [tc.corrupt_stream, tc.delete_file, tc.change_file_size]
+    for _ in range(random.randint(2, 3)):
+        errorizer = errorizers.pop(random.choice(range(len(errorizers))))
+        errorizer()
+    cb = tc.run(with_callback=callback['enabled'],
+                skip_file_on_first_error=random.choice((True, False)),
+                exp_return_value=False)
+
 
 
 # # def test_verify_content__file_is_smaller(create_dir, create_torrent_file, forced_piece_size):
