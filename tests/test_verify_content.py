@@ -198,24 +198,16 @@ def change_file_size(filepath, original_size):
     diff_range = list(range(-original_size, original_size+1))
     diff_range.remove(0)
     diff = random.choice(diff_range)
-    data = open(filepath, 'rb').read()
+    data = bytearray(open(filepath, 'rb').read())
     debug(f'  Original data ({len(data)} bytes): {data}')
-    debug(f'  diff: {diff}')
     if diff > 0:
-        # Make file longer
-        if random.choice((1, 0)):
-            # Insert at beginning of file
-            data = b'\xA0' * diff + data
-        else:
-            # Insert at end of file
-            data = data + b'\xA0' * diff
+        # Make add `diff` bytes at `pos`
+        pos = random.choice(range(original_size+1))
+        data[pos:pos] = b'\xA0' * diff
     elif diff < 0:
-        if random.choice((1, 0)):
-            # Remove bytes from beginning of file
-            data = data[abs(diff):]
-        else:
-            # Remove bytes from end of file
-            data = data[:diff]
+        # Remove `abs(diff)` bytes at `pos`
+        pos = random.choice(range(original_size - abs(diff) + 1))
+        data[pos:pos+abs(diff)] = ()
     with open(filepath, 'wb') as f:
         f.write(data)
         f.truncate()
