@@ -379,7 +379,6 @@ def _random_bytes(length):
             end = b''
         b = beg + bytes(random.getrandbits(8)
                         for _ in range(int(length-len(beg)-len(end)))) + end
-        print(length, '==', len(b), b)
         assert length == len(b)
         return b
 
