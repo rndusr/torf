@@ -366,8 +366,9 @@ def _random_bytes(length):
         return bytes(random.getrandbits(8)
                      for _ in range(int(length)))
     else:
-        # We use b'\x00' as a placeholder for padding, so we increase the
-        # probability of b'\x00' at the beginning and/or end
+        # We use b'\x00' as a placeholder for padding when faking missing files
+        # during verification, so we increase the probability of b'\x00' at the
+        # beginning and/or end
         if random.choice((0, 1)):
             beg = b'\x00' * random.randint(0, max(1, int(length/2)))
         else:
