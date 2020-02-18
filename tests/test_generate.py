@@ -7,6 +7,10 @@ import os
 import base64
 from collections import defaultdict
 
+import logging
+debug = logging.getLogger('test').debug
+from . import *
+
 
 def test_no_path():
     t = torf.Torrent()
@@ -76,36 +80,36 @@ def test_unreadable_file_in_multifile_torrent(create_dir):
         os.chmod(content_path, mode=old_mode)
 
 
-def test_generate_singlefile_torrent_sets_correct_metainfo(create_file, random_seed):
+def test_metainfo_with_singlefile_torrent(create_file, random_seed):
     with random_seed(0):
         content_path = create_file('file.jpg', torf.Torrent.piece_size_min * 10.123)
     # exp_* values come from these commands:
-    # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_generate_singlefile_torre0/file.jpg
+    # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_metainfo_with_singlefile_current/file.jpg
     # $ btcheck -i file.jpg.torrent -n | grep Hash
     # $ python3 -c "from flatbencode import decode; print(decode(open('file.jpg.torrent', 'rb').read())[b'info'][b'pieces'])"
-    exp_infohash = '55d85dda866f823eb23b6d9a0cb555af9851885b'
-    exp_pieces = (b"F\n\x94Oc\x9c'\x15\x9cdC\x9e\xe7\x03\xe2:\xfc\xdf\xde\xf0\xbd'\xc8"
-                  b".v8\xfe~\xeav\xe8\xd5@\x08\x1d\xb2\x05\x1fjK\xb2\xdbI\xd75\x10\x14"
-                  b"\x8dn!'B\xcd\x1b;\x14\xda+\x1e1lB\x87\xca\xbbD\xf9\x98\xf1\x00e 7M"
-                  b"\xe4\xf3\x05qa\xcaV\x0e\xe2`\xc0\x07\xf3\xf6\xb5\xed]\x1e\xea9F\x1b"
-                  b"\xd1\xbd\x8cL\x1cy\x82\xbe\x0b%\xf3\xa2\xa4\x9a\xd3\xd6\x90\x9f\xd7\x10\x7f\x93\x87Q")
+    exp_infohash = 'e7e02c57df57f30f5e66a69bfa210e9c61a5a8f6'
+    exp_pieces = (b"<\x9c7\x80\xa5\xf6-\xb7)\xd0A\x1d\xb5\x1b\xacw\x10\x91\x9c\xe8\xb4\x16"
+                  b"\x00bg\xbc`\xc5\xc2\xf86\x88\xb2~\xd6E\xeeZ\xb0d\xcd\x9ek(\xc746G\x17"
+                  b"\xab\xa6'/D\xba\xd9\xf0d\x81\xe3\xf5C\x82JQ\xde\xb5\x17w\xda\xbc\xb7Ek"
+                  b"\nHU\xcd\x1f\xd6C\xcb!\xb0CW\\\xc4\x8d\xad9\xbe\xb4V\x8a7\xdf\x9a\xabV"
+                  b"\xa6\xe5\xee3\x81\xe5I\xa7\xfe#\xcb\xea\xc3\x8e\xc4\x00\x91\xdb\x00\xaf")
     _check_metainfo(content_path, 2**15, exp_infohash, exp_pieces)
 
-def test_generate_multifile_torrent_sets_correct_metainfo(create_dir, random_seed):
+def test_metainfo_with_multifile_torrent(create_dir, random_seed):
     with random_seed(0):
         content_path = create_dir('content',
                                   ('a.jpg', torf.Torrent.piece_size_min * 1.123),
                                   ('b.jpg', torf.Torrent.piece_size_min * 2.456),
                                   ('c.jpg', torf.Torrent.piece_size_min * 3.789))
     # exp_* values come from these commands:
-    # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_generate_multifile_torren0/content
+    # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_metainfo_with_multifile_tcurrent/content/
     # $ btcheck -i content.torrent -n | grep Hash
     # $ python3 -c "from flatbencode import decode; print(decode(open('content.torrent', 'rb').read())[b'info'][b'pieces'])"
-    exp_infohash = '0426d41d73433d2813738d281436be52ffd82df4'
-    exp_pieces = (b"F\n\x94Oc\x9c'\x15\x9cdC\x9e\xe7\x03\xe2:\xfc\xdf\xde\xf0"
-                  b"\xbd'\xc8.v8\xfe~\xeav\xe8\xd5@\x08\x1d\xb2\x05\x1fjK\xb2"
-                  b"\xdbI\xd75\x10\x14\x8dn!'B\xcd\x1b;\x14\xda+\x1e1\xb6G\xc0"
-                  b"\xb9\xd0x\xf7\xd0\xcb(\xed]@&F\xc4\x11\x81\x9f\x8d")
+    exp_infohash = 'b36eeca9231867ebf650ed82a54216617408d2ce'
+    exp_pieces = (b'\x84{\x9eM\x16\xa9\xe9\xf7V\xb8\xb3\xc2\xb8Q\xfaw\xea \xb9\xdc'
+                  b'\xf2\xc0\x0e\rXE\x85g\xe6k\x1dt\xa6\xca\x7f/\xb5)A"5!\xb9\xda\xe2'
+                  b'"\x15c^\x0e\xf7\x91|\x06V\xdc}\xd9\xb0<./\x0fBe\xcb\xd8*\xae\xd1"'
+                  b'\x05\n\x1b\xf3\x18\x1c\xd7u\xe3')
     _check_metainfo(content_path, 2**15, exp_infohash, exp_pieces)
 
 def _check_metainfo(content_path, piece_size, exp_infohash, exp_pieces):
@@ -122,108 +126,80 @@ def _check_metainfo(content_path, piece_size, exp_infohash, exp_pieces):
     assert t.metainfo['info']['piece length'] == piece_size
 
 
-def test_callback_is_called_with_singlefile_torrent(file_size, piece_size,
-                                                    create_file, forced_piece_size):
+def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create_file, create_dir, forced_piece_size):
+    display_filespecs(filespecs, piece_size)
+    if len(filespecs) == 1:
+        content_path = create_file(filespecs[0][0], filespecs[0][1])
+    else:
+        content_path = create_dir('content', *filespecs)
+
+    exp_pieces_done = 1
+    seen_filepaths = defaultdict(lambda: 0)
+    def assert_cb_args(torrent, filepath, pieces_done, pieces_total):
+        nonlocal exp_pieces_done
+        assert torrent is t
+        assert pieces_done == exp_pieces_done
+        exp_pieces_done += 1
+        seen_filepaths[os.path.basename(filepath)] += 1
+        assert pieces_total == t.pieces
+
     with forced_piece_size(piece_size):
-        content_path = create_file('file.jpg', file_size)
-        t = torf.Torrent(content_path)
-        cb = mock.Mock(return_value=None)
-        success = t.generate(callback=cb, interval=0)
-        assert t.piece_size == piece_size
-        assert success is True
-        assert cb.call_count == t.pieces
-        exp_call_args_list = [mock.call(t, str(content_path), i, t.pieces)
-                              for i in range(1, t.pieces+1)]
-        for call in cb.call_args_list:
-            exp_call_args_list.remove(call)
-        assert exp_call_args_list == []
-
-
-def test_callback_is_called_with_multifile_torrent(file_size_a, file_size_b, piece_size,
-                                                   create_dir, forced_piece_size):
-    with forced_piece_size(piece_size):
-        content_path = create_dir('content',
-                                  ('a.jpg', file_size_a),
-                                  ('b.jpg', file_size_b))
-        file_a_piece_count = file_size_a / piece_size
-        file_b_piece_count = file_size_b / piece_size
-        print('a.jpg:', file_size_a, '-', file_a_piece_count, 'pieces')
-        print('b.jpg:', file_size_b, '-', file_b_piece_count, 'pieces')
-
-        exp_pieces_done = 1
-        seen_filepaths = defaultdict(lambda: 0)
-        def assert_cb_args(torrent, filepath, pieces_done, pieces_total):
-            nonlocal exp_pieces_done
-            assert torrent is t
-            assert pieces_done == exp_pieces_done
-            exp_pieces_done += 1
-            seen_filepaths[filepath] += 1
-
         t = torf.Torrent(content_path)
         cb = mock.Mock(side_effect=assert_cb_args)
         success = t.generate(callback=cb, interval=0)
-        assert success is True
-        assert t.piece_size == piece_size
 
-        print('Callback calls:')
-        for call in cb.call_args_list:
-            print(call)
-        assert cb.call_count == t.pieces
+    assert success is True
+    assert t.piece_size == piece_size
 
-        print('Seen filepaths:', dict(seen_filepaths))
-        print(file_a_piece_count)
-        exp_seen_filepaths_a = math.floor(file_a_piece_count)
-        exp_seen_filepaths_b = math.ceil(
-            file_b_piece_count +
-            file_a_piece_count - math.floor(file_a_piece_count)
-        )
-        assert seen_filepaths[str(content_path / 'a.jpg')] == exp_seen_filepaths_a
-        assert seen_filepaths[str(content_path / 'b.jpg')] == exp_seen_filepaths_b
+    debug('Callback calls:')
+    for call in cb.call_args_list:
+        debug(call)
+    assert cb.call_count == t.pieces
+
+    exp_filepaths = defaultdict(lambda: 0)
+    for pos in range(0, t.size, piece_size):
+        files = pos2files(pos, filespecs, piece_size)
+        exp_filepaths[files[-1]] += 1
+
+    debug(f'    Seen piece_indexes: {dict(seen_filepaths)}')
+    debug(f'Expected piece_indexes: {dict(exp_filepaths)}')
+    assert seen_filepaths == exp_filepaths
 
 
-def assert_callback_is_called_at_intervals(content_path, monkeypatch):
-    t = torf.Torrent(content_path)
-    monkeypatch.setattr(torf._generate, 'time_monotonic',
-                        mock.Mock(side_effect=range(int(1e9))))
+def test_callback_is_called_at_interval(filespecs, piece_size, create_file, create_dir,
+                                        forced_piece_size, monkeypatch):
+    display_filespecs(filespecs, piece_size)
+    if len(filespecs) == 1:
+        content_path = create_file(filespecs[0][0], filespecs[0][1])
+    else:
+        content_path = create_dir('content', *filespecs)
 
-    for interval in (1, 2, 3):
-        cb = mock.Mock(return_value=None)
-        success = t.generate(callback=cb, interval=interval)
-        assert success is True
-
-        if interval > 1 and t.pieces % interval == 0:
-            exp_call_count = t.pieces // interval + t.pieces % interval + 1
-            print(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} + 1 = {exp_call_count}')
-        else:
-            exp_call_count = t.pieces // interval + t.pieces % interval
-            print(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} = {exp_call_count}')
-
-        assert cb.call_count == exp_call_count
-
-def test_callback_is_called_at_interval_with_singlefile_torrent(file_size, piece_size,
-                                                                create_file, forced_piece_size, monkeypatch):
-    content_path = create_file('file.jpg', file_size)
     with forced_piece_size(piece_size):
-        assert_callback_is_called_at_intervals(content_path, monkeypatch)
+        t = torf.Torrent(content_path)
+        monkeypatch.setattr(torf._generate, 'time_monotonic',
+                            mock.Mock(side_effect=range(int(1e9))))
+        for interval in (1, 2, 3):
+            cb = mock.Mock(return_value=None)
+            success = t.generate(callback=cb, interval=interval)
+            assert success is True
 
-def test_callback_is_called_at_interval_with_multifile_torrent(file_size_a, file_size_b, piece_size,
-                                                               create_dir, forced_piece_size, monkeypatch):
+            if interval > 1 and t.pieces % interval == 0:
+                exp_call_count = t.pieces // interval + t.pieces % interval + 1
+                debug(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} + 1 = {exp_call_count}')
+            else:
+                exp_call_count = t.pieces // interval + t.pieces % interval
+                debug(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} = {exp_call_count}')
+
+            assert cb.call_count == exp_call_count
+
+
+def test_callback_cancels(piece_size, create_file, forced_piece_size):
+    # We need a large file size because generate() might finish before
+    # maybe_cancel() as a chance to cancel.
+    content_path = create_file('file.jpg', piece_size * 100)
     with forced_piece_size(piece_size):
-        content_path = create_dir('content',
-                                  ('a.jpg', file_size_a),
-                                  ('b.jpg', file_size_b))
-        assert_callback_is_called_at_intervals(content_path, monkeypatch)
-
-
-def test_callback_cancels(file_size, piece_size,
-                          create_file, forced_piece_size):
-    with forced_piece_size(piece_size):
-        # We need a larger file_size here because generate() might finish before
-        # maybe_cancel() as a chance to cancel.
-        content_path = create_file('file.jpg', file_size * 10)
-
         def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
-            print(f'{pieces_done} / {pieces_total}')
+            debug(f'{pieces_done} / {pieces_total}')
             if pieces_done / pieces_total > 0.5:
                 return 'STOP THE PRESSES!'
         cb = mock.Mock(side_effect=maybe_cancel)
@@ -234,20 +210,21 @@ def test_callback_cancels(file_size, piece_size,
         assert cb.call_count == math.floor(t.pieces * 0.5) + 1
 
 
-def test_callback_raises_exception(create_file):
-    content_path = create_file(
-        'file.jpg', create_file.random_size(min_pieces=100, max_pieces=200))
-
-    with mock.patch('torf._generate.sha1') as sha1_mock:
-        def mock_digest():
-            return b'\x00' * 20
-        sha1_mock.return_value.digest.side_effect = mock_digest
-        cb = mock.Mock(side_effect=Exception('Argh!'))
-        t = torf.Torrent(content_path)
-        with pytest.raises(Exception) as e:
-            t.generate(callback=cb)
-        assert str(e.value) == 'Argh!'
-        cb.assert_called_once_with(t, str(content_path), 1, t.pieces)
-        # The pool of hashers should be stopped before all pieces are hashed
-        assert sha1_mock.call_count < t.pieces
-        assert not t.is_ready
+def test_callback_raises_exception(piece_size, create_file, forced_piece_size):
+    # We need a large file size so we can test that the hashers actually stop
+    # before all pieces are hashed.
+    content_path = create_file('file.jpg', piece_size * 100)
+    with forced_piece_size(piece_size):
+        with mock.patch('torf._generate.sha1') as sha1_mock:
+            def mock_digest():
+                return b'\x00' * 20
+            sha1_mock.return_value.digest.side_effect = mock_digest
+            cb = mock.Mock(side_effect=Exception('Argh!'))
+            t = torf.Torrent(content_path)
+            with pytest.raises(Exception) as e:
+                t.generate(callback=cb)
+            assert str(e.value) == 'Argh!'
+            cb.assert_called_once_with(t, str(content_path), 1, t.pieces)
+            # The pool of hashers should be stopped before all pieces are hashed
+            assert sha1_mock.call_count < t.pieces
+            assert not t.is_ready
