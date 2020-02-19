@@ -365,6 +365,9 @@ class _FileFaker():
         remaining_bytes = file_beg - bytes_chunked_total + self._file_sizes[filepath]
         _debug(f'faker: Remaining bytes to fake: {file_beg} - {bytes_chunked_total} + '
                f'{self._file_sizes[filepath]} = {remaining_bytes}')
+        if remaining_bytes <= 0:
+            _debug(f'faker: Nothing left to fake')
+            return 0, b''
 
         self._faked_pieces.add(self._calc_piece_index(file_beg+1))
         _debug(f'faker: Initial faked pieces: {self._faked_pieces}')
