@@ -221,12 +221,6 @@ class Reader():
                 if self._stop:
                     _debug(f'reader: Found stop signal while reading from {os.path.basename(filepath)}')
                     break
-                elif self.file_was_skipped(filepath):
-                    _debug(f'reader: Faking {os.path.basename(filepath)} while chunking it')
-                    fake_bytes_chunked, trailing_bytes = self._fake(
-                        filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
-                    bytes_chunked += fake_bytes_chunked
-                    break
                 else:
                     # Concatenate piece_size'd chunks across files until we have
                     # enough for a new piece
@@ -237,6 +231,14 @@ class Reader():
                                f'{self._bytes_chunked + bytes_chunked} bytes in total: {_pretty_bytes(chunk)}')
                         self._push(piece_index, chunk, filepath, exc=None)
                         trailing_bytes = b''
+
+                        # Check if we should stop reading from file
+                        if self.file_was_skipped(filepath):
+                            _debug(f'reader: Faking {os.path.basename(filepath)} while chunking it')
+                            fake_bytes_chunked, trailing_bytes = self._fake(
+                                filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
+                            bytes_chunked += fake_bytes_chunked
+                            break
                     else:
                         # Last chunk in file might be shorter than piece_size
                         trailing_bytes = chunk
