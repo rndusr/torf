@@ -304,18 +304,34 @@ def test_hashes(mktorrent, multifile_content):
 
 
 def test_calculate_piece_size():
-    assert torf.Torrent().calculate_piece_size(1) == 16 * 1024             # minimum is 16 KiB
-    assert torf.Torrent().calculate_piece_size(100 * 2**20) == 128 * 1024  # 100 MiB => 128 KiB
-    assert torf.Torrent().calculate_piece_size(500 * 2**20) == 512 * 1024  # 100 MiB => 512 KiB
-    assert torf.Torrent().calculate_piece_size(999 * 2**20) ==      2**20  # 999 MiB =>  1 MiB
-    assert torf.Torrent().calculate_piece_size(  2 * 2**30) ==      2**20  #   2 GiB =>  1 MiB
-    assert torf.Torrent().calculate_piece_size(  4 * 2**30) ==  2 * 2**20  #   4 GiB =>  2 MiB
-    assert torf.Torrent().calculate_piece_size(  8 * 2**30) ==  4 * 2**20  #   8 GiB =>  4 MiB
-    assert torf.Torrent().calculate_piece_size( 16 * 2**30) ==  8 * 2**20  #  16 GiB =>  8 MiB
-    assert torf.Torrent().calculate_piece_size( 32 * 2**30) ==  8 * 2**20  #  32 GiB =>  8 MiB
-    assert torf.Torrent().calculate_piece_size( 64 * 2**30) ==  8 * 2**20  #  64 GiB =>  8 MiB
-    assert torf.Torrent().calculate_piece_size( 80 * 2**30) == 16 * 2**20  #  80 GiB => 16 MiB
-    assert torf.Torrent().calculate_piece_size(2**1000)     == 16 * 2**20  #  16 MiB is max
+    torf.Torrent.piece_size_min = 1024
+    torf.Torrent.piece_size_max = 256 * 2**20
+    calc = torf.Torrent.calculate_piece_size
+    for size in (1, 10, 100):
+        assert calc(size) == 1024
+    assert calc(100 * 2**20) == 128 * 1024
+    assert calc(500 * 2**20) == 512 * 1024
+    assert calc(  1 * 2**30) ==      2**20
+    assert calc(  2 * 2**30) ==      2**20
+    assert calc(  3 * 2**30) ==  2 * 2**20
+    assert calc(  6 * 2**30) ==  2 * 2**20
+    assert calc(  7 * 2**30) ==  4 * 2**20
+    assert calc(  8 * 2**30) ==  4 * 2**20
+    assert calc(  9 * 2**30) ==  8 * 2**20
+    assert calc( 16 * 2**30) ==  8 * 2**20
+    assert calc( 32 * 2**30) ==  8 * 2**20
+    assert calc( 64 * 2**30) ==  8 * 2**20
+    assert calc( 80 * 2**30) ==  8 * 2**20
+    assert calc( 81 * 2**30) == 16 * 2**20
+    assert calc(160 * 2**30) == 16 * 2**20
+    assert calc(165 * 2**30) == 32 * 2**20
+    assert calc(200 * 2**30) == 32 * 2**20
+    assert calc(300 * 2**30) == 32 * 2**20
+    assert calc(400 * 2**30) == 64 * 2**20
+    assert calc(1000 * 2**30) == 128 * 2**20
+    assert calc(4000 * 2**30) == 256 * 2**20
+    assert calc(40000 * 2**30) == 256 * 2**20
+    assert calc(400000 * 2**30) == 256 * 2**20
 
 
 def test_trackers__correct_type(mktorrent):

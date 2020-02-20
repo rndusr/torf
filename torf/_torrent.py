@@ -417,40 +417,37 @@ class Torrent():
         """
         Return the piece size for a total torrent size of ``size`` bytes
 
-        For torrents up to 1 GiB, the maximum number of pieces is 1000 which
-        means the maximum piece size is 1 MiB.  With increasing torrent size,
-        both the number of pieces and the maximum piece size are increased.  For
-        torrents between 32 and 80 GiB a maximum piece size of 8 MiB is
-        maintained by increasing the number of pieces up to 10,000.  For
-        torrents larger than 80 GiB the piece size is 16 MiB, using as many
-        pieces as necessary.
+        For torrents up to 1 GiB, the maximum number of pieces is 1024 which
+        means the maximum piece size is 1 MiB.  With increasing torrent size
+        both the number of pieces and the maximum piece size are gradually
+        increased up to 10,240 pieces of 8 MiB.  For torrents larger than 80 GiB
+        the piece size is :attr:`piece_size_max` with as many pieces as
+        necessary.
 
         You may override this method if you need a different algorithm.
 
         :raises RuntimeError: if :attr:`size` returns ``None``
         :return: calculated piece size
         """
-        if size <= 2**30:          #  1 GiB /  1024 pieces = 1 MiB max
+        if size <= 2**30:          #  1 GiB / 1024 pieces = 1 MiB max
             pieces = size / 1024
-        elif size <= 4 * 2**30:    #  4 GiB /  2048 pieces = 2 MiB max
+        elif size <= 4 * 2**30:    #  4 GiB / 2048 pieces = 2 MiB max
             pieces = size / 2048
-        elif size <= 6 * 2**30:    #  6 GiB /  3072 pieces = 2 MiB max
+        elif size <= 6 * 2**30:    #  6 GiB / 3072 pieces = 2 MiB max
             pieces = size / 3072
-        elif size <= 8 * 2**30:    #  8 GiB /  2048 pieces = 4 MiB max
+        elif size <= 8 * 2**30:    #  8 GiB / 2048 pieces = 4 MiB max
             pieces = size / 2048
-        elif size <= 16 * 2**30:   # 16 GiB /  2048 pieces = 8 MiB max
+        elif size <= 16 * 2**30:   # 16 GiB / 2048 pieces = 8 MiB max
             pieces = size / 2048
-        elif size <= 32 * 2**30:   # 32 GiB /  4096 pieces = 8 MiB max
+        elif size <= 32 * 2**30:   # 32 GiB / 4096 pieces = 8 MiB max
             pieces = size / 4096
-        elif size <= 64 * 2**30:   # 64 GiB /  8192 pieces = 8 MiB max
+        elif size <= 64 * 2**30:   # 64 GiB / 8192 pieces = 8 MiB max
             pieces = size / 8192
-        elif size <= 80 * 2**30:   # 80 GiB / 10000 pieces = 8 MiB max
-            pieces = size / 10000
         else:
-            return 16 * 2**20      # 16 MiB (absolute maximum)
+            pieces = size / 10240
         # Math is magic!
-        return max(1 << max(0, math.ceil(math.log(pieces, 2))),
-                   cls.piece_size_min)
+        return int(min(max(1 << max(0, math.ceil(math.log(pieces, 2))), cls.piece_size_min),
+                       cls.piece_size_max))
 
     piece_size_min = 16 * 1024  # 16 KiB
     """
