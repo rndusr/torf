@@ -582,7 +582,7 @@ class HasherPool():
                          for i in range(1, workers_count+1)]
 
     def _worker(self):
-        name = threading.current_thread().name
+        # name = threading.current_thread().name
         piece_queue = self._piece_queue
         while not self._stop:
             # _debug(f'{name}: Waiting for next task [{piece_queue.qsize()}]')
@@ -596,7 +596,7 @@ class HasherPool():
         # _debug(f'{name}: Bye, piece_queue has {piece_queue.qsize()} items left')
 
     def _work(self, piece_index, piece, filepath, exc):
-        name = threading.current_thread().name
+        # name = threading.current_thread().name
         # _debug(f'{name}: Working on: {(piece_index, piece, filepath, exc)}')
         if exc is not None:
             # _debug(f'{name}: Forwarding exception for piece_index {piece_index}: {exc!r}')

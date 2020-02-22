@@ -267,7 +267,6 @@ class Torrent():
                                                  size=123456)}}}
         """
         tree = {}   # Complete directory tree
-        prefix = []
         paths = (f.split(os.sep) for f in self.files)
         for path in paths:
             dirpath = path[:-1]  # Path without filename
@@ -922,7 +921,7 @@ class Torrent():
 
         try:
             reader.read()
-        except BaseException as e:
+        except BaseException:
             hasher_threadpool.stop()
             collector_thread.stop()
             raise
@@ -1161,7 +1160,7 @@ class Torrent():
                                    collector_thread.stop)
             try:
                 reader.read()
-            except BaseException as e:
+            except BaseException:
                 hasher_threadpool.stop()
                 collector_thread.stop()
                 raise
@@ -1430,7 +1429,7 @@ class Torrent():
         else:
             try:
                 metainfo_enc = bencode.decode(content)
-            except bencode.DecodingError as e:
+            except bencode.DecodingError:
                 raise error.BdecodeError()
 
             if validate:

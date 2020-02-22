@@ -19,7 +19,6 @@ from collections import defaultdict
 
 from . import _utils as utils
 from . import _errors as error
-from ._torrent import Torrent
 
 class Magnet():
     """

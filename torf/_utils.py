@@ -21,7 +21,6 @@ import collections
 import abc
 import re
 import errno
-import io
 from datetime import datetime
 import itertools
 
