@@ -303,9 +303,9 @@ def test_hashes(mktorrent, multifile_content):
     assert torrent.hashes is None
 
 
-def test_calculate_piece_size():
-    torf.Torrent.piece_size_min = 1024
-    torf.Torrent.piece_size_max = 256 * 2**20
+def test_calculate_piece_size(monkeypatch):
+    monkeypatch.setattr(torf.Torrent, 'piece_size_min', 1024)
+    monkeypatch.setattr(torf.Torrent, 'piece_size_max', 256 * 2**20)
     calc = torf.Torrent.calculate_piece_size
     for size in (1, 10, 100):
         assert calc(size) == 1024
