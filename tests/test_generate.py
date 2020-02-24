@@ -196,7 +196,7 @@ def test_callback_is_called_at_interval(filespecs, piece_size, create_file, crea
 def test_callback_cancels(piece_size, create_file, forced_piece_size):
     # We need a large file size because generate() might finish before
     # maybe_cancel() as a chance to cancel.
-    content_path = create_file('file.jpg', piece_size * 100)
+    content_path = create_file('file.jpg', piece_size * 1000)
     with forced_piece_size(piece_size):
         def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
             debug(f'{pieces_done} / {pieces_total}')
@@ -213,7 +213,7 @@ def test_callback_cancels(piece_size, create_file, forced_piece_size):
 def test_callback_raises_exception(piece_size, create_file, forced_piece_size):
     # We need a large file size so we can test that the hashers actually stop
     # before all pieces are hashed.
-    content_path = create_file('file.jpg', piece_size * 100)
+    content_path = create_file('file.jpg', piece_size * 1000)
     with forced_piece_size(piece_size):
         with mock.patch('torf._generate.sha1') as sha1_mock:
             def mock_digest():
