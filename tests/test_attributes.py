@@ -620,7 +620,7 @@ def test_created_by(mktorrent):
     assert 'created by' not in torrent.metainfo
 
 
-def test_repr_string(singlefile_content, generate_random_Torrent_args):
+def test_repr_string(singlefile_content):
     from datetime import datetime
 
     t = torf.Torrent()
