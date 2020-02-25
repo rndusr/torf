@@ -6,7 +6,7 @@ import random
 import string
 from types import SimpleNamespace
 import time
-from collections import OrderedDict, abc
+from collections import OrderedDict
 import contextlib
 import functools
 import math
@@ -143,61 +143,6 @@ def _display_filespecs(filespecs, file_count, piece_size):
         print(line)
 
 
-
-@pytest.fixture
-def random_seed():
-    @contextlib.contextmanager
-    def _random_seed(seed):
-        random.seed(seed)
-        yield
-        random.seed()
-    return _random_seed
-
-
-TESTDIR_BASE = 'test_files'
-
-letters = string.ascii_letters + string.digits + '    ²öäåóíéëúæøœœï©®¹³¤óíïœ®øï'
-def _randstr():
-    length = random.randint(10, 20)
-    return ''.join(random.choice(letters) for _ in range(length))
-
-
-def _mktempdir(tmpdir_factory, subdir=None):
-    path = tmpdir_factory.mktemp(TESTDIR_BASE, numbered=True)
-    if subdir is None:
-        subdir = ''
-    subdir += ':' + _randstr()
-    return path.mkdir(subdir)
-
-
-def _generate_random_file(dirpath, filename=None, hidden=False):
-    filesize = random.randint(1e3, 1e6)
-    filecontent = bytearray(random.getrandbits(8) for _ in range(filesize))
-    if filename is None:
-        filename = ''
-    filename += ':' + _randstr()
-    if hidden:
-        filename = '.' + filename
-    filepath = os.path.join(TESTDIR_BASE, dirpath, filename)
-    with open(filepath, 'wb') as f:
-        f.write(filecontent)
-    assert os.path.getsize(filepath) == filesize
-    return filepath
-
-def _generate_empty_file(dirpath, filename=None, hidden=False):
-    if filename is None:
-        filename = ''
-    filename += ':' + _randstr()
-    if hidden:
-        filename = '.' + filename
-    filepath = os.path.join(TESTDIR_BASE, dirpath, filename)
-    with open(filepath, 'w') as f:
-        f.write('')
-    assert os.path.getsize(filepath) == 0
-    return str(filepath)
-
-
-
 @pytest.fixture
 def valid_singlefile_metainfo():
     return OrderedDict([
@@ -232,6 +177,43 @@ def valid_multifile_metainfo():
         ]))
     ])
 
+
+@pytest.fixture
+def random_seed():
+    @contextlib.contextmanager
+    def _random_seed(seed):
+        random.seed(seed)
+        yield
+        random.seed()
+    return _random_seed
+
+
+testdir_base = 'test_files'
+letters = string.ascii_letters + string.digits + '    ²öäåóíéëúæøœœï©®¹³¤óíïœ®øï'
+def _randstr():
+    length = random.randint(10, 20)
+    return ''.join(random.choice(letters) for _ in range(length))
+
+def _mktempdir(tmpdir_factory, subdir=None):
+    path = tmpdir_factory.mktemp(testdir_base, numbered=True)
+    if subdir is None:
+        subdir = ''
+    subdir += ':' + _randstr()
+    return path.mkdir(subdir)
+
+def _generate_random_file(dirpath, filename=None, hidden=False):
+    filesize = random.randint(1e3, 1e6)
+    filecontent = bytearray(random.getrandbits(8) for _ in range(filesize))
+    if filename is None:
+        filename = ''
+    filename += ':' + _randstr()
+    if hidden:
+        filename = '.' + filename
+    filepath = os.path.join(testdir_base, dirpath, filename)
+    with open(filepath, 'wb') as f:
+        f.write(filecontent)
+    assert os.path.getsize(filepath) == filesize
+    return filepath
 
 @pytest.fixture(scope='session')
 def singlefile_content(tmpdir_factory):
