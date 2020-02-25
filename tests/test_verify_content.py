@@ -164,7 +164,8 @@ class _TestCaseBase():
             self._exp_exc_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
             if self.skip_file_on_first_error:
                 self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,
-                                                             self.piece_size, self.corruption_positions)
+                                                             self.piece_size, self.corruption_positions,
+                                                             self.files_missing, self.files_missized)
             debug(f'Expected corruptions: {self._exp_exc_corruptions}')
         return self._exp_exc_corruptions
 

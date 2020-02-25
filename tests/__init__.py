@@ -379,15 +379,18 @@ def calc_corruptions(filespecs, piece_size, corruption_positions):
             reported.append(corr_pi)
     return fuzzylist(*corrupt_pieces)
 
-def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_positions):
+def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_positions, files_missing, files_missized):
     """Make every non-first corruption optional"""
     debug(f'Skipping corruptions: {all_corruptions}')
     pis_seen = set()
     files_seen = set()
     corruptions = fuzzylist()
+    files_autoskipped = set(str(f) for f in itertools.chain(files_missing, files_missized))
+    debug(f'  missing or missized: {files_autoskipped}')
     for exc in all_corruptions:
         # Corruptions for files we haven't seen yet must be reported
-        if any(f not in files_seen for f in exc.files):
+        if any(f not in files_seen and f not in files_autoskipped
+               for f in exc.files):
             debug(f'  mandatory: {exc}')
             files_seen.update(exc.files)
             pis_seen.add(exc.piece_index)
