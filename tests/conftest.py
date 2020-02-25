@@ -143,15 +143,15 @@ def _display_filespecs(filespecs, file_count, piece_size):
         print(line)
 
 
-@contextlib.contextmanager
-def _random_seed(seed):
-    random.seed(seed)
-    yield
-    random.seed()
 
 @pytest.fixture
 def random_seed():
-    return functools.partial(_random_seed)
+    @contextlib.contextmanager
+    def _random_seed(seed):
+        random.seed(seed)
+        yield
+        random.seed()
+    return _random_seed
 
 
 TESTDIR_BASE = 'test_files'
