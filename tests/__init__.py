@@ -433,62 +433,30 @@ def calc_pieces_done(filespecs_abspath, piece_size, files_missing=(), files_miss
     # file is missing, we get the same pieces_done value two times, once for "No
     # such file" and maybe again for "Corrupt piece" if the piece contains parts
     # of another file.
-    files_missing = {str(filepath) for filepath in files_missing}
-    debug(f'files_missing: {files_missing}')
-    files_missized = {str(filepath) for filepath in files_missized}
-    debug(f'files_missized: {files_missized}')
-    # List of pieces_done values that are reported at least once
-    pieces_done_list = []
+
+    # Every pieces_done value is reported at least once
+    total_size = sum(filesize for _,filesize in filespecs_abspath)
+    pieces_done_list = list((pi // piece_size) + 1
+                            for pi in range(0, total_size, piece_size))
+    debug(f'  progress reports: {pieces_done_list}')
     # List of pieces_done values that may appear multiple times
     maybes = set()
     # Map pieces_done values to the number of times they may appear
     max_maybe_items = collections.defaultdict(lambda: 1)
-    pos = 0
-    bytes_left = sum(filesize for _,filesize in filespecs_abspath)
-    total_size = bytes_left
-    calc_pd = lambda pos: (pos // piece_size) + 1   # pieces_done
-    debug(f'{bytes_left} bytes left')
-    prev_pi = -1
-    # Iterate over each piece
-    while bytes_left > 0:
-        current_pi = pos // piece_size
-        debug(f'{pos}: pi={current_pi}')
 
-        # Report normal progress (errors are additional)
-        if current_pi != prev_pi:
-            debug(f'  . progress: {calc_pd(pos)}')
-            pieces_done_list.append(calc_pd(pos))
-
-        # Find all files that begin in this piece
-        all_files = pos2files(pos, filespecs_abspath, piece_size)
-        debug(f'  ? all files: {all_files}')
-        files_beg = [f for f in all_files
-                     if file_range(f, filespecs_abspath)[0] // piece_size == current_pi]
-        debug(f'  ? files beginning: {files_beg}')
-
-        # Each file that begins in current_pi and is missing or missized may be
-        # reported once again anywhere between now and the final piece.
-        for f in files_beg:
-            if f in files_missing or f in files_missized:
-                debug(f'  ! missing or missized: {f}')
-                # Because we're working in multiple threads, the corruption may
-                # be reported anywhere from the missing/missized file's first
-                # piece to the final piece in the stream.
-                for pieces_done in range(calc_pd(pos), calc_pd(total_size-1)+1):
-                    maybes.add(pieces_done)
-                    max_maybe_items[pieces_done] += 1
-                debug(f'    + optional: {pieces_done} * {max_maybe_items[pieces_done]}')
-            # Don't report the same missing file again
-            if f in files_missing: files_missing.remove(f)
-            if f in files_missized: files_missized.remove(f)
-
-        _,last_file_end = file_range(all_files[-1], filespecs_abspath)
-        debug(f'  bytes_done = min({piece_size}, {last_file_end} - {pos} + 1)')
-        bytes_done = min(piece_size, last_file_end - pos + 1)
-        bytes_left -= bytes_done
-        pos += bytes_done
-        debug(f'  {bytes_done} bytes done, {bytes_left} bytes left')
-        prev_pi = current_pi
+    # Missing or missized files are reported in addition to progress reports
+    files_missing = {str(filepath) for filepath in files_missing}
+    debug(f'  files_missing: {files_missing}')
+    files_missized = {str(filepath) for filepath in files_missized}
+    debug(f'  files_missized: {files_missized}')
+    for filepath in files_missing.union(files_missized):
+        # Because we're multithreaded, we can't expect the missing/missized file
+        # to be reported at its first piece.  We can't predict at all when the
+        # error is reported.  The only thing we can savely say that for each
+        # missing/missized file, every pieces_done_value *may* increase by 1.
+        for pieces_done_value in pieces_done_list:
+            maybes.add(pieces_done_value)
+            max_maybe_items[pieces_done_value] += 1
 
     fuzzy_pieces_done_list = fuzzylist(*pieces_done_list,
                                        maybe=sorted(maybes),
