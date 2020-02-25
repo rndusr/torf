@@ -143,14 +143,6 @@ def _display_filespecs(filespecs, file_count, piece_size):
         print(line)
 
 
-
-@pytest.fixture
-def random_filespec_indexes():
-    def _random_filespec_indexes(filespecs):
-        file_count = len(filespecs)
-        return sorted(random.sample(range(file_count), random.randint(1, file_count)))
-    return _random_filespec_indexes
-
 @contextlib.contextmanager
 def _random_seed(seed):
     random.seed(seed)
@@ -239,21 +231,6 @@ def valid_multifile_metainfo():
             (b'private', 1)
         ]))
     ])
-
-
-@pytest.fixture(scope='session')
-def singlefile_content_empty(tmpdir_factory):
-    content_path = _mktempdir(tmpdir_factory)
-    filepath = _generate_empty_file(content_path, filename='empty Ꝼile')
-    return SimpleNamespace(path=str(filepath))
-
-@pytest.fixture(scope='session')
-def multifile_content_empty(tmpdir_factory):
-    content_path = _mktempdir(tmpdir_factory, subdir='ęmpty directorý')
-    for _ in range(2):
-        _generate_empty_file(content_path)
-    _generate_empty_file(content_path, hidden=True)
-    return SimpleNamespace(path=str(content_path))
 
 
 @pytest.fixture(scope='session')
