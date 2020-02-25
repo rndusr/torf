@@ -119,8 +119,8 @@ def test_file_in_multifile_torrent_has_wrong_size(create_dir, create_torrent_fil
     with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
-        (content_path / 'b.jpg').write_bytes(create_dir.random_bytes(201))
-        (content_path / 'c.jpg').write_bytes(create_dir.random_bytes(299))
+        (content_path / 'b.jpg').write_bytes(b'\x00' * 201)
+        (content_path / 'c.jpg').write_bytes(b'\x00' * 299)
         assert len((content_path / 'b.jpg').read_bytes()) == 201
         assert len((content_path / 'c.jpg').read_bytes()) == 299
 
@@ -154,7 +154,7 @@ def test_file_in_multifile_torrent_has_wrong_size(create_dir, create_torrent_fil
 
 
 def test_path_is_directory_and_torrent_contains_single_file(create_file, create_dir, create_torrent_file):
-    content_data = create_file.random_bytes(1001)
+    content_data = b'\x00' * 1001
     content_path = create_file('content', content_data)
     with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
@@ -185,8 +185,8 @@ def test_path_is_directory_and_torrent_contains_single_file(create_file, create_
 
 def test_path_is_file_and_torrent_contains_directory(create_file, create_dir, create_torrent_file):
     content_path = create_dir('content',
-                              ('a.jpg', create_dir.random_bytes(1234)),
-                              ('b.jpg', create_dir.random_bytes(234)))
+                              ('a.jpg', b'\x00' * 1234),
+                              ('b.jpg', b'\x00' * 234))
     with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
 
@@ -272,7 +272,7 @@ def test_parent_path_of_multifile_torrent_is_unreadable(create_dir, create_torre
 
 def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torrent_file):
     parent_path = create_dir('parent',
-                             ('file.jpg', create_dir.random_bytes(123)))
+                             ('file.jpg', b'\x00' * 123))
     content_file = str(parent_path / 'file.jpg')
     with create_torrent_file(path=content_file) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
@@ -309,9 +309,9 @@ def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torr
 
 def test_verify__callback_raises_exception(create_dir, create_torrent_file):
     content_path = create_dir('content',
-                              ('a.jpg', create_dir.random_bytes(123)),
-                              ('b.jpg', create_dir.random_bytes(456)),
-                              ('c.jpg', create_dir.random_bytes(789)))
+                              ('a.jpg', b'\x00' * 123),
+                              ('b.jpg', b'\x00' * 456),
+                              ('c.jpg', b'\x00' * 789))
     with create_torrent_file(path=content_path) as torrent_file:
         torrent = torf.Torrent.read(torrent_file)
         cb = mock.MagicMock()
