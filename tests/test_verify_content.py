@@ -193,10 +193,6 @@ class _TestCaseBase():
     def exp_exceptions(self):
         if not hasattr(self, '_exp_exceptions'):
             debug(f'Calculating expected exceptions:')
-            for exc in itertools.chain(self.exp_exc_files_missing,
-                                       self.exp_exc_files_missized,
-                                       self.exp_exc_corruptions):
-                debug(f'  {str(exc)}')
 
             # Exceptions that must be reported
             mandatory = set(self.exp_exc_files_missing)
@@ -524,7 +520,7 @@ def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callba
     tc = mktestcase(filespecs, piece_size)
     # Introduce 2 or 3 errors in random order
     errorizers = [tc.corrupt_stream, tc.delete_file, tc.change_file_size]
-    for _ in range(random.randint(2, 3)):
+    for _ in range(random.randint(2, len(errorizers))):
         errorizer = errorizers.pop(random.choice(range(len(errorizers))))
         errorizer()
     cb = tc.run(with_callback=callback['enabled'],
