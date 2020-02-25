@@ -7,29 +7,29 @@ from unittest.mock import patch
 import os
 
 
-def test_path_doesnt_exist(mktorrent, tmpdir):
-    torrent = mktorrent()
+def test_path_doesnt_exist(create_torrent, tmpdir):
+    torrent = create_torrent()
     with pytest.raises(torf.PathNotFoundError) as excinfo:
         torrent.path = '/this/path/does/not/exist'
     assert excinfo.match('^/this/path/does/not/exist: No such file or directory$')
 
-def test_path_is_empty_directory(mktorrent, tmpdir):
-    torrent = mktorrent()
+def test_path_is_empty_directory(create_torrent, tmpdir):
+    torrent = create_torrent()
     empty = tmpdir.mkdir('empty')
     with pytest.raises(torf.PathEmptyError) as excinfo:
         torrent.path = empty
     assert excinfo.match(f'^{str(empty)}: Empty directory$')
 
-def test_path_is_empty_file(mktorrent, tmpdir):
-    torrent = mktorrent()
+def test_path_is_empty_file(create_torrent, tmpdir):
+    torrent = create_torrent()
     empty = tmpdir.join('empty')
     empty.write('')
     with pytest.raises(torf.PathEmptyError) as excinfo:
         torrent.path = empty
     assert excinfo.match(f'^{str(empty)}: Empty file$')
 
-def test_path_is_directory_with_empty_file(mktorrent, tmpdir):
-    torrent = mktorrent()
+def test_path_is_directory_with_empty_file(create_torrent, tmpdir):
+    torrent = create_torrent()
     empty = tmpdir.mkdir('empty')
     empty_file = empty.join('nothing')
     empty_file.write('')
@@ -37,8 +37,8 @@ def test_path_is_directory_with_empty_file(mktorrent, tmpdir):
         torrent.path = empty
     assert excinfo.match(f'^{str(empty)}: Empty directory$')
 
-def test_path_reset(mktorrent, singlefile_content, multifile_content):
-    torrent = mktorrent()
+def test_path_reset(create_torrent, singlefile_content, multifile_content):
+    torrent = create_torrent()
     torrent.path = singlefile_content.path
     torrent.private = True
     torrent.path = multifile_content.path
@@ -47,8 +47,8 @@ def test_path_reset(mktorrent, singlefile_content, multifile_content):
     assert torrent.metainfo['info']['private'] == True
     assert 'pieces' not in torrent.metainfo['info']
 
-def test_path_switch_from_singlefile_to_multifile(mktorrent, singlefile_content, multifile_content):
-    torrent = mktorrent()
+def test_path_switch_from_singlefile_to_multifile(create_torrent, singlefile_content, multifile_content):
+    torrent = create_torrent()
     torrent.path = singlefile_content.path
     for key in ('piece length', 'name', 'length'):
         assert key in torrent.metainfo['info']
@@ -59,8 +59,8 @@ def test_path_switch_from_singlefile_to_multifile(mktorrent, singlefile_content,
         assert key in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
 
-def test_path_switch_from_multifile_to_singlefile(mktorrent, singlefile_content, multifile_content):
-    torrent = mktorrent()
+def test_path_switch_from_multifile_to_singlefile(create_torrent, singlefile_content, multifile_content):
+    torrent = create_torrent()
     torrent.path = multifile_content.path
     for key in ('piece length', 'name', 'files'):
         assert key in torrent.metainfo['info']
@@ -71,8 +71,8 @@ def test_path_switch_from_multifile_to_singlefile(mktorrent, singlefile_content,
         assert key in torrent.metainfo['info']
     assert 'files' not in torrent.metainfo['info']
 
-def test_path_is_period(mktorrent, multifile_content):
-    torrent = mktorrent()
+def test_path_is_period(create_torrent, multifile_content):
+    torrent = create_torrent()
     cwd = os.getcwd()
     try:
         os.chdir(multifile_content.path)
@@ -81,8 +81,8 @@ def test_path_is_period(mktorrent, multifile_content):
     finally:
         os.chdir(cwd)
 
-def test_path_is_double_period(mktorrent, multifile_content):
-    torrent = mktorrent()
+def test_path_is_double_period(create_torrent, multifile_content):
+    torrent = create_torrent()
     cwd = os.getcwd()
     try:
         os.chdir(multifile_content.path)
@@ -101,16 +101,16 @@ def test_mode(singlefile_content, multifile_content):
     assert torrent.mode == 'multifile'
 
 
-def test_files_singlefile(mktorrent, singlefile_content):
-    torrent = mktorrent()
+def test_files_singlefile(create_torrent, singlefile_content):
+    torrent = create_torrent()
     torrent.path = singlefile_content.path
     exp_files1 = (singlefile_content.exp_metainfo['info']['name'],)
     exp_files2 = (torrent.name,)
     assert tuple(torrent.files) == exp_files1
     assert tuple(torrent.files) == exp_files2
 
-def test_files_multifile(mktorrent, multifile_content):
-    torrent = mktorrent()
+def test_files_multifile(create_torrent, multifile_content):
+    torrent = create_torrent()
     torrent.path = multifile_content.path
     torrent_name = os.path.basename(multifile_content.path)
     exp_files1 = tuple(os.path.join(torrent_name, os.path.join(*fileinfo['path']))
@@ -120,12 +120,12 @@ def test_files_multifile(mktorrent, multifile_content):
     assert tuple(torrent.files) == exp_files1
     assert tuple(torrent.files) == exp_files2
 
-def test_files_with_no_path(mktorrent):
-    torrent = mktorrent()
+def test_files_with_no_path(create_torrent):
+    torrent = create_torrent()
     assert tuple(torrent.files) == ()
 
-def test_files_with_no_name(mktorrent, multifile_content):
-    torrent = mktorrent(path=multifile_content.path)
+def test_files_with_no_name(create_torrent, multifile_content):
+    torrent = create_torrent(path=multifile_content.path)
     torrent.path = None
     del torrent.metainfo['info']['name']
     with pytest.raises(RuntimeError) as e:
@@ -133,16 +133,16 @@ def test_files_with_no_name(mktorrent, multifile_content):
     assert str(e.value) == 'Torrent has no name'
 
 
-def test_filepaths_singlefile(mktorrent, singlefile_content):
-    torrent = mktorrent()
+def test_filepaths_singlefile(create_torrent, singlefile_content):
+    torrent = create_torrent()
     torrent.path = singlefile_content.path
     exp_filepaths1 = (singlefile_content.path,)
     exp_filepaths2 = (torrent.path,)
     assert tuple(torrent.filepaths) == exp_filepaths1
     assert tuple(torrent.filepaths) == exp_filepaths2
 
-def test_filepaths_multifile(mktorrent, multifile_content):
-    torrent = mktorrent()
+def test_filepaths_multifile(create_torrent, multifile_content):
+    torrent = create_torrent()
     torrent.path = multifile_content.path
     exp_filepaths1 = tuple(os.path.join(multifile_content.path, os.path.join(*fileinfo['path']))
                            for fileinfo in multifile_content.exp_metainfo['info']['files'])
@@ -151,18 +151,18 @@ def test_filepaths_multifile(mktorrent, multifile_content):
     assert tuple(torrent.filepaths) == exp_filepaths1
     assert tuple(torrent.filepaths) == exp_filepaths2
 
-def test_filepaths_with_no_path(mktorrent):
-    torrent = mktorrent()
+def test_filepaths_with_no_path(create_torrent):
+    torrent = create_torrent()
     assert tuple(torrent.filepaths) == ()
 
 
-def test_filetree_with_no_path(mktorrent):
-    torrent = mktorrent()
+def test_filetree_with_no_path(create_torrent):
+    torrent = create_torrent()
     assert torrent.filetree == {}
 
 
-def test_exclude(mktorrent, multifile_content, tmpdir):
-    torrent = mktorrent()
+def test_exclude(create_torrent, multifile_content, tmpdir):
+    torrent = create_torrent()
     root = tmpdir.mkdir('content')
     subdir1 = root.mkdir('subdir1')
     file1 = subdir1.join('file1.jpg')
@@ -182,8 +182,8 @@ def test_exclude(mktorrent, multifile_content, tmpdir):
     assert tuple(torrent.filepaths) == (file1, file2)
 
 
-def test_name(mktorrent, singlefile_content, multifile_content):
-    torrent = mktorrent()
+def test_name(create_torrent, singlefile_content, multifile_content):
+    torrent = create_torrent()
     def generate_exp_files(content, torrent_name):
         if content is singlefile_content:
             return (torrent_name,)
@@ -240,16 +240,16 @@ def test_name(mktorrent, singlefile_content, multifile_content):
             assert os.path.exists(fp)
 
 
-def test_size(mktorrent, singlefile_content, multifile_content):
-    torrent = mktorrent()
+def test_size(create_torrent, singlefile_content, multifile_content):
+    torrent = create_torrent()
     assert torrent.size is None
     for content in (singlefile_content, multifile_content):
         torrent.path = content.path
         assert torrent.size == content.exp_attrs.size
 
 
-def test_piece_size(mktorrent, multifile_content):
-    torrent = mktorrent()
+def test_piece_size(create_torrent, multifile_content):
+    torrent = create_torrent()
     torrent.path = multifile_content.path
 
     with pytest.raises(RuntimeError) as excinfo:
@@ -289,8 +289,8 @@ def test_piece_size(mktorrent, multifile_content):
     torrent.metainfo['info']['piece length'] = -12
 
 
-def test_hashes(mktorrent, multifile_content):
-    torrent = mktorrent()
+def test_hashes(create_torrent, multifile_content):
+    torrent = create_torrent()
     assert torrent.hashes is None
     torrent.path = multifile_content.path
     torrent.piece_size = multifile_content.exp_metainfo['info']['piece length']
@@ -334,20 +334,20 @@ def test_calculate_piece_size(monkeypatch):
     assert calc(400000 * 2**30) == 256 * 2**20
 
 
-def test_trackers__correct_type(mktorrent):
-    torrent = mktorrent()
+def test_trackers__correct_type(create_torrent):
+    torrent = create_torrent()
     assert isinstance(torrent.trackers, utils.Trackers)
     torrent.trackers = ('http://foo', ('http://bar', 'http://baz'))
     assert isinstance(torrent.trackers, utils.Trackers)
 
-def test_trackers__set_to_invalid_type(mktorrent):
-    torrent = mktorrent()
+def test_trackers__set_to_invalid_type(create_torrent):
+    torrent = create_torrent()
     with pytest.raises(ValueError) as e:
         torrent.trackers = 17
     assert str(e.value) == 'Must be Iterable, str or None, not int: 17'
 
-def test_trackers__set_to_None(mktorrent):
-    torrent = mktorrent()
+def test_trackers__set_to_None(create_torrent):
+    torrent = create_torrent()
     torrent.trackers = ('http://foo', ('http://bar', 'http://baz'))
     trackers_id = id(torrent.trackers)
     torrent.trackers = None
@@ -355,8 +355,8 @@ def test_trackers__set_to_None(mktorrent):
     assert 'announce' not in torrent.metainfo
     assert 'announce-list' not in torrent.metainfo
 
-def test_trackers__metainfo_is_updated(mktorrent):
-    torrent = mktorrent()
+def test_trackers__metainfo_is_updated(create_torrent):
+    torrent = create_torrent()
     trackers_id = id(torrent.trackers)
     torrent.trackers = ('http://foo', 'http://bar')
     assert id(torrent.trackers) == trackers_id
@@ -389,8 +389,8 @@ def test_trackers__metainfo_is_updated(mktorrent):
     assert 'announce' not in torrent.metainfo
     assert 'announce-list' not in torrent.metainfo
 
-def test_trackers__announce_in_metainfo_is_automatically_included_in_announce_list(mktorrent):
-    torrent = mktorrent()
+def test_trackers__announce_in_metainfo_is_automatically_included_in_announce_list(create_torrent):
+    torrent = create_torrent()
     torrent.metainfo['announce'] = 'http://foo:123'
     torrent.metainfo['announce-list'] = [['http://bar:456', 'http://baz:789'],
                                          ['http://quux']]
@@ -398,8 +398,8 @@ def test_trackers__announce_in_metainfo_is_automatically_included_in_announce_li
     assert torrent.metainfo['announce-list'] == [['http://bar:456', 'http://baz:789'], ['http://quux']]
     assert torrent.metainfo['announce'] == 'http://foo:123'
 
-def test_trackers__announce_in_metainfo_is_not_duplicated(mktorrent):
-    torrent = mktorrent()
+def test_trackers__announce_in_metainfo_is_not_duplicated(create_torrent):
+    torrent = create_torrent()
     torrent.metainfo['announce'] = 'http://foo:123'
     torrent.metainfo['announce-list'] = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
     exp = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
@@ -419,23 +419,23 @@ def test_trackers__announce_in_metainfo_is_not_duplicated(mktorrent):
     assert torrent.metainfo['announce-list'] == exp
     assert torrent.metainfo['announce'] == 'http://foo:123'
 
-def test_trackers__single_url_only_sets_announce_in_metainfo(mktorrent):
-    torrent = mktorrent()
+def test_trackers__single_url_only_sets_announce_in_metainfo(create_torrent):
+    torrent = create_torrent()
     torrent.trackers = 'http://foo:123'
     assert torrent.trackers == [['http://foo:123']]
     assert 'announce-list' not in torrent.metainfo
     assert torrent.metainfo['announce'] == 'http://foo:123'
 
-def test_trackers__multiple_urls_sets_announce_and_announcelist_in_metainfo(mktorrent):
-    torrent = mktorrent()
+def test_trackers__multiple_urls_sets_announce_and_announcelist_in_metainfo(create_torrent):
+    torrent = create_torrent()
     torrent.trackers = ['http://foo:123', 'http://bar:456', 'http://baz:789']
     exp = [['http://foo:123'], ['http://bar:456'], ['http://baz:789']]
     assert torrent.trackers == exp
     assert torrent.metainfo['announce-list'] == exp
     assert torrent.metainfo['announce'] == 'http://foo:123'
 
-def test_trackers__multiple_lists_of_urls_sets_announce_and_announcelist_in_metainfo(mktorrent):
-    torrent = mktorrent()
+def test_trackers__multiple_lists_of_urls_sets_announce_and_announcelist_in_metainfo(create_torrent):
+    torrent = create_torrent()
     torrent.trackers = [['http://foo:123', 'http://bar:456'],
                         ['http://asdf'],
                         ['http://a', 'http://b', 'http://c']]
@@ -446,15 +446,15 @@ def test_trackers__multiple_lists_of_urls_sets_announce_and_announcelist_in_meta
     assert torrent.metainfo['announce-list'] == exp
     assert torrent.metainfo['announce'] == 'http://foo:123'
 
-def test_trackers__no_trackers(mktorrent):
-    torrent = mktorrent()
+def test_trackers__no_trackers(create_torrent):
+    torrent = create_torrent()
     torrent.trackers = ()
     assert torrent.trackers == []
     assert 'announce-list' not in torrent.metainfo
     assert 'announce' not in torrent.metainfo
 
-def test_trackers__addition(mktorrent):
-    torrent = mktorrent()
+def test_trackers__addition(create_torrent):
+    torrent = create_torrent()
     torrent.trackers = 'http://foo'
     torrent.trackers += ('http://bar',)
     assert torrent.trackers == [['http://foo'], ['http://bar']]
@@ -462,14 +462,14 @@ def test_trackers__addition(mktorrent):
     assert torrent.metainfo['announce'] == 'http://foo'
 
 
-def test_webseeds__correct_type(mktorrent):
-    torrent = mktorrent()
+def test_webseeds__correct_type(create_torrent):
+    torrent = create_torrent()
     for value in ((), 'http://foo', ['http://foo', 'http://bar'], None):
         torrent.webseeds = value
         assert isinstance(torrent.webseeds, utils.URLs)
 
-def test_webseeds__metainfo_is_updated_automatically(mktorrent):
-    torrent = mktorrent(webseeds=())
+def test_webseeds__metainfo_is_updated_automatically(create_torrent):
+    torrent = create_torrent(webseeds=())
     assert torrent.webseeds == []
     assert 'url-list' not in torrent.metainfo
     torrent.webseeds = ['http://foo']
@@ -479,33 +479,33 @@ def test_webseeds__metainfo_is_updated_automatically(mktorrent):
     assert torrent.webseeds == []
     assert 'url-list' not in torrent.metainfo
 
-def test_webseeds__urls_are_validated(mktorrent):
-    torrent = mktorrent()
+def test_webseeds__urls_are_validated(create_torrent):
+    torrent = create_torrent()
     with pytest.raises(errors.URLError) as e:
         torrent.webseeds = ['http://foo', 'http://foo:bar']
     assert str(e.value) == 'http://foo:bar: Invalid URL'
 
-def test_webseeds__non_iterable(mktorrent):
-    torrent = mktorrent()
+def test_webseeds__non_iterable(create_torrent):
+    torrent = create_torrent()
     with pytest.raises(ValueError) as e:
         torrent.webseeds = 23
     assert str(e.value) == 'Must be Iterable, str or None, not int: 23'
 
-def test_webseeds__addition(mktorrent):
-    torrent = mktorrent()
+def test_webseeds__addition(create_torrent):
+    torrent = create_torrent()
     torrent.webseeds = ['http://foo']
     torrent.webseeds += ['http://bar']
     assert torrent.webseeds == ['http://foo', 'http://bar']
 
 
-def test_httpseeds__correct_type(mktorrent):
-    torrent = mktorrent()
+def test_httpseeds__correct_type(create_torrent):
+    torrent = create_torrent()
     for value in ((), 'http://foo', ['http://foo', 'http://bar'], None):
         torrent.httpseeds = value
         assert isinstance(torrent.httpseeds, utils.URLs)
 
-def test_httpseeds__metainfo_is_updated_automatically(mktorrent):
-    torrent = mktorrent(httpseeds=())
+def test_httpseeds__metainfo_is_updated_automatically(create_torrent):
+    torrent = create_torrent(httpseeds=())
     assert torrent.httpseeds == []
     assert 'httpseeds' not in torrent.metainfo
     torrent.httpseeds = ['http://foo']
@@ -515,48 +515,48 @@ def test_httpseeds__metainfo_is_updated_automatically(mktorrent):
     assert torrent.httpseeds == []
     assert 'httpseeds' not in torrent.metainfo
 
-def test_httpseeds__urls_are_validated(mktorrent):
-    torrent = mktorrent()
+def test_httpseeds__urls_are_validated(create_torrent):
+    torrent = create_torrent()
     with pytest.raises(errors.URLError) as e:
         torrent.httpseeds = ['http://foo', 'http://foo:bar']
     assert str(e.value) == 'http://foo:bar: Invalid URL'
 
-def test_httpseeds__non_iterable(mktorrent):
-    torrent = mktorrent()
+def test_httpseeds__non_iterable(create_torrent):
+    torrent = create_torrent()
     with pytest.raises(ValueError) as e:
         torrent.httpseeds = 23
     assert str(e.value) == 'Must be Iterable, str or None, not int: 23'
 
-def test_httpseeds__addition(mktorrent):
-    torrent = mktorrent()
+def test_httpseeds__addition(create_torrent):
+    torrent = create_torrent()
     torrent.httpseeds = ['http://foo']
     torrent.httpseeds += ['http://bar']
     assert torrent.httpseeds == ['http://foo', 'http://bar']
 
 
-def test_leaving_private_unset_does_not_include_it_in_metainfo(mktorrent):
-    torrent = mktorrent()
+def test_leaving_private_unset_does_not_include_it_in_metainfo(create_torrent):
+    torrent = create_torrent()
     assert torrent.private is False
     assert 'private' not in torrent.metainfo['info']
 
-def test_setting_private_always_includes_it_in_metainfo(mktorrent):
-    torrent = mktorrent()
+def test_setting_private_always_includes_it_in_metainfo(create_torrent):
+    torrent = create_torrent()
     for private in (True, False):
-        torrent = mktorrent(private=private)
+        torrent = create_torrent(private=private)
         assert torrent.private is private
         assert 'private' in torrent.metainfo['info']
 
-def test_setting_private_to_None_removes_it_from_metainfo(mktorrent):
-    torrent = mktorrent()
+def test_setting_private_to_None_removes_it_from_metainfo(create_torrent):
+    torrent = create_torrent()
     for private in (True, False):
-        torrent = mktorrent(private=private)
+        torrent = create_torrent(private=private)
         assert torrent.private is private
         torrent.private = None
         assert torrent.private is False
         assert 'private' not in torrent.metainfo['info']
 
-def test_setting_private_enforces_boolean_values(mktorrent):
-    torrent = mktorrent()
+def test_setting_private_enforces_boolean_values(create_torrent):
+    torrent = create_torrent()
     torrent.private = 'this evaluates to True'
     assert torrent.private is True
     assert torrent.metainfo['info']['private'] is True
@@ -566,8 +566,8 @@ def test_setting_private_enforces_boolean_values(mktorrent):
     assert torrent.metainfo['info']['private'] is False
 
 
-def test_comment(mktorrent):
-    torrent = mktorrent()
+def test_comment(create_torrent):
+    torrent = create_torrent()
     torrent.comment = ''
     assert torrent.comment == ''
     assert torrent.metainfo['comment'] == ''
@@ -577,8 +577,8 @@ def test_comment(mktorrent):
     assert 'comment' not in torrent.metainfo
 
 
-def test_source(mktorrent):
-    torrent = mktorrent()
+def test_source(create_torrent):
+    torrent = create_torrent()
     torrent.source = ''
     assert torrent.source == ''
     assert torrent.metainfo['info']['source'] == ''
@@ -588,10 +588,10 @@ def test_source(mktorrent):
     assert 'source' not in torrent.metainfo['info']
 
 
-def test_creation_date(mktorrent):
+def test_creation_date(create_torrent):
     from datetime import datetime
 
-    torrent = mktorrent()
+    torrent = create_torrent()
     torrent.creation_date = 1234
     assert isinstance(torrent.creation_date, datetime)
     assert isinstance(torrent.metainfo['creation date'], datetime)
@@ -609,8 +609,8 @@ def test_creation_date(mktorrent):
         torrent.creation_date = [1, 2, 3]
 
 
-def test_created_by(mktorrent):
-    torrent = mktorrent()
+def test_created_by(create_torrent):
+    torrent = create_torrent()
     torrent.created_by = 'somebody'
     assert torrent.created_by == 'somebody'
     assert torrent.metainfo['created by'] == 'somebody'

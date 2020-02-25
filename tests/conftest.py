@@ -241,40 +241,6 @@ def valid_multifile_metainfo():
     ])
 
 
-@pytest.fixture
-def generate_random_Torrent_args():
-    def f():
-        args = {
-            'exclude' : random.choice(([], ['no*matches'])),
-            'trackers' : random.choice(([],
-                                        ['http://localhost:123/announce'],
-                                        ['http://localhost:123/announce', 'http://localhost:456/announce'],
-                                        [['http://localhost:123/announce', 'http://localhost:456/announce'],
-                                         ['http://localhost:789/announce', 'http://localhost:111/announce']])),
-            'webseeds' : random.choice(([],
-                                        ['http://localhost:123/webseed'],
-                                        ['http://localhost:123/webseed', 'http://localhost:456/webseed'])),
-            'httpseeds' : random.choice(([],
-                                         ['http://localhost:123/httpseed'],
-                                         ['http://localhost:123/httpseed', 'http://localhost:456/httpseed'])),
-            'comment'       : _randstr(),
-            'creation_date' : random.randint(0, int(time.time())),
-            'created_by'    : _randstr(),
-            'source'        : _randstr(),
-            'piece_size'    : random.choice((None, 2**14, 2**15, 2**16, 2**17, 2**18, 2**19, 2**20)),
-        }
-
-        # Remove random items from args
-        return dict(random.sample(tuple(args.items()), random.randint(0, len(args))))
-    return f
-
-@pytest.fixture
-def mktorrent(generate_random_Torrent_args):
-    def _mktorrent(**kwargs):
-        return torf.Torrent(**{**generate_random_Torrent_args(),
-                               **kwargs})
-    return _mktorrent
-
 @pytest.fixture(scope='session')
 def singlefile_content_empty(tmpdir_factory):
     content_path = _mktempdir(tmpdir_factory)
@@ -437,19 +403,45 @@ def create_dir(tmp_path):
 
 
 @pytest.fixture
-def generated_singlefile_torrent(mktorrent, singlefile_content):
-    torrent = mktorrent()
-    torrent.path = singlefile_content.path
+def generated_singlefile_torrent(create_torrent, singlefile_content):
+    torrent = create_torrent(path=singlefile_content.path)
     torrent.generate()
     return torrent
 
 @pytest.fixture
-def generated_multifile_torrent(mktorrent, multifile_content):
-    torrent = mktorrent()
-    torrent.path = multifile_content.path
+def generated_multifile_torrent(create_torrent, multifile_content):
+    torrent = create_torrent(path=multifile_content.path)
     torrent.generate()
     return torrent
 
+@pytest.fixture
+def create_torrent():
+    def _create_torrent(**kwargs):
+        rand_kwargs = {
+            'exclude' : random.choice(([], ['no*matches'])),
+            'trackers' : random.choice(([],
+                                        ['http://localhost:123/announce'],
+                                        ['http://localhost:123/announce', 'http://localhost:456/announce'],
+                                        [['http://localhost:123/announce', 'http://localhost:456/announce'],
+                                         ['http://localhost:789/announce', 'http://localhost:111/announce']])),
+            'webseeds' : random.choice(([],
+                                        ['http://localhost:123/webseed'],
+                                        ['http://localhost:123/webseed', 'http://localhost:456/webseed'])),
+            'httpseeds' : random.choice(([],
+                                         ['http://localhost:123/httpseed'],
+                                         ['http://localhost:123/httpseed', 'http://localhost:456/httpseed'])),
+            'comment'       : _randstr(),
+            'creation_date' : random.randint(0, int(time.time())),
+            'created_by'    : _randstr(),
+            'source'        : _randstr(),
+            'piece_size'    : random.choice((None, 2**14, 2**15, 2**16, 2**17, 2**18, 2**19, 2**20)),
+        }
+        # Remove random items from args
+        rand_kwargs = dict(random.sample(tuple(rand_kwargs.items()),
+                                         random.randint(0, len(rand_kwargs))))
+        # Overload given random kwargs with kwargs
+        return torf.Torrent(**{**rand_kwargs, **kwargs})
+    return _create_torrent
 
 @pytest.fixture
 def create_torrent_file(tmp_path):
@@ -465,7 +457,6 @@ def create_torrent_file(tmp_path):
             if os.path.exists(torrent_file):
                 os.remove(torrent_file)
     return functools.partial(_create_torrent_file, tmp_path)
-
 
 @pytest.fixture
 def forced_piece_size(pytestconfig):

@@ -3,23 +3,23 @@ import torf
 import pytest
 import os
 
-def test_remove__singlefile_torrent(mktorrent, singlefile_content):
-    t = mktorrent(path=singlefile_content.path)
+def test_remove__singlefile_torrent(create_torrent, singlefile_content):
+    t = create_torrent(path=singlefile_content.path)
     with pytest.raises(RuntimeError) as e:
         t.remove('anything')
     assert str(e.value) == 'Cannot remove files from single-file torrent'
     assert t.path == singlefile_content.path
 
-def test_remove__no_path_set(mktorrent):
-    t = mktorrent()
+def test_remove__no_path_set(create_torrent):
+    t = create_torrent()
     assert t.path is None
     with pytest.raises(RuntimeError) as e:
         t.remove('anything')
     assert str(e.value) == 'No files specified in torrent'
     assert t.path is None
 
-def test_remove__path_is_string(mktorrent):
-    t = mktorrent()
+def test_remove__path_is_string(create_torrent):
+    t = create_torrent()
     t.metainfo['info']['name'] = 'Torrent'
     t.metainfo['info']['files'] = [
         {'length': 123, 'path': ['foo']},
@@ -34,8 +34,8 @@ def test_remove__path_is_string(mktorrent):
         {'length': 123, 'path': ['baz', 'two']},
     ]
 
-def test_remove__path_is_iterable(mktorrent):
-    t = mktorrent()
+def test_remove__path_is_iterable(create_torrent):
+    t = create_torrent()
     t.metainfo['info']['name'] = 'Torrent'
     t.metainfo['info']['files'] = [
         {'length': 123, 'path': ['foo']},
@@ -53,8 +53,8 @@ def test_remove__path_is_iterable(mktorrent):
         {'length': 123, 'path': ['baz', 'one']},
     ]
 
-def test_remove__path_is_directory(mktorrent):
-    t = mktorrent()
+def test_remove__path_is_directory(create_torrent):
+    t = create_torrent()
     t.metainfo['info']['name'] = 'Torrent'
     t.metainfo['info']['files'] = [
         {'length': 123, 'path': ['foo']},
@@ -68,7 +68,7 @@ def test_remove__path_is_directory(mktorrent):
         {'length': 123, 'path': ['bar']},
     ]
 
-def test_remove__after_generate(mktorrent, tmpdir):
+def test_remove__after_generate(create_torrent, tmpdir):
     content = tmpdir.mkdir('Torrent')
     content_file1 = content.join('foo')
     content_file2 = content.join('bar')
@@ -76,7 +76,7 @@ def test_remove__after_generate(mktorrent, tmpdir):
     content_file1.write('something')
     content_file2.write('something else')
     content_file3.write('this')
-    t = mktorrent(path=content)
+    t = create_torrent(path=content)
     t.generate()
     assert 'pieces' in t.metainfo['info']
     t.remove(('Torrent', 'foo'))

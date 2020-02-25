@@ -45,8 +45,8 @@ def test_invalid_metainfo():
     assert excinfo.match("Invalid value: <class 'Exception'>")
 
 
-def test_metainfo_sort_order(mktorrent):
-    torrent = mktorrent()
+def test_metainfo_sort_order(create_torrent):
+    torrent = create_torrent()
     md_conv = torrent.convert()
     exp_keys = sorted(bytes(key, encoding='utf-8', errors='replace')
                       for key in torrent.metainfo)
