@@ -282,7 +282,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         # does not produce any corruption errors because the "No such file"
         # error is enough.
 
-    def change_file_size(self):
+    def change_file_size(self, index=None):
         # Check if this file already has other errors
         if self.corruption_positions or self.files_missing:
             return
@@ -397,9 +397,12 @@ class _TestCaseMultifile(_TestCaseBase):
                 debug(f'  only skipped files are affected by corruption at position {corrpos}')
                 self.corruption_positions.remove(corrpos)
 
-    def change_file_size(self):
+    def change_file_size(self, index=None):
         # Pick random file
-        filename = random.choice(tuple(self.content_original))
+        if index is None:
+            filename = random.choice(tuple(self.content_original))
+        else:
+            filename = tuple(self.content_original)[index]
         filepath = self.content_path / filename
         debug(f'Changing file size in file system: {filepath}')
 
