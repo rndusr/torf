@@ -325,10 +325,6 @@ def _random_bytes(length):
     assert len(b) == length
     return b
 
-@pytest.fixture
-def random_bytes(*args, **kwargs):
-    return _random_bytes
-
 def _random_size(piece_size=None, min_pieces=1, max_pieces=10):
     if piece_size is None:
         piece_size = torf.Torrent.piece_size_min
