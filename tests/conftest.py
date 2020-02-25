@@ -331,10 +331,7 @@ def create_file(tmp_path):
         filepath = tmp_path / filename
         _write_content_file(filepath, spec)
         return filepath
-    func = functools.partial(_create_file, tmp_path)
-    func.random_size = _random_size
-    func.random_bytes = _random_bytes
-    return func
+    return functools.partial(_create_file, tmp_path)
 
 @pytest.fixture
 def create_dir(tmp_path):
@@ -352,11 +349,7 @@ def create_dir(tmp_path):
             filepath = dirpath / parts[-1]
             _write_content_file(filepath, spec)
         return content_path
-    func = functools.partial(_create_dir, tmp_path)
-    func.random_size = _random_size
-    func.random_bytes = _random_bytes
-    return func
-
+    return functools.partial(_create_dir, tmp_path)
 
 
 @pytest.fixture
