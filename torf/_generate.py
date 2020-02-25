@@ -326,7 +326,8 @@ class Reader():
         elif piece is not None:
             piece = bytes(piece)
         self._piece_queue.put((int(piece_index), piece, filepath, exc))
-        _debug(f'reader: >>> Pushed piece_index {piece_index}: {piece}, {os.path.basename(filepath)}, {exc}')
+        _debug(f'reader: >>> Pushed piece_index {piece_index}: '
+               f'{_pretty_bytes(piece)}, {os.path.basename(filepath)}, {exc}')
 
     def stop(self):
         if not self._stop:
@@ -597,7 +598,7 @@ class HasherPool():
 
     def _work(self, piece_index, piece, filepath, exc):
         # name = threading.current_thread().name
-        # _debug(f'{name}: Working on: {(piece_index, piece, filepath, exc)}')
+        # _debug(f'{name}: Working on: ({piece_index}, {_pretty_bytes(piece)}, {filepath}, {exc})')
         if exc is not None:
             # _debug(f'{name}: Forwarding exception for piece_index {piece_index}: {exc!r}')
             self._hash_queue.put((piece_index, piece, filepath, exc))
@@ -605,8 +606,10 @@ class HasherPool():
             # _debug(f'{name}: Sending dummy piece for piece_index {piece_index} of skipped file {os.path.basename(filepath)}')
             self._hash_queue.put((piece_index, None, filepath, None))
         else:
+            # _debug(f'{name}: Hashing piece_index {piece_index}: {piece if piece is None else piece.hex()}')
             piece_hash = sha1(piece).digest() if piece is not None else None
-            # _debug(f'{name}: Sending hash of piece_index {piece_index}')
+            # _debug(f'{name}: Sending hash of piece_index {piece_index}: '
+            #        f'{piece_hash if piece_hash is None else piece_hash.hex()}')
             self._hash_queue.put((piece_index, piece_hash, filepath, exc))
 
     def stop(self):
