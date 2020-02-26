@@ -523,7 +523,7 @@ class Torrent():
         iterable of URLs or an iterable of iterables of URLs (or "tiers").
 
         This property also automatically sets :attr:`metainfo`\ ``['announce']``
-        and :attr:`metainfo`\ ``['announce-list']`` every time it set or
+        and :attr:`metainfo`\ ``['announce-list']`` every time it is set or
         manipulated according to these rules:
 
         - If it contains a single URL, :attr:`metainfo`\ ``['announce']`` is set
