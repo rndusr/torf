@@ -6,6 +6,7 @@ __pycache__/
 # Pytest cache
 .cache
 .pytest_cache
+.tox
 
 # Virtual environment
 venv
