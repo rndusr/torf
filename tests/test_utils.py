@@ -275,33 +275,25 @@ def test_URLs_is_equal_to_any_combination_of_the_same_urls():
 
 def test_URLs_calls_callback_after_appending():
     cb = mock.MagicMock()
-    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
-                      callback=cb)
-    cb.reset_mock()
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'), callback=cb)
     urls.append('http://baz:789')
     cb.assert_called_once_with(urls)
 
 def test_URLs_calls_callback_after_removing():
     cb = mock.MagicMock()
-    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
-                      callback=cb)
-    cb.reset_mock()
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'), callback=cb)
     urls.remove('http://bar:456')
     cb.assert_called_once_with(urls)
 
 def test_URLs_calls_callback_after_inserting():
     cb = mock.MagicMock()
-    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
-                      callback=cb)
-    cb.reset_mock()
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'), callback=cb)
     urls.insert(0, 'http://baz:789')
     cb.assert_called_once_with(urls)
 
 def test_URLs_calls_callback_after_clearing():
     cb = mock.MagicMock()
-    urls = utils.URLs(('http://foo:123', 'http://bar:456'),
-                      callback=cb)
-    cb.reset_mock()
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'), callback=cb)
     urls.clear()
     cb.assert_called_once_with(urls)
 
