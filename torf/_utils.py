@@ -156,6 +156,7 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
     empty: Whether to include empty files
 
     Raise PathNotFoundError if path doesn't exist.
+    Raise ReadError if path doesn't look readable.
     """
     if not os.path.exists(path):
         raise error.PathNotFoundError(path)
@@ -187,6 +188,7 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
                         filepaths.append(filepath)
 
         return sorted(filepaths, key=lambda fp: fp.casefold())
+
 
 class URLs(collections.abc.MutableSequence):
     """Auto-flattening list of announce URLs with change callback"""
