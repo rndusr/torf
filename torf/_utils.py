@@ -275,7 +275,7 @@ class URL(str):
             raise error.URLError(url)
 
 class URLs(MonitoredList):
-    """Auto-flattening list of announce URLs with change callback"""
+    """Auto-flattening list of `:class:URL` objects with change callback"""
     def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
         self._get_known_urls = _get_known_urls
         if isinstance(urls, str):
