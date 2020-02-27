@@ -278,13 +278,11 @@ class URLs(MonitoredList):
     """Auto-flattening list of announce URLs with change callback"""
     def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
         self._get_known_urls = _get_known_urls
-        super().__init__((), callback=callback, type=URL, filter_func=self._filter_func)
-        with self.callback_disabled():
-            if isinstance(urls, str):
-                self.append(urls)
-            else:
-                for url in flatten(urls):
-                    self.append(url)
+        if isinstance(urls, str):
+            urls = (urls,)
+        else:
+            urls = flatten(urls)
+        super().__init__(urls, callback=callback, type=URL, filter_func=self._filter_func)
 
     def _filter_func(self, url):
         # _get_known_urls is a hack for the Trackers class to deduplicate across
