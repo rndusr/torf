@@ -304,7 +304,7 @@ class URLs(MonitoredList):
         return result
 
 class Trackers(collections.abc.MutableSequence):
-    """List of deduplicated :class:`URLs` instances with change callback"""
+    """List of :class:`URLs` instances with change callback"""
     def __init__(self, *tiers, callback=None):
         self._callback = None
         self._tiers = []
