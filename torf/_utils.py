@@ -23,6 +23,7 @@ import re
 import errno
 from datetime import datetime
 import itertools
+import contextlib
 
 from . import _errors as error
 
@@ -287,6 +288,13 @@ class Trackers(collections.abc.MutableSequence):
     def flat(self):
         """Tuple of all URLs of all tiers"""
         return tuple(flatten(self._tiers))
+
+    @contextlib.contextmanager
+    def callback_disabled(self):
+        cb = self._callback
+        self._callback = None
+        yield
+        self._callback = cb
 
     def _tier_changed(self, tier):
         # Auto-remove empty tiers
