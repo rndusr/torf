@@ -170,12 +170,13 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
 
 class MonitoredList(collections.abc.MutableSequence):
     """List with change callback"""
-    def __init__(self, items, callback=None, type=None):
-        self._type = type
+    def __init__(self, items, callback=None, type=None, filter_func=lambda item: item):
         self._items = []
-        for item in items:
-            self._items.append(self._coerce(item))
+        self._type = type
+        self._filter_func = filter_func
         self._callback = callback
+        with self.callback_disabled():
+            self.replace(items)
 
     @contextlib.contextmanager
     def callback_disabled(self):
@@ -184,30 +185,30 @@ class MonitoredList(collections.abc.MutableSequence):
         yield
         self._callback = cb
 
-    def _coerce(self, item):
-        if self._type is not None:
-            return self._type(item)
-        else:
-            return item
-
     def __getitem__(self, item):
         return self._items[item]
-
-    def __setitem__(self, item, value):
-        value = self._coerce(value)
-        if value not in self._items:
-            self._items[item] = value
-        if self._callback is not None:
-            self._callback(self)
 
     def __delitem__(self, item):
         del self._items[item]
         if self._callback is not None:
             self._callback(self)
 
+    def _coerce(self, item):
+        if self._type is not None:
+            return self._type(item)
+        else:
+            return item
+
+    def __setitem__(self, item, value):
+        value = self._filter_func(self._coerce(value))
+        if value is not None:
+            self._items[item] = value
+        if self._callback is not None:
+            self._callback(self)
+
     def insert(self, index, value):
-        value = self._coerce(value)
-        if value not in self._items:
+        value = self._filter_func(self._coerce(value))
+        if value is not None:
             self._items.insert(index, value)
         if self._callback is not None:
             self._callback(self)
@@ -216,8 +217,10 @@ class MonitoredList(collections.abc.MutableSequence):
         if not isinstance(items, Iterable):
             raise ValueError(f'Not an iterable: {urls!r}')
         self._items.clear()
-        for item in items:
-            self._items.append(self._coerce(item))
+        for value in items:
+            value = self._filter_func(self._coerce(value))
+            if value is not None:
+                self._items.append(self._coerce(value))
         if self._callback is not None:
             self._callback(self)
 
@@ -253,7 +256,6 @@ class MonitoredList(collections.abc.MutableSequence):
     def __repr__(self):
         return repr(self._items)
 
-
 def is_url(url):
     """Return whether `url` is a valid URL"""
     try:
@@ -272,14 +274,11 @@ class URL(str):
         if not is_url(url):
             raise error.URLError(url)
 
-    def __repr__(self):
-        return f'{type(self).__name__}({super().__repr__()})'
-
 class URLs(MonitoredList):
     """Auto-flattening list of announce URLs with change callback"""
     def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
-        super().__init__((), callback=callback, type=URL)
         self._get_known_urls = _get_known_urls
+        super().__init__((), callback=callback, type=URL, filter_func=self._filter_func)
         with self.callback_disabled():
             if isinstance(urls, str):
                 self.append(urls)
@@ -287,21 +286,11 @@ class URLs(MonitoredList):
                 for url in flatten(urls):
                     self.append(url)
 
-    def _is_duplicate(self, url):
-        return url in self._items or url in self._get_known_urls()
-
-    def __setitem__(self, item, value):
-        if not self._is_duplicate(URL(value)):
-            super().__setitem__(item, value)
-
-    def insert(self, index, value):
-        if not self._is_duplicate(URL(value)):
-            super().insert(index, value)
-
-    def __add__(self, other):
-        result = super().__add__(other)
-        result._get_known_urls = self._get_known_urls
-        return result
+    def _filter_func(self, url):
+        # _get_known_urls is a hack for the Trackers class to deduplicate across
+        # multiple tiers.
+        if url not in self._items and url not in self._get_known_urls():
+            return url
 
 class Trackers(collections.abc.MutableSequence):
     """List of :class:`URLs` instances with change callback"""
