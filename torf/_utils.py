@@ -41,28 +41,6 @@ def is_md5sum(value):
     return bool(_md5sum_regex.match(value))
 
 
-def is_url(url):
-    """Return whether `url` is a valid URL"""
-    try:
-        u = urlparse(url)
-        u.port  # Trigger 'invalid port' exception
-    except Exception:
-        return False
-    else:
-        if not u.scheme or not u.netloc:
-            return False
-        return True
-
-
-def validated_url(url):
-    """Return url if valid, raise URLError otherwise"""
-    url = str(url)
-    if is_url(url):
-        return url
-    else:
-        raise error.URLError(url)
-
-
 def read_chunks(filepath, chunksize, prepend=bytes()):
     """
     Generator that yields chunks from file
@@ -190,67 +168,73 @@ def filepaths(path, exclude=(), hidden=True, empty=True):
         return sorted(filepaths, key=lambda fp: fp.casefold())
 
 
-class URLs(collections.abc.MutableSequence):
-    """Auto-flattening list of announce URLs with change callback"""
-    def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
-        self._callback = None
-        self._get_known_urls = _get_known_urls
-        if isinstance(urls, str):
-            urls = [urls]
-        self._urls = []
-        for url in flatten(urls):
-            self.append(url)
+class MonitoredList(collections.abc.MutableSequence):
+    """List with change callback"""
+    def __init__(self, items, callback=None, type=None):
+        self._type = type
+        self._items = []
+        for item in items:
+            self._items.append(self._coerce(item))
         self._callback = callback
 
-    def _filtered_url(self, url):
-        if url not in self._urls and url not in self._get_known_urls():
-            return url
+    @contextlib.contextmanager
+    def callback_disabled(self):
+        cb = self._callback
+        self._callback = None
+        yield
+        self._callback = cb
+
+    def _coerce(self, item):
+        if self._type is not None:
+            return self._type(item)
+        else:
+            return item
 
     def __getitem__(self, item):
-        return self._urls[item]
+        return self._items[item]
 
     def __setitem__(self, item, value):
-        url = self._filtered_url(validated_url(value))
-        if url is not None:
-            self._urls[item] = url
+        value = self._coerce(value)
+        if value not in self._items:
+            self._items[item] = value
         if self._callback is not None:
             self._callback(self)
 
     def __delitem__(self, item):
-        del self._urls[item]
+        del self._items[item]
         if self._callback is not None:
             self._callback(self)
 
     def insert(self, index, value):
-        url = self._filtered_url(validated_url(value))
-        if url is not None:
-            self._urls.insert(index, url)
+        value = self._coerce(value)
+        if value not in self._items:
+            self._items.insert(index, value)
         if self._callback is not None:
             self._callback(self)
 
-    def replace(self, urls):
-        if not isinstance(urls, Iterable):
-            raise ValueError(f'Not an Iterable: {urls!r}')
-        self._urls.clear()
-        for url in urls:
-            self._urls.append(validated_url(url))
+    def replace(self, items):
+        if not isinstance(items, Iterable):
+            raise ValueError(f'Not an iterable: {urls!r}')
+        self._items.clear()
+        for item in items:
+            self._items.append(self._coerce(item))
         if self._callback is not None:
             self._callback(self)
 
     def clear(self):
-        self._urls.clear()
+        self._items.clear()
         if self._callback is not None:
             self._callback(self)
 
     def __len__(self):
-        return len(self._urls)
+        return len(self._items)
 
     def __eq__(self, other):
         if isinstance(other, type(self)):
-            return frozenset(other._urls) == frozenset(self._urls)
+            return frozenset(other._items) == frozenset(self._items)
         elif isinstance(other, collections.abc.Iterable):
-            return (len(other) == len(self._urls) and
-                    all(url in self._urls for url in other))
+            return (len(other) == len(self._items) and
+                    all(item in self._items for item in other))
         else:
             return False
 
@@ -259,21 +243,65 @@ class URLs(collections.abc.MutableSequence):
 
     def __add__(self, other):
         if isinstance(other, type(self)):
-            urls = self._urls + other._urls
-        elif isinstance(other, str):
-            urls = self._urls + [other]
-        elif isinstance(other, collections.abc.Iterable):
-            urls = self._urls + list(other)
+            items = self._items + other._items
+        elif isinstance(other, Iterable):
+            items = self._items + list(other)
         else:
-            return NotImplemented
-        # Do not provide known URLs right away so false duplicates are not detected
-        x = type(self)(urls, callback=self._callback)
-        x._get_known_urls = self._get_known_urls
-        return x
+            items = self._items + [other]
+        return type(self)(items, callback=self._callback)
 
     def __repr__(self):
-        return repr(self._urls)
+        return repr(self._items)
 
+
+def is_url(url):
+    """Return whether `url` is a valid URL"""
+    try:
+        u = urlparse(url)
+        u.port  # Trigger 'invalid port' exception
+    except Exception:
+        return False
+    else:
+        if not u.scheme or not u.netloc:
+            return False
+        return True
+
+class URL(str):
+    def __init__(self, url):
+        url = str(url)
+        if not is_url(url):
+            raise error.URLError(url)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({super().__repr__()})'
+
+class URLs(MonitoredList):
+    """Auto-flattening list of announce URLs with change callback"""
+    def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
+        super().__init__((), callback=callback, type=URL)
+        self._get_known_urls = _get_known_urls
+        with self.callback_disabled():
+            if isinstance(urls, str):
+                self.append(urls)
+            else:
+                for url in flatten(urls):
+                    self.append(url)
+
+    def _is_duplicate(self, url):
+        return url in self._items or url in self._get_known_urls()
+
+    def __setitem__(self, item, value):
+        if not self._is_duplicate(URL(value)):
+            super().__setitem__(item, value)
+
+    def insert(self, index, value):
+        if not self._is_duplicate(URL(value)):
+            super().insert(index, value)
+
+    def __add__(self, other):
+        result = super().__add__(other)
+        result._get_known_urls = self._get_known_urls
+        return result
 
 class Trackers(collections.abc.MutableSequence):
     """List of deduplicated :class:`URLs` instances with change callback"""

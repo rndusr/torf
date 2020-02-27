@@ -150,8 +150,7 @@ class Magnet():
         return self._tr
     @tr.setter
     def tr(self, value):
-        self._tr = [utils.validated_url(url)
-                    for url in value] if value is not None else None
+        self._tr = [utils.URL(url) for url in value] if value is not None else None
 
     @property
     def xs(self):
@@ -159,7 +158,7 @@ class Magnet():
         return self._xs
     @xs.setter
     def xs(self, value):
-        self._xs = utils.validated_url(value) if value is not None else None
+        self._xs = utils.URL(value) if value is not None else None
 
     @property
     def as_(self):
@@ -171,7 +170,7 @@ class Magnet():
         return self._as
     @as_.setter
     def as_(self, value):
-        self._as = utils.validated_url(value) if value is not None else None
+        self._as = utils.URL(value) if value is not None else None
 
     @property
     def ws(self):
@@ -246,8 +245,8 @@ class Magnet():
         # Parameters that accept only one value
         for param,attr,name,typ in (('dn', 'dn', 'display name', str),
                                     ('xl', 'xl', 'exact length', int),
-                                    ('xs', 'xs', 'exact source', utils.validated_url),
-                                    ('as', 'as_', 'acceptable source', utils.validated_url),
+                                    ('xs', 'xs', 'exact source', utils.URL),
+                                    ('as', 'as_', 'acceptable source', utils.URL),
                                     ('kt', 'kt', 'keyword topic', lambda s: s.split(','))):
             if param in query:
                 if len(query[param]) > 1:
