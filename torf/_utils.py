@@ -330,12 +330,10 @@ class Trackers(collections.abc.MutableSequence):
     def replace(self, tiers):
         if not isinstance(tiers, Iterable):
             raise ValueError(f'Not an iterable: {tiers!r}')
-        cb = self._callback
-        self._callback = None
-        self._tiers.clear()
-        for urls in tiers:
-            self.append(urls)
-        self._callback = cb
+        with self.callback_disabled():
+            self._tiers.clear()
+            for urls in tiers:
+                self.append(urls)
         if self._callback is not None:
             self._callback(self)
 

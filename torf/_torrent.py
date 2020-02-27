@@ -566,15 +566,14 @@ class Torrent():
 
     def _sync_trackers_from_metainfo(self):
         # If URLs in metainfo differ from self._trackers, update self._trackers
-        self._trackers._callback = None
         announce = self.metainfo.get('announce', None)
         announce_list = self.metainfo.get('announce-list', ())
         trackers = utils.Trackers(*announce_list)
         if announce and announce not in trackers.flat:
             trackers.insert(0, [announce])
         if self._trackers != trackers:
-            self._trackers.replace(trackers)
-        self._trackers._callback = self._trackers_changed
+            with self._trackers.callback_disabled():
+                self._trackers.replace(trackers)
 
     def _trackers_changed(self, announce_list):
         # Automatically use first tracker of first tier as "announce"
