@@ -538,9 +538,6 @@ class Torrent():
           :attr:`metainfo`\ ``['announce-list']`` is set to a list of tiers, one
           tier for each iterable of URLs.
 
-        You can manage :attr:`metainfo`\ ``['announce']`` and :attr:`metainfo`\
-        ``['announce-list']`` manually as long as you never touch this property.
-
         :raises URLError: if any of the announce URLs is invalid
         :raises ValueError: if set to anything that isn't an Iterable and not a
             string
