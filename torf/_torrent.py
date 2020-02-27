@@ -332,6 +332,17 @@ class Torrent():
         if files_removed and 'pieces' in self.metainfo['info']:
             del self.metainfo['info']['pieces']
 
+    @property
+    def size(self):
+        """
+        Total size of content in bytes or ``None`` if :attr:`path` is ``None``
+        """
+        if self.mode == 'singlefile':
+            return self.metainfo['info']['length']
+        elif self.mode == 'multifile':
+            return sum(fileinfo['length']
+                       for fileinfo in self.metainfo['info']['files'])
+
     def partial_size(self, path):
         """
         Return size of one or more files as specified in :attr:`metainfo`
@@ -361,17 +372,6 @@ class Torrent():
             if file_sizes:
                 return sum(file_sizes)
         raise error.PathNotFoundError(os.path.join(*path))
-
-    @property
-    def size(self):
-        """
-        Total size of content in bytes or ``None`` if :attr:`path` is ``None``
-        """
-        if self.mode == 'singlefile':
-            return self.metainfo['info']['length']
-        elif self.mode == 'multifile':
-            return sum(fileinfo['length']
-                       for fileinfo in self.metainfo['info']['files'])
 
     @property
     def piece_size(self):
