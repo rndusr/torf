@@ -569,7 +569,7 @@ class Torrent():
         if announce and announce not in trackers.flat:
             trackers.insert(0, [announce])
         if self._trackers != trackers:
-            with self._trackers.callback_disabled():
+            with self._trackers._callback_disabled():
                 self._trackers.replace(trackers)
 
     def _trackers_changed(self, announce_list):

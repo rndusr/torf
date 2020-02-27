@@ -175,11 +175,11 @@ class MonitoredList(collections.abc.MutableSequence):
         self._type = type
         self._filter_func = filter_func
         self._callback = callback
-        with self.callback_disabled():
+        with self._callback_disabled():
             self.replace(items)
 
     @contextlib.contextmanager
-    def callback_disabled(self):
+    def _callback_disabled(self):
         cb = self._callback
         self._callback = None
         yield
@@ -307,7 +307,7 @@ class Trackers(collections.abc.MutableSequence):
         return tuple(flatten(self._tiers))
 
     @contextlib.contextmanager
-    def callback_disabled(self):
+    def _callback_disabled(self):
         cb = self._callback
         self._callback = None
         yield
@@ -347,7 +347,7 @@ class Trackers(collections.abc.MutableSequence):
     def replace(self, tiers):
         if not isinstance(tiers, Iterable):
             raise ValueError(f'Not an iterable: {tiers!r}')
-        with self.callback_disabled():
+        with self._callback_disabled():
             self._tiers.clear()
             for urls in tiers:
                 self.append(urls)
