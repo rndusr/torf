@@ -304,8 +304,6 @@ class Trackers(collections.abc.MutableSequence):
         else:
             raise ValueError(f'Must be str or Iterable, not {type(tiers).__name__}: {repr(tiers)}')
         self._callback = callback
-        if self._callback is not None:
-            self._callback(self)
 
     @property
     def flat(self):
