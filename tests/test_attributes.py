@@ -347,42 +347,34 @@ def test_trackers__set_to_invalid_type(create_torrent):
 def test_trackers__set_to_None(create_torrent):
     torrent = create_torrent()
     torrent.trackers = ('http://foo', ('http://bar', 'http://baz'))
-    trackers_id = id(torrent.trackers)
     torrent.trackers = None
     assert torrent.trackers == []
     assert 'announce' not in torrent.metainfo
     assert 'announce-list' not in torrent.metainfo
 
-def test_trackers__metainfo_is_updated(create_torrent):
+def test_trackers__sync_to_metainfo(create_torrent):
     torrent = create_torrent()
-    trackers_id = id(torrent.trackers)
     torrent.trackers = ('http://foo', 'http://bar')
-    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://foo'], ['http://bar']]
     assert torrent.metainfo['announce'] == 'http://foo'
     assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar']]
     torrent.trackers.append('http://asdf')
-    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://foo'], ['http://bar'], ['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://foo'
     assert torrent.metainfo['announce-list'] == [['http://foo'], ['http://bar'], ['http://asdf']]
     torrent.trackers[0].insert(0, 'http://quux')
-    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://quux', 'http://foo'], ['http://bar'], ['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://quux'
     assert torrent.metainfo['announce-list'] == [['http://quux', 'http://foo'], ['http://bar'], ['http://asdf']]
     torrent.trackers[1].remove('http://bar')
-    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://quux', 'http://foo'], ['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://quux'
     assert torrent.metainfo['announce-list'] == [['http://quux', 'http://foo'], ['http://asdf']]
     del torrent.trackers[0]
-    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == [['http://asdf']]
     assert torrent.metainfo['announce'] == 'http://asdf'
     assert 'announce-list' not in torrent.metainfo
     del torrent.trackers[0]
-    assert id(torrent.trackers) == trackers_id
     assert torrent.trackers == []
     assert 'announce' not in torrent.metainfo
     assert 'announce-list' not in torrent.metainfo
@@ -399,6 +391,7 @@ def test_trackers__announce_in_metainfo_is_automatically_included_in_announce_li
 def test_trackers__announce_in_metainfo_is_not_duplicated(create_torrent):
     torrent = create_torrent()
     torrent.metainfo['announce'] = 'http://foo:123'
+
     torrent.metainfo['announce-list'] = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
     exp = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
     assert torrent.trackers == exp
@@ -419,6 +412,7 @@ def test_trackers__announce_in_metainfo_is_not_duplicated(create_torrent):
 
 def test_trackers__single_url_only_sets_announce_in_metainfo(create_torrent):
     torrent = create_torrent()
+    torrent.metainfo['announce-list'] = [['http://foo:123'], ['http://bar:456']]
     torrent.trackers = 'http://foo:123'
     assert torrent.trackers == [['http://foo:123']]
     assert 'announce-list' not in torrent.metainfo
@@ -446,6 +440,8 @@ def test_trackers__multiple_lists_of_urls_sets_announce_and_announcelist_in_meta
 
 def test_trackers__no_trackers(create_torrent):
     torrent = create_torrent()
+    torrent.metainfo['announce'] = 'http://foo:123'
+    torrent.metainfo['announce-list'] = [['http://foo:123'], ['http://bar:456', 'http://baz:789']]
     torrent.trackers = ()
     assert torrent.trackers == []
     assert 'announce-list' not in torrent.metainfo
