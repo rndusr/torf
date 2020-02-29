@@ -204,22 +204,23 @@ class Torrent():
     @property
     def files(self):
         """
-        Yield relative file paths specified in :attr:`metainfo`
+        Tuple of relative file paths in this torrent
 
-        Each path starts with :attr:`name`.
+        Paths always starts with :attr:`name`.
 
-        Note that the paths may not exist. See :attr:`filepaths` for existing
-        files.
+        See :attr:`filepaths` for a mutable list of existing file system paths.
         """
         info = self.metainfo['info']
         if self.mode == 'singlefile':
-            yield info['name']
+            return (info['name'],)
         elif self.mode == 'multifile':
             rootdir = self.name
             if rootdir is None:
                 raise RuntimeError('Torrent has no name')
-            for fileinfo in info['files']:
-                yield os.path.join(rootdir, os.path.join(*fileinfo['path']))
+            return tuple(os.path.join(rootdir, os.path.join(*fileinfo['path']))
+                         for fileinfo in info['files'])
+        else:
+            return ()
 
     @property
     def filepaths(self):
