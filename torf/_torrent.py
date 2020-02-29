@@ -134,9 +134,8 @@ class Torrent():
         :attr:`metainfo`\ ``['info']`` as well as ``length`` if path is a file
         or ``files`` if path is a directory.
 
-        If set to ``None``, the following keys are removed (if present) from
-        :attr:`metainfo`\ ``['info']``: ``piece length``, ``pieces``, ``name``,
-        ``length``, ``files``
+        If set to ``None``, "pieces" is removed (if present) from
+        :attr:`metainfo`\ ``['info']``.
 
         :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
             file, empty directory or directory containing only empty files)
