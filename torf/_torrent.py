@@ -190,6 +190,31 @@ class Torrent():
                 self.piece_size = None
 
     @property
+    def name(self):
+        """
+        Name of the torrent
+
+        Default to last item in :attr:`path` or ``None`` if :attr:`path` is
+        ``None``.
+
+        If this property is set to ``None`` and :attr:`path` is not ``None``, it
+        is set to the default name, i.e. the last item in :attr:`path`.
+
+        Setting this property sets or removes ``name`` in :attr:`metainfo`\
+        ``['info']``.
+        """
+        if 'name' not in self.metainfo['info'] and self.path is not None:
+            self.metainfo['info']['name'] = os.path.basename(self.path)
+        return self.metainfo['info'].get('name', None)
+    @name.setter
+    def name(self, value):
+        if value is None:
+            self.metainfo['info'].pop('name', None)
+            self.name  # Set default name
+        else:
+            self.metainfo['info']['name'] = str(value)
+
+    @property
     def mode(self):
         """
         "singlefile" if this torrent contains one file that is not in a directory,
@@ -484,31 +509,6 @@ class Torrent():
             # Each hash is 20 bytes long
             return tuple(bytes(hashes[pos:pos+20])
                          for pos in range(0, len(hashes), 20))
-
-    @property
-    def name(self):
-        """
-        Name of the torrent
-
-        Default to last item in :attr:`path` or ``None`` if :attr:`path` is
-        ``None``.
-
-        If this property is set to ``None`` and :attr:`path` is not ``None``, it
-        is set to the default name, i.e. the last item in :attr:`path`.
-
-        Setting this property sets or removes ``name`` in :attr:`metainfo`\
-        ``['info']``.
-        """
-        if 'name' not in self.metainfo['info'] and self.path is not None:
-            self.metainfo['info']['name'] = os.path.basename(self.path)
-        return self.metainfo['info'].get('name', None)
-    @name.setter
-    def name(self, value):
-        if value is None:
-            self.metainfo['info'].pop('name', None)
-            self.name  # Set default name
-        else:
-            self.metainfo['info']['name'] = str(value)
 
     @property
     def trackers(self):
