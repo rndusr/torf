@@ -466,7 +466,7 @@ def test_webseeds__correct_type(create_torrent):
         torrent.webseeds = value
         assert isinstance(torrent.webseeds, utils.URLs)
 
-def test_webseeds__metainfo_is_updated_automatically(create_torrent):
+def test_webseeds__sync_to_metainfo(create_torrent):
     torrent = create_torrent(webseeds=())
     assert torrent.webseeds == []
     assert 'url-list' not in torrent.metainfo
@@ -477,13 +477,25 @@ def test_webseeds__metainfo_is_updated_automatically(create_torrent):
     assert torrent.webseeds == []
     assert 'url-list' not in torrent.metainfo
 
+def test_webseeds__sync_from_metainfo(create_torrent):
+    torrent = create_torrent(webseeds=())
+    assert torrent.webseeds == []
+    assert 'url-list' not in torrent.metainfo
+    torrent.metainfo['url-list'] = ('http://foo', 'http://bar')
+    assert torrent.webseeds == ('http://foo', 'http://bar')
+    torrent.metainfo['url-list'] = ()
+    assert torrent.webseeds == []
+
 def test_webseeds__urls_are_validated(create_torrent):
     torrent = create_torrent()
+    with pytest.raises(errors.URLError) as e:
+        torrent.webseeds.append('http://foo:bar')
+    assert str(e.value) == 'http://foo:bar: Invalid URL'
     with pytest.raises(errors.URLError) as e:
         torrent.webseeds = ['http://foo', 'http://foo:bar']
     assert str(e.value) == 'http://foo:bar: Invalid URL'
 
-def test_webseeds__non_iterable(create_torrent):
+def test_webseeds__setting_to_invalid_type(create_torrent):
     torrent = create_torrent()
     with pytest.raises(ValueError) as e:
         torrent.webseeds = 23
@@ -502,7 +514,7 @@ def test_httpseeds__correct_type(create_torrent):
         torrent.httpseeds = value
         assert isinstance(torrent.httpseeds, utils.URLs)
 
-def test_httpseeds__metainfo_is_updated_automatically(create_torrent):
+def test_httpseeds__sync_to_metainfo(create_torrent):
     torrent = create_torrent(httpseeds=())
     assert torrent.httpseeds == []
     assert 'httpseeds' not in torrent.metainfo
@@ -513,13 +525,22 @@ def test_httpseeds__metainfo_is_updated_automatically(create_torrent):
     assert torrent.httpseeds == []
     assert 'httpseeds' not in torrent.metainfo
 
+def test_httpseeds__sync_from_metainfo(create_torrent):
+    torrent = create_torrent(httpseeds=())
+    torrent.metainfo['httpseeds'] = ['http://foo']
+    assert torrent.httpseeds == ['http://foo']
+    torrent.metainfo['httpseeds'].append('http://bar')
+    assert torrent.httpseeds == ['http://foo', 'http://bar']
+    torrent.metainfo['httpseeds'] = []
+    assert torrent.httpseeds == []
+
 def test_httpseeds__urls_are_validated(create_torrent):
     torrent = create_torrent()
     with pytest.raises(errors.URLError) as e:
         torrent.httpseeds = ['http://foo', 'http://foo:bar']
     assert str(e.value) == 'http://foo:bar: Invalid URL'
 
-def test_httpseeds__non_iterable(create_torrent):
+def test_httpseeds__setting_to_invalid_type(create_torrent):
     torrent = create_torrent()
     with pytest.raises(ValueError) as e:
         torrent.httpseeds = 23
