@@ -290,13 +290,19 @@ class URLs(MonitoredList):
         if url not in self._items and url not in self._get_known_urls():
             return url
 
+
 class Trackers(collections.abc.MutableSequence):
     """List of :class:`URLs` instances with change callback"""
-    def __init__(self, *tiers, callback=None):
+    def __init__(self, tiers, callback=None):
         self._callback = None
         self._tiers = []
-        for urls in tiers:
-            self.append(urls)
+        if isinstance(tiers, str):
+            self.append((tiers,))
+        elif isinstance(tiers, collections.abc.Iterable):
+            for urls in tiers:
+                self.append(urls)
+        else:
+            raise ValueError(f'Must be str or Iterable, not {type(tiers).__name__}: {repr(tiers)}')
         self._callback = callback
         if self._callback is not None:
             self._callback(self)
@@ -391,7 +397,7 @@ class Trackers(collections.abc.MutableSequence):
             else:
                 new_tier = tier1
             new_tiers.append(new_tier)
-        return type(self)(*new_tiers, callback=self._callback)
+        return type(self)(new_tiers, callback=self._callback)
 
     def __repr__(self):
         return repr(self._tiers)
