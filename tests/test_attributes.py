@@ -153,6 +153,15 @@ def test_filepaths_with_no_path(create_torrent, multifile_content):
     torrent.filepaths = ()
     assert torrent.filepaths == ()
 
+def test_filepaths_with_single_file_in_directory(create_torrent, tmp_path):
+    content = tmp_path / 'content'
+    content.mkdir()
+    file1 = content / 'file1'
+    file1.write_text('not empty')
+    torrent = create_torrent(path=content)
+    assert torrent.filepaths == (Path(file1),)
+    assert torrent.mode == 'multifile'
+
 
 def test_filetree_with_no_path(create_torrent):
     torrent = create_torrent()

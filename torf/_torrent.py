@@ -257,15 +257,16 @@ class Torrent():
         info.pop('md5sum', None)
 
         filepaths = tuple(filepaths)
-        if len(filepaths) == 1:
-            info['length'] = utils.real_size(filepaths[0])
-        elif len(filepaths) >= 2:
+        if os.path.isdir(self.path):
             files = []
             basepath = self.path.split(os.sep)
             for filepath in filepaths:
                 files.append({'length': utils.real_size(filepath),
                               'path'  : filepath.split(os.sep)[len(basepath):]})
             info['files'] = files
+        else:
+            info['length'] = utils.real_size(filepaths[0])
+
         # Calculate new piece size
         self.piece_size = None
 
