@@ -110,13 +110,13 @@ def test_filepaths(testdir):
                   '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty', '/base/.bar/baz/not_empty'])
     assert files == exp
 
-def test_for_each_filepath__without_hidden(testdir):
+def test_filepaths__without_hidden(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir, hidden=False)]
     exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
     assert files == exp
 
-def test_for_each_filepath__without_empty(testdir):
+def test_filepath__without_empty(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir, empty=False)]
     exp = sorted(['/base/foo/.not_empty', '/base/foo/not_empty',
@@ -124,7 +124,7 @@ def test_for_each_filepath__without_empty(testdir):
                   '/base/.bar/baz/.not_empty', '/base/.bar/baz/not_empty'])
     assert files == exp
 
-def test_for_each_filepath__exclude(testdir):
+def test_filepaths__exclude(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filepaths(testdir, exclude=('.*',))]
     exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
