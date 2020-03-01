@@ -872,7 +872,7 @@ class Torrent():
             raise RuntimeError('generate() called with no path specified')
         elif not os.path.exists(self.path):
             raise error.PathNotFoundError(self.path)
-        elif utils.real_size(self.path) < 1:
+        elif sum(utils.real_size(fp) for fp in self.filepaths) < 1:
             raise error.PathEmptyError(self.path)
 
         if callback is not None:

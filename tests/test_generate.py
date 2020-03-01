@@ -35,9 +35,9 @@ def test_with_empty_directory(create_dir):
     content_path = create_dir('empty', ('a file', '<data>'))
     t = torf.Torrent(content_path)
     (content_path / 'a file').unlink()
-    with pytest.raises(torf.PathEmptyError) as e:
+    with pytest.raises(torf.ReadError) as e:
         t.generate()
-    assert str(e.value) == f'{t.path}: Empty directory'
+    assert str(e.value) == f'{content_path / "a file"}: No such file or directory'
 
 
 def test_nonexisting_path(create_file):
@@ -47,6 +47,18 @@ def test_nonexisting_path(create_file):
     with pytest.raises(torf.PathNotFoundError) as e:
         t.generate()
     assert str(e.value) == f'{content_path}: No such file or directory'
+
+
+def test_with_all_files_excluded(create_dir):
+    # Create content so we can set path
+    content_path = create_dir('content',
+                              ('a.jpg', '<image data>'),
+                              ('b.jpg', '<image data>'),
+                              ('c.jpg', '<image data>'))
+    t = torf.Torrent(content_path, exclude=['*.jpg'])
+    with pytest.raises(torf.PathEmptyError) as e:
+        t.generate()
+    assert str(e.value) == f'{t.path}: Empty directory'
 
 
 def test_unreadable_basedir_in_multifile_torrent(create_dir):
@@ -60,7 +72,7 @@ def test_unreadable_basedir_in_multifile_torrent(create_dir):
         os.chmod(content_path, mode=0o222)
         with pytest.raises(torf.ReadError) as e:
             t.generate()
-        assert str(e.value) == f'{content_path}: Permission denied'
+        assert str(e.value) == f'{content_path / "a.jpg"}: Permission denied'
     finally:
         os.chmod(content_path, mode=old_mode)
 
