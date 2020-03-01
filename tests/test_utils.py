@@ -5,6 +5,7 @@ from torf import _errors as errors
 import pytest
 import os
 from collections import OrderedDict
+from pathlib import Path
 from unittest import mock
 
 
@@ -238,6 +239,51 @@ def test_encoding():
         }
     }
     assert utils.encode_dict(decoded) == encoded
+
+
+def test_Filepaths_accepts_string_or_iterable():
+    assert utils.Filepaths('path/to/foo.jpg') == [Path('path/to/foo.jpg')]
+    assert utils.Filepaths(('path/to/foo.jpg',)) == [Path('path/to/foo.jpg')]
+    assert utils.Filepaths(['path/to/foo.jpg']) == [Path('path/to/foo.jpg')]
+
+def test_Filepaths_deduplicates_when_initializing():
+    fps = utils.Filepaths(('path/to/foo.jpg', 'path/to/bar.jpg', 'path/to/foo.jpg'))
+    assert fps == (Path('path/to/foo.jpg'), Path('path/to/bar.jpg'))
+
+def test_Filepaths_deduplicates_when_setting():
+    fps = utils.Filepaths(('path/to/foo.jpg', 'path/to/bar.jpg'))
+    fps.append('path/to/foo.jpg')
+    fps.extend(('path/to/bar.jpg',))
+    assert fps == (Path('path/to/foo.jpg'), Path('path/to/bar.jpg'))
+
+def test_Filepaths_deduplicates_when_inserting():
+    fps = utils.Filepaths(('path/to/foo.jpg', 'path/to/bar.jpg'))
+    fps.insert(0, 'path/to/bar.jpg')
+    assert fps == (Path('path/to/foo.jpg'), Path('path/to/bar.jpg'))
+
+def test_Filepaths_calls_callback_after_appending():
+    cb = mock.MagicMock()
+    fps = utils.Filepaths(('path/to/foo.jpg',), callback=cb)
+    fps.append('path/to/baz.jpg')
+    cb.assert_called_once_with(fps)
+
+def test_Filepaths_calls_callback_after_removing():
+    cb = mock.MagicMock()
+    fps = utils.Filepaths(('path/to/foo.jpg',), callback=cb)
+    del fps[0]
+    cb.assert_called_once_with(fps)
+
+def test_Filepaths_calls_callback_after_inserting():
+    cb = mock.MagicMock()
+    fps = utils.Filepaths(('path/to/foo.jpg',), callback=cb)
+    fps.insert(0, 'path/to/baz.jpg')
+    cb.assert_called_once_with(fps)
+
+def test_Filepaths_calls_callback_after_clearing():
+    cb = mock.MagicMock()
+    fps = utils.Filepaths(('path/to/foo.jpg',), callback=cb)
+    fps.clear()
+    cb.assert_called_once_with(fps)
 
 
 def test_URLs_accepts_string_or_iterable():

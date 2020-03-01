@@ -24,6 +24,7 @@ import errno
 from datetime import datetime
 import itertools
 import contextlib
+import pathlib
 
 from . import _errors as error
 
@@ -259,6 +260,22 @@ def filter_files(path, exclude=(), hidden=True, empty=True):
                         filepaths.append(filepath)
 
         return sorted(filepaths, key=lambda fp: fp.casefold())
+
+class Filepaths(MonitoredList):
+    """List of `:class:pathlib.Path` objects with change callback"""
+    def __init__(self, filepaths, callback=None):
+        if isinstance(filepaths, str):
+            filepaths = (filepaths,)
+        else:
+            filepaths = flatten(filepaths)
+        super().__init__(filepaths, callback=callback, type=pathlib.Path,
+                         filter_func=self._filter_func)
+
+    def _filter_func(self, file):
+        if file not in self._items:
+            return file
+
+
 def is_url(url):
     """Return whether `url` is a valid URL"""
     try:
