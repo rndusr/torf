@@ -87,7 +87,11 @@ def real_size(path):
                 size += os.path.getsize(os.path.realpath(filepath))
         return size
     else:
-        return os.path.getsize(os.path.realpath(path))
+        try:
+            return os.path.getsize(os.path.realpath(path))
+        except OSError as exc:
+            raise error.ReadError(getattr(exc, 'errno', None),
+                                  getattr(exc, 'filename', None))
 
 
 def is_power_of_2(num):
