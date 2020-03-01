@@ -85,6 +85,39 @@ def test_URL__min_port_number():
         utils.URL('http://foohost:-1')
 
 
+def test_real_size_of_directory(tmp_path):
+    dir = tmp_path / 'dir' ; dir.mkdir()
+    subdir = dir / 'subdir' ; subdir.mkdir()
+    (dir / 'file1').write_bytes(b'\x00' * 100)
+    (dir / 'file2').write_bytes(b'\x00' * 200)
+    (subdir / 'file3').write_bytes(b'\x00' * 300)
+    (subdir / 'file4').write_bytes(b'\x00' * 400)
+    assert utils.real_size(dir) == 1000
+
+def test_real_size_of_directory_with_unreadable_file(tmp_path):
+    dir = tmp_path / 'dir' ; dir.mkdir()
+    subdir = dir / 'subdir' ; subdir.mkdir()
+    (dir / 'file1').write_bytes(b'\x00' * 100)
+    (subdir / 'file2').write_bytes(b'\x00' * 200)
+    subdir_mode = os.stat(subdir).st_mode
+    os.chmod(subdir, mode=0o222)
+    try:
+        with pytest.raises(errors.ReadError) as exc_info:
+            utils.real_size(dir)
+        assert str(exc_info.value) == f'{subdir}: Permission denied'
+    finally:
+        os.chmod(subdir, mode=subdir_mode)
+
+def test_real_size_of_file(tmp_path):
+    (tmp_path / 'file').write_bytes(b'\x00' * 123)
+    assert utils.real_size(tmp_path / 'file') == 123
+
+def test_real_size_of_nonexising_path():
+    with pytest.raises(errors.ReadError) as exc_info:
+        utils.real_size('path/doesnt/exist')
+    assert str(exc_info.value) == 'path/doesnt/exist: No such file or directory'
+
+
 @pytest.fixture
 def testdir(tmp_path):
     base = tmp_path / 'base'
