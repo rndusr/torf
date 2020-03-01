@@ -84,11 +84,11 @@ def real_size(path):
         for dirpath,dirnames,filenames in walker:
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
-                size += os.path.getsize(os.path.realpath(filepath))
+                size += os.path.getsize(filepath)
         return size
     else:
         try:
-            return os.path.getsize(os.path.realpath(path))
+            return os.path.getsize(path)
         except OSError as exc:
             raise error.ReadError(getattr(exc, 'errno', None),
                                   getattr(exc, 'filename', None))
