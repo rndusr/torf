@@ -128,50 +128,6 @@ def is_match(path, pattern):
     return False
 
 
-def filepaths(path, exclude=(), hidden=True, empty=True):
-    """
-    Return list of absolute, sorted file paths
-
-    path: Path to file or directory
-    exclude: List of file name patterns to exclude
-    hidden: Whether to include hidden files
-    empty: Whether to include empty files
-
-    Raise PathNotFoundError if path doesn't exist.
-    Raise ReadError if path doesn't look readable.
-    """
-    if not os.path.exists(path):
-        raise error.PathNotFoundError(path)
-    elif not os.access(path, os.R_OK,
-                       effective_ids=os.access in os.supports_effective_ids):
-        raise error.ReadError(errno.EACCES, path)
-
-    if os.path.isfile(path):
-        return [path]
-    else:
-        filepaths = []
-        for dirpath, dirnames, filenames in os.walk(path):
-            # Ignore hidden directory
-            if not hidden and is_hidden(dirpath):
-                continue
-
-            for filename in filenames:
-                # Ignore hidden file
-                if not hidden and is_hidden(filename):
-                    continue
-
-                filepath = os.path.join(dirpath, filename)
-                # Ignore excluded file
-                if any(is_match(filepath, pattern) for pattern in exclude):
-                    continue
-                else:
-                    # Ignore empty file
-                    if empty or os.path.getsize(os.path.realpath(filepath)) > 0:
-                        filepaths.append(filepath)
-
-        return sorted(filepaths, key=lambda fp: fp.casefold())
-
-
 class MonitoredList(collections.abc.MutableSequence):
     """List with change callback"""
     def __init__(self, items, callback=None, type=None, filter_func=lambda item: item):
@@ -260,6 +216,49 @@ class MonitoredList(collections.abc.MutableSequence):
     def __repr__(self):
         return repr(self._items)
 
+
+def filter_files(path, exclude=(), hidden=True, empty=True):
+    """
+    Return list of absolute, sorted file paths
+
+    path: Path to file or directory
+    exclude: List of file name patterns to exclude
+    hidden: Whether to include hidden files
+    empty: Whether to include empty files
+
+    Raise PathNotFoundError if path doesn't exist.
+    Raise ReadError if path doesn't look readable.
+    """
+    if not os.path.exists(path):
+        raise error.PathNotFoundError(path)
+    elif not os.access(path, os.R_OK,
+                       effective_ids=os.access in os.supports_effective_ids):
+        raise error.ReadError(errno.EACCES, path)
+
+    if os.path.isfile(path):
+        return [path]
+    else:
+        filepaths = []
+        for dirpath, dirnames, filenames in os.walk(path):
+            # Ignore hidden directory
+            if not hidden and is_hidden(dirpath):
+                continue
+
+            for filename in filenames:
+                # Ignore hidden file
+                if not hidden and is_hidden(filename):
+                    continue
+
+                filepath = os.path.join(dirpath, filename)
+                # Ignore excluded file
+                if any(is_match(filepath, pattern) for pattern in exclude):
+                    continue
+                else:
+                    # Ignore empty file
+                    if empty or real_size(filepath) > 0:
+                        filepaths.append(filepath)
+
+        return sorted(filepaths, key=lambda fp: fp.casefold())
 def is_url(url):
     """Return whether `url` is a valid URL"""
     try:
