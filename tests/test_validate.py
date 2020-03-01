@@ -344,7 +344,7 @@ def assert_mismatching_filesizes(torrent):
         with pytest.raises(torf.MetainfoError) as excinfo:
             torrent.validate()
         assert str(excinfo.value) == (f'Invalid metainfo: Mismatching file sizes in metainfo ({mi_size}) '
-                                      f'and file system ({fs_size}): {repr(fs_path)}')
+                                      f'and file system ({fs_size}): {fs_path}')
 
         # Restore original file content
         with open(fs_path, 'wb') as f:

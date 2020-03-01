@@ -1005,7 +1005,7 @@ class Torrent():
                     continue
 
             # Check file size
-            fs_filepath_size = os.path.getsize(os.path.realpath(fs_filepath))
+            fs_filepath_size = utils.real_size(fs_filepath)
             expected_size = self.partial_size(torrent_filepath)
             if fs_filepath_size != expected_size:
                 exception = error.VerifyFileSizeError(fs_filepath, fs_filepath_size, expected_size)
@@ -1211,10 +1211,10 @@ class Torrent():
                     raise error.MetainfoError(f"Metainfo includes {self.path} as file, but it is not a file")
 
                 # Check if size matches
-                if os.path.getsize(self.path) != info['length']:
+                path_size = utils.real_size(self.path)
+                if path_size != info['length']:
                     raise error.MetainfoError(f"Mismatching file sizes in metainfo ({info['length']})"
-                                              f" and file system ({os.path.getsize(self.path)}): "
-                                              f"{self.path!r}")
+                                              f" and file system ({path_size}): {self.path}")
 
         elif 'files' in info:
             # Validate info as multifile torrent
@@ -1245,15 +1245,15 @@ class Torrent():
 
                     # Check if filepath exists and is a file
                     if not os.path.exists(filepath):
-                        raise error.MetainfoError(f"Metainfo includes file that doesn't exist: {filepath!r}")
+                        raise error.MetainfoError(f"Metainfo includes file that doesn't exist: {filepath}")
                     if not os.path.isfile(filepath):
-                        raise error.MetainfoError(f"Metainfo includes file that isn't a file: {filepath!r}")
+                        raise error.MetainfoError(f"Metainfo includes file that isn't a file: {filepath}")
 
                     # Check if sizes match
-                    if os.path.getsize(filepath) != fileinfo['length']:
+                    filesize = utils.real_size(filepath)
+                    if filesize != fileinfo['length']:
                         raise error.MetainfoError(f"Mismatching file sizes in metainfo ({fileinfo['length']})"
-                                                  f" and file system ({os.path.getsize(filepath)}): "
-                                                  f"{filepath!r}")
+                                                  f" and file system ({filesize}): {filepath}")
 
         else:
             raise error.MetainfoError("Missing 'length' or 'files' in metainfo")
