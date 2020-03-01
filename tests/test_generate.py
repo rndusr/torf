@@ -6,6 +6,7 @@ import math
 import os
 import base64
 from collections import defaultdict
+from pathlib import Path
 
 import logging
 debug = logging.getLogger('test').debug
@@ -224,7 +225,7 @@ def test_callback_raises_exception(piece_size, create_file, forced_piece_size):
             with pytest.raises(Exception) as e:
                 t.generate(callback=cb)
             assert str(e.value) == 'Argh!'
-            cb.assert_called_once_with(t, str(content_path), 1, t.pieces)
+            cb.assert_called_once_with(t, Path(content_path), 1, t.pieces)
             # The pool of hashers should be stopped before all pieces are hashed
             assert sha1_mock.call_count < t.pieces
             assert not t.is_ready

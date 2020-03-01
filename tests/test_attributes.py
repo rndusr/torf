@@ -5,11 +5,12 @@ from torf import _errors as errors
 import pytest
 from unittest.mock import patch
 import os
+from pathlib import Path
 
 
 def test_path_doesnt_exist(create_torrent, tmpdir):
     torrent = create_torrent()
-    with pytest.raises(torf.PathNotFoundError) as excinfo:
+    with pytest.raises(torf.ReadError) as excinfo:
         torrent.path = '/this/path/does/not/exist'
     assert excinfo.match('^/this/path/does/not/exist: No such file or directory$')
 
@@ -132,26 +133,25 @@ def test_files_with_no_name(create_torrent, multifile_content):
 
 
 def test_filepaths_singlefile(create_torrent, singlefile_content):
-    torrent = create_torrent()
-    torrent.path = singlefile_content.path
-    exp_filepaths1 = (singlefile_content.path,)
-    exp_filepaths2 = (torrent.path,)
-    assert tuple(torrent.filepaths) == exp_filepaths1
-    assert tuple(torrent.filepaths) == exp_filepaths2
+    torrent = create_torrent(path=singlefile_content.path)
+    exp_filepaths1 = [Path(singlefile_content.path)]
+    exp_filepaths2 = [Path(torrent.path)]
+    assert torrent.filepaths == exp_filepaths1
+    assert torrent.filepaths == exp_filepaths2
 
 def test_filepaths_multifile(create_torrent, multifile_content):
-    torrent = create_torrent()
-    torrent.path = multifile_content.path
-    exp_filepaths1 = tuple(os.path.join(multifile_content.path, os.path.join(*fileinfo['path']))
+    torrent = create_torrent(path=multifile_content.path)
+    exp_filepaths1 = tuple(Path(multifile_content.path, *fileinfo['path'])
                            for fileinfo in multifile_content.exp_metainfo['info']['files'])
-    exp_filepaths2 = tuple(os.path.join(torrent.path, os.path.join(*fileinfo['path']))
+    exp_filepaths2 = tuple(Path(torrent.path, *fileinfo['path'])
                            for fileinfo in torrent.metainfo['info']['files'])
-    assert tuple(torrent.filepaths) == exp_filepaths1
-    assert tuple(torrent.filepaths) == exp_filepaths2
+    assert torrent.filepaths == exp_filepaths1
+    assert torrent.filepaths == exp_filepaths2
 
-def test_filepaths_with_no_path(create_torrent):
-    torrent = create_torrent()
-    assert tuple(torrent.filepaths) == ()
+def test_filepaths_with_no_path(create_torrent, multifile_content):
+    torrent = create_torrent(path=multifile_content.path)
+    torrent.filepaths = ()
+    assert torrent.filepaths == ()
 
 
 def test_filetree_with_no_path(create_torrent):
@@ -174,10 +174,10 @@ def test_exclude(create_torrent, multifile_content, tmpdir):
     file4.write('data4')
 
     torrent.path = str(root)
-    assert tuple(torrent.filepaths) == (file1, file2, file3, file4)
+    assert torrent.filepaths == (file1, file2, file3, file4)
 
     torrent.exclude = ['*.txt']
-    assert tuple(torrent.filepaths) == (file1, file2)
+    assert torrent.filepaths == (file1, file2)
 
 
 def test_name(create_torrent, singlefile_content, multifile_content):
@@ -197,10 +197,10 @@ def test_name(create_torrent, singlefile_content, multifile_content):
 
     def generate_exp_filepaths(content):
         if content is singlefile_content:
-            return (content.path,)
+            return (Path(content.path),)
         else:
             import glob
-            return tuple(sorted(f for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
+            return tuple(sorted(Path(f) for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
                                 if os.path.isfile(f)))
 
     for content in (singlefile_content, multifile_content):
@@ -209,31 +209,31 @@ def test_name(create_torrent, singlefile_content, multifile_content):
         torrent.path = content.path
         assert torrent.name == os.path.basename(torrent.path)
         assert torrent.files == generate_exp_files(content, os.path.basename(content.path))
-        assert tuple(torrent.filepaths) == generate_exp_filepaths(content)
+        assert torrent.filepaths == generate_exp_filepaths(content)
         for fp in torrent.filepaths:
             assert os.path.exists(fp)
 
         torrent.name = 'Any name should be allowed'
         assert torrent.name == 'Any name should be allowed'
         assert torrent.files == generate_exp_files(content, 'Any name should be allowed')
-        assert tuple(torrent.filepaths) == generate_exp_filepaths(content)
+        assert torrent.filepaths == generate_exp_filepaths(content)
         for fp in torrent.filepaths:
             assert os.path.exists(fp)
 
         torrent.path = None
         assert torrent.name == 'Any name should be allowed'
         assert torrent.files == generate_exp_files(content, 'Any name should be allowed')
-        assert tuple(torrent.filepaths) == ()
+        assert torrent.filepaths == ()
 
         torrent.name = 'foo'
         assert torrent.name == 'foo'
         assert torrent.files == generate_exp_files(content, 'foo')
-        assert tuple(torrent.filepaths) == ()
+        assert torrent.filepaths == ()
 
         torrent.path = content.path
         assert torrent.name == os.path.basename(torrent.path)
         assert torrent.files == generate_exp_files(content, os.path.basename(torrent.path))
-        assert tuple(torrent.filepaths) == generate_exp_filepaths(content)
+        assert torrent.filepaths == generate_exp_filepaths(content)
         for fp in torrent.filepaths:
             assert os.path.exists(fp)
 

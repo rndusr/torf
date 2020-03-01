@@ -127,20 +127,16 @@ class Torrent():
         """
         File system path to torrent content
 
+        Setting this property creates a list of files, excluding any that match
+        any pattern in :attr:`exclude`, and passes it to :attr:`filepaths`.
+
         The properties :attr:`name` and :attr:`piece_size` are changed
-        implicitly when this property is set.
-
-        Setting this property sets ``name`` and ``piece length`` in
-        :attr:`metainfo`\ ``['info']`` as well as ``length`` if path is a file
-        or ``files`` if path is a directory.
-
-        If set to ``None``, "pieces" is removed (if present) from
+        implicitly when this property is set and ``pieces`` is removed from
         :attr:`metainfo`\ ``['info']``.
 
         :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
             file, empty directory or directory containing only empty files)
-        :raises ReadError: if :attr:`path` is a directory and not readable
-        :raises PathNotFoundError: if :attr:`path` doesn't exist
+        :raises ReadError: if :attr:`path` is not readable for any reason
         """
         return getattr(self, '_path', None)
     @path.setter
@@ -153,41 +149,28 @@ class Torrent():
         info.pop('pieces', None)
 
         if value is not None:
-            # Set new path and update related metainfo
-            path = os.path.normpath(str(value))
-            if not os.path.exists(path):
-                raise error.PathNotFoundError(value)
-            elif os.path.isdir(path):
-                files = []
-                basepath = path.split(os.sep)
-                for filepath in utils.filepaths(path, exclude=self.exclude,
-                                                hidden=False, empty=False):
-                    files.append({'length': os.path.getsize(filepath),
-                                  'path'  : filepath.split(os.sep)[len(basepath):]})
-                info['files'] = files
-                # If this was previously a singlefile torrent, we must remove
-                # the relevant keys from metainfo
-                info.pop('length', None)
-                info.pop('md5sum', None)
-            else:
-                info['length'] = os.path.getsize(path)
-                # If this was previously a multifile torrent, we must remove the
-                # relevant keys from metainfo
-                info.pop('files', None)
+            path = str(value)
 
-            if self.size < 1:
+            # Empty torrents are not allowed
+            if utils.real_size(path) <= 0:
                 raise error.PathEmptyError(path)
             else:
+                # The filepaths property needs to know the path, but we don't
+                # want to set it if utils.filter_files() fails.
                 self._path = path
+                try:
+                    self.filepaths = utils.filter_files(path, exclude=self.exclude,
+                                                        hidden=False, empty=False)
+                except:
+                    delattr(self, '_path')
+                    raise
+                # Set the new name
                 if path == '.':
                     self.name = os.path.basename(os.path.abspath('.'))
                 elif path == '..':
                     self.name = os.path.basename(os.path.abspath('..'))
                 else:
-                    # Set default name
-                    info.pop('name', None)
-                    self.name
-                self.piece_size = None
+                    self.name = None  # Set default name
 
     @property
     def name(self):
@@ -250,16 +233,44 @@ class Torrent():
     @property
     def filepaths(self):
         """
-        Yield absolute paths to existing files in :attr:`path`
+        List of paths to existing files in :attr:`path` to include in the torrent
 
-        Any files that match patterns in :attr:`exclude` as well as hidden and
-        empty files are not included.
+        Setting or manipulating this property removes ``pieces`` and ``md5sum``
+        from :attr:`metainfo`\ ``['info']`` and updates ``files`` or ``length``.
         """
+        filepaths = ()
         if self.path is not None:
-            yield from utils.filepaths(self.path, exclude=self.exclude,
-                                       hidden=False, empty=False)
+            if self.mode == 'singlefile':
+                filepaths = (self.path,)
+            elif self.mode == 'multifile':
+                dirpath = self.path
+                filepaths = (os.path.join(dirpath, *fileinfo['path'])
+                             for fileinfo in self.metainfo['info']['files'])
+        return utils.Filepaths(filepaths, callback=self._filepaths_changed)
 
-    File = namedtuple('File', ('name', 'path', 'dir', 'size'))
+    @filepaths.setter
+    def filepaths(self, filepaths):
+        info = self.metainfo['info']
+        info.pop('files', None)
+        info.pop('length', None)
+        info.pop('pieces', None)
+        info.pop('md5sum', None)
+
+        filepaths = tuple(filepaths)
+        if len(filepaths) == 1:
+            info['length'] = utils.real_size(filepaths[0])
+        elif len(filepaths) >= 2:
+            files = []
+            basepath = self.path.split(os.sep)
+            for filepath in filepaths:
+                files.append({'length': utils.real_size(filepath),
+                              'path'  : filepath.split(os.sep)[len(basepath):]})
+            info['files'] = files
+        # Calculate new piece size
+        self.piece_size = None
+
+    def _filepaths_changed(self, filepaths):
+        self.filepaths = filepaths
 
     @property
     def filetree(self):
@@ -303,6 +314,8 @@ class Torrent():
                                           os.path.join(*dirpath) if dirpath else '',
                                           self.partial_size(path))
         return tree
+
+    File = namedtuple('File', ('name', 'path', 'dir', 'size'))
 
     def remove(self, *paths):
         """
