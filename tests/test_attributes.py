@@ -247,14 +247,11 @@ def test_size(create_torrent, singlefile_content, multifile_content):
 
 
 def test_piece_size(create_torrent, multifile_content):
-    torrent = create_torrent()
-    torrent.path = multifile_content.path
-
-    with pytest.raises(RuntimeError) as excinfo:
-        torf.Torrent().piece_size = None
-    assert excinfo.match('^Cannot calculate piece size with no "path" specified$')
-
     assert torf.Torrent().piece_size is None
+
+    torrent = create_torrent(path=multifile_content.path)
+    assert torrent.piece_size is not None
+    assert 'piece length' in torrent.metainfo['info']
 
     with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 512 * 1024):
         torrent.piece_size = None

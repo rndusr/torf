@@ -417,7 +417,8 @@ class Torrent():
         if value is None:
             size = self.size
             if not size:
-                raise RuntimeError(f'Cannot calculate piece size with no "path" specified')
+                self.metainfo['info'].pop('piece length', None)
+                return
             else:
                 value = self.calculate_piece_size(size)
         try:
