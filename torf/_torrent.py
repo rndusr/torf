@@ -421,16 +421,13 @@ class Torrent():
         ``['info']``.
         """
         if 'piece length' not in self.metainfo['info']:
-            if self.size is None:
-                return None
-            else:
-                self.piece_size = None  # Calculate piece size
-        return self.metainfo['info']['piece length']
+            self.piece_size = None  # Calculate piece size
+        return self.metainfo['info'].get('piece length', None)
     @piece_size.setter
     def piece_size(self, value):
         if value is None:
             size = self.size
-            if not size:
+            if size is None or size <= 0:
                 self.metainfo['info'].pop('piece length', None)
                 return
             else:
