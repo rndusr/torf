@@ -252,10 +252,6 @@ class Torrent():
     @filepaths.setter
     def filepaths(self, filepaths):
         info = self.metainfo['info']
-        info.pop('files', None)
-        info.pop('length', None)
-        info.pop('pieces', None)
-        info.pop('md5sum', None)
 
         filepaths = tuple(pathlib.Path(fp) for fp in filepaths)
         if os.path.isdir(self.path):
@@ -265,8 +261,14 @@ class Torrent():
                 files.append({'length': utils.real_size(filepath),
                               'path'  : list(filepath.relative_to(basepath).parts)})
             info['files'] = files
+            info.pop('length', None)
+            info.pop('pieces', None)
+            info.pop('md5sum', None)
         else:
             info['length'] = utils.real_size(filepaths[0])
+            info.pop('files', None)
+            info.pop('pieces', None)
+            info.pop('md5sum', None)
 
         # Calculate new piece size
         self.piece_size = None
