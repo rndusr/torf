@@ -283,6 +283,35 @@ class Filepaths(MonitoredList):
         if file not in self._items:
             return file
 
+    def __setitem__(self, index, path):
+        path = self._coerce(path)
+        # Remove files that are equal to or start with `path`.  This removes
+        # directories recursively.  If `path` exists as a file, it is removed
+        # and then added again.
+        path_removed = False
+        for f in tuple(self._items):
+            if path == f or path in f.parents:
+                self._items.remove(f)
+                path_removed = True
+        if path.is_dir():
+            self.insert(index, path)
+        else:
+            if path_removed:
+                super().insert(index, path)
+            else:
+                super().__setitem__(index, path)
+
+    def insert(self, index, path):
+        path = self._coerce(path)
+        if path.is_dir():
+            with self._callback_disabled():
+                for i,child in enumerate(sorted(path.iterdir())):
+                    self.insert(index + i, child)
+            if self._callback is not None:
+                self._callback(self)
+        else:
+            super().insert(index, path)
+
 
 def is_url(url):
     """Return whether `url` is a valid URL"""
