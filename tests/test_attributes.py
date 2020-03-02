@@ -255,41 +255,83 @@ def test_size(create_torrent, singlefile_content, multifile_content):
         assert torrent.size == content.exp_attrs.size
 
 
-def test_piece_size(create_torrent, multifile_content):
+def test_piece_size_of_empty_torrent_is_None():
     assert torf.Torrent().piece_size is None
 
+def test_piece_size_is_set_automatically(create_torrent, multifile_content):
     torrent = create_torrent(path=multifile_content.path)
     assert torrent.piece_size is not None
     assert 'piece length' in torrent.metainfo['info']
 
-    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 512 * 1024):
-        torrent.piece_size = None
+    torrent = torf.Torrent()
+    assert torrent.piece_size is None
+    assert 'piece length' not in torrent.metainfo['info']
+    torrent.path = multifile_content.path
+    assert torrent.piece_size is not None
     assert 'piece length' in torrent.metainfo['info']
-    assert torrent.metainfo['info']['piece length'] == 512 * 1024
 
-    torrent.piece_size = 32 * 1024
-    assert torrent.piece_size == 32 * 1024
-    assert torrent.metainfo['info']['piece length'] == 32 * 1024
+def test_piece_size_is_set_manually(create_torrent, multifile_content):
+    torrent = create_torrent(path=multifile_content.path, piece_size=16*2**20)
+    assert torrent.piece_size == 16*2**20
+    assert torrent.metainfo['info']['piece length'] == 16*2**20
 
+    torrent = torf.Torrent(piece_size=16*2**20)
+    assert torrent.piece_size == 16*2**20
+    assert torrent.metainfo['info']['piece length'] == 16*2**20
+    torrent.path = multifile_content.path
+    assert torrent.piece_size != 16*2**20
+    assert torrent.metainfo['info']['piece length'] != 16*2**20
+
+def test_piece_size_defaults_to_return_value_of_calculate_piece_size(create_torrent, multifile_content):
+    torrent = create_torrent(path=multifile_content.path)
+    assert torrent.piece_size != 4*2**20
+    assert torrent.metainfo['info']['piece length'] != 4*2**20
+    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 4*2**20):
+        torrent.piece_size = None
+    assert torrent.piece_size == 4*2**20
+    assert torrent.metainfo['info']['piece length'] == 4*2**20
+
+def test_piece_size_when_torrent_size_is_zero(create_torrent, multifile_content):
+    torrent = torf.Torrent(path=multifile_content.path, exclude='*')
+    assert torrent.size == 0
+    assert torrent.piece_size is None
+    assert 'piece length' not in torrent.metainfo['info']
+
+def test_piece_size_is_set_manually(create_torrent, multifile_content):
+    torrent = create_torrent(path=multifile_content.path)
+    torrent.piece_size = 8*2**20
+    assert torrent.piece_size == 8*2**20
+    assert torrent.metainfo['info']['piece length'] == 8*2**20
+    torrent.piece_size = 2*2**20
+    assert torrent.piece_size == 2*2**20
+    assert torrent.metainfo['info']['piece length'] == 2*2**20
+
+def test_piece_size_is_set_to_wrong_type(create_torrent):
+    torrent = create_torrent()
+    with pytest.raises(ValueError) as excinfo:
+        torrent.piece_size = 'hello'
+    assert str(excinfo.value) == "piece_size must be int, not 'hello'"
+
+def test_piece_size_is_set_manually_to_not_power_of_two(create_torrent):
+    torrent = create_torrent()
     with pytest.raises(torf.PieceSizeError) as excinfo:
         torrent.piece_size = 123 * 1000
-    assert excinfo.match('^Piece size must be a power of 2: 123000$')
+    assert str(excinfo.value) == 'Piece size must be a power of 2: 123000'
 
+def test_piece_size_min_and_piece_size_max(create_torrent):
+    torrent = create_torrent()
     with patch.multiple(torf.Torrent, piece_size_min=16, piece_size_max=128):
         with pytest.raises(torf.PieceSizeError) as excinfo:
             torrent.piece_size = 8
-        assert excinfo.match('^Piece size must be between 16 and 128: 8$')
+        assert str(excinfo.value) == 'Piece size must be between 16 and 128: 8'
         with pytest.raises(torf.PieceSizeError) as excinfo:
             torrent.piece_size = 256
-        assert excinfo.match('^Piece size must be between 16 and 128: 256$')
+        assert str(excinfo.value) == 'Piece size must be between 16 and 128: 256'
 
-    with pytest.raises(ValueError) as excinfo:
-        torrent.piece_size = 'hello'
-    assert excinfo.match("^piece_size must be int, not 'hello'$")
-
-    # Anything goes if the metainfo is edited directly
-    torrent.metainfo['info']['piece length'] = 256
+def test_piece_size_can_be_invalid_in_metainfo(create_torrent):
+    torrent = create_torrent()
     torrent.metainfo['info']['piece length'] = 123
+    torrent.metainfo['info']['piece length'] = 'foo'
     torrent.metainfo['info']['piece length'] = -12
 
 
