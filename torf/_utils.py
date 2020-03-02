@@ -29,13 +29,29 @@ import pathlib
 from . import _errors as error
 
 
+def is_power_of_2(num):
+    """Return whether `num` is a power of two"""
+    if num == 0:
+        return False
+    log = math.log2(abs(num))
+    return int(log) == float(log)
+
+def iterable_startswith(a, b):
+    a_len = len(a)
+    for i, b_item in enumerate(b):
+        if i >= a_len:
+            # a can't start with b if b is longer than a
+            return False
+        if a[i] != b_item:
+            return False
+    return True
+
 def flatten(items):
     for item in items:
         if isinstance(item, Iterable):
             yield from flatten(item)
         else:
             yield item
-
 
 _md5sum_regex = re.compile(r'^[0-9a-fA-F]{32}$')
 def is_md5sum(value):
@@ -69,7 +85,6 @@ def read_chunks(filepath, chunksize, prepend=bytes()):
     except OSError as e:
         raise error.ReadError(e.errno, filepath)
 
-
 def real_size(path):
     """
     Return size for `path`, which is a (link to a) file or directory
@@ -94,26 +109,6 @@ def real_size(path):
             raise error.ReadError(getattr(exc, 'errno', None),
                                   getattr(exc, 'filename', None))
 
-
-def is_power_of_2(num):
-    """Return whether `num` is a power of two"""
-    if num == 0:
-        return False
-    log = math.log2(abs(num))
-    return int(log) == float(log)
-
-
-def iterable_startswith(a, b):
-    a_len = len(a)
-    for i, b_item in enumerate(b):
-        if i >= a_len:
-            # a can't start with b if b is longer than a
-            return False
-        if a[i] != b_item:
-            return False
-    return True
-
-
 def is_hidden(path):
     """Whether file or directory is hidden"""
     for name in path.split(os.sep):
@@ -121,12 +116,54 @@ def is_hidden(path):
             return True
     return False
 
-
 def is_match(path, pattern):
     for name in path.split(os.sep):
         if fnmatch(name, pattern):
             return True
     return False
+
+def filter_files(path, exclude=(), hidden=True, empty=True):
+    """
+    Return list of absolute, sorted file paths
+
+    path: Path to file or directory
+    exclude: List of file name patterns to exclude
+    hidden: Whether to include hidden files
+    empty: Whether to include empty files
+
+    Raise PathNotFoundError if path doesn't exist.
+    Raise ReadError if path doesn't look readable.
+    """
+    if not os.path.exists(path):
+        raise error.PathNotFoundError(path)
+    elif not os.access(path, os.R_OK,
+                       effective_ids=os.access in os.supports_effective_ids):
+        raise error.ReadError(errno.EACCES, path)
+
+    if os.path.isfile(path):
+        return [path]
+    else:
+        filepaths = []
+        for dirpath, dirnames, filenames in os.walk(path):
+            # Ignore hidden directory
+            if not hidden and is_hidden(dirpath):
+                continue
+
+            for filename in filenames:
+                # Ignore hidden file
+                if not hidden and is_hidden(filename):
+                    continue
+
+                filepath = os.path.join(dirpath, filename)
+                # Ignore excluded file
+                if any(is_match(filepath, pattern) for pattern in exclude):
+                    continue
+                else:
+                    # Ignore empty file
+                    if empty or real_size(filepath) > 0:
+                        filepaths.append(filepath)
+
+        return sorted(filepaths, key=lambda fp: fp.casefold())
 
 
 class MonitoredList(collections.abc.MutableSequence):
@@ -217,49 +254,6 @@ class MonitoredList(collections.abc.MutableSequence):
     def __repr__(self):
         return repr(self._items)
 
-
-def filter_files(path, exclude=(), hidden=True, empty=True):
-    """
-    Return list of absolute, sorted file paths
-
-    path: Path to file or directory
-    exclude: List of file name patterns to exclude
-    hidden: Whether to include hidden files
-    empty: Whether to include empty files
-
-    Raise PathNotFoundError if path doesn't exist.
-    Raise ReadError if path doesn't look readable.
-    """
-    if not os.path.exists(path):
-        raise error.PathNotFoundError(path)
-    elif not os.access(path, os.R_OK,
-                       effective_ids=os.access in os.supports_effective_ids):
-        raise error.ReadError(errno.EACCES, path)
-
-    if os.path.isfile(path):
-        return [path]
-    else:
-        filepaths = []
-        for dirpath, dirnames, filenames in os.walk(path):
-            # Ignore hidden directory
-            if not hidden and is_hidden(dirpath):
-                continue
-
-            for filename in filenames:
-                # Ignore hidden file
-                if not hidden and is_hidden(filename):
-                    continue
-
-                filepath = os.path.join(dirpath, filename)
-                # Ignore excluded file
-                if any(is_match(filepath, pattern) for pattern in exclude):
-                    continue
-                else:
-                    # Ignore empty file
-                    if empty or real_size(filepath) > 0:
-                        filepaths.append(filepath)
-
-        return sorted(filepaths, key=lambda fp: fp.casefold())
 
 class Filepaths(MonitoredList):
     """List of `:class:pathlib.Path` objects with change callback"""
