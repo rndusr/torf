@@ -154,13 +154,94 @@ def test_filepaths_with_no_path(create_torrent, multifile_content):
     assert torrent.filepaths == ()
 
 def test_filepaths_with_single_file_in_directory(create_torrent, tmp_path):
-    content = tmp_path / 'content'
-    content.mkdir()
+    content = tmp_path / 'content' ; content.mkdir()
     file1 = content / 'file1'
     file1.write_text('not empty')
     torrent = create_torrent(path=content)
     assert torrent.filepaths == (Path(file1),)
     assert torrent.mode == 'multifile'
+
+def test_filepaths_updates_metainfo_automatically_when_manipulated(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    for i in range(1, 5): (content / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=content)
+
+    assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
+                                                 {'path': ['file2'], 'length': 6},
+                                                 {'path': ['file3'], 'length': 6},
+                                                 {'path': ['file4'], 'length': 6}]
+    torrent.filepaths.remove(content / 'file3')
+    assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
+                                                 {'path': ['file2'], 'length': 6},
+                                                 {'path': ['file4'], 'length': 6}]
+    torrent.filepaths.append(content / 'file3')
+    assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
+                                                 {'path': ['file2'], 'length': 6},
+                                                 {'path': ['file3'], 'length': 6},
+                                                 {'path': ['file4'], 'length': 6}]
+    torrent.filepaths.remove(content / 'file2')
+    assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
+                                                 {'path': ['file3'], 'length': 6},
+                                                 {'path': ['file4'], 'length': 6}]
+
+def test_filepaths_gets_information_from_metainfo(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    for i in range(1, 5): (content / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=content)
+
+    torrent.metainfo['info']['files'].remove({'path': ['file1'], 'length': 6})
+    torrent.metainfo['info']['files'].remove({'path': ['file2'], 'length': 6})
+    torrent.metainfo['info']['files'].append({'path': ['file9'], 'length': 6000})
+
+    assert torrent.filepaths == [content / 'file3',
+                                 content / 'file4',
+                                 content / 'file9']
+
+def test_filepaths_does_not_accept_paths_outside_of_path(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    for i in range(1, 5):
+        (content / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=content)
+    (tmp_path / 'outsider').write_text('<data>')
+
+    with pytest.raises(ValueError) as excinfo:
+        torrent.filepaths.append(tmp_path / 'outsider')
+    assert str(excinfo.value) == f'Not a subpath of {str(torrent.path)}: {str(tmp_path / "outsider")}'
+    # Metainfo must not haved changed
+    assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
+                                                 {'path': ['file2'], 'length': 6},
+                                                 {'path': ['file3'], 'length': 6},
+                                                 {'path': ['file4'], 'length': 6}]
+
+def test_filepaths_understands_relative_paths(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    for i in range(1, 4): (content / f'file{i}').write_text('<data>')
+
+    os.chdir(tmp_path / '..')
+    abspath = tmp_path / 'content'
+    relpath = Path(tmp_path.name, 'content')
+    torrent = create_torrent(path=relpath)
+
+    torrent.filepaths.remove(relpath / 'file3')
+    assert torrent.filepaths == [relpath / 'file1', relpath / 'file2']
+    torrent.filepaths.append(abspath / 'file3')
+    assert torrent.filepaths == [relpath / 'file1', relpath / 'file2', abspath / 'file3']
+
+    # Add file outside of torrent.path as relative path
+    (tmp_path / 'outsider').write_text('<data>')
+    outsider_relpath = Path(tmp_path.name, 'outsider')
+    with pytest.raises(ValueError) as excinfo:
+        torrent.filepaths.append(outsider_relpath)
+    assert str(excinfo.value) == f'Not a subpath of {str(torrent.path)}: {outsider_relpath}'
+
+def test_filepaths_does_not_accept_nonexisting_files(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    for i in range(1, 5): (content / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=content)
+
+    with pytest.raises(torf.ReadError) as excinfo:
+        torrent.filepaths.append(content / 'asdf')
+    assert str(excinfo.value) == f'{str(content / "asdf")}: No such file or directory'
 
 
 def test_filetree_with_no_path(create_torrent):
