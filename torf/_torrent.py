@@ -22,6 +22,7 @@ from collections import abc, namedtuple
 import errno
 import inspect
 import io
+import pathlib
 
 from . import _utils as utils
 from . import _errors as error
@@ -256,13 +257,13 @@ class Torrent():
         info.pop('pieces', None)
         info.pop('md5sum', None)
 
-        filepaths = tuple(filepaths)
+        filepaths = tuple(pathlib.Path(fp) for fp in filepaths)
         if os.path.isdir(self.path):
             files = []
-            basepath = self.path.split(os.sep)
-            for filepath in filepaths:
+            basepath = self.path
+            for filepath in sorted(filepaths):
                 files.append({'length': utils.real_size(filepath),
-                              'path'  : filepath.split(os.sep)[len(basepath):]})
+                              'path'  : list(filepath.relative_to(basepath).parts)})
             info['files'] = files
         else:
             info['length'] = utils.real_size(filepaths[0])
