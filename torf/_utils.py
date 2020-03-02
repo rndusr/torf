@@ -255,14 +255,28 @@ class MonitoredList(collections.abc.MutableSequence):
         return repr(self._items)
 
 
+class Filepath(type(pathlib.Path())):
+    """
+    :class:`pathlib.Path` subclass that makes relative paths equal to their
+    absolute versions
+    """
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return pathlib.Path(self.resolve()) == pathlib.Path(other.resolve())
+        else:
+            return pathlib.Path(self.resolve()) == pathlib.Path(other).resolve()
+
+    def __hash__(self):
+        return hash(pathlib.Path(self.resolve()))
+
 class Filepaths(MonitoredList):
     """List of `:class:pathlib.Path` objects with change callback"""
     def __init__(self, filepaths, callback=None):
         if isinstance(filepaths, str):
             filepaths = (filepaths,)
         else:
-            filepaths = flatten(filepaths)
-        super().__init__(filepaths, callback=callback, type=pathlib.Path,
+            filepaths = list(flatten(filepaths))
+        super().__init__(filepaths, callback=callback, type=Filepath,
                          filter_func=self._filter_func)
 
     def _filter_func(self, file):
