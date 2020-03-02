@@ -256,10 +256,25 @@ class Torrent():
         filepaths = tuple(pathlib.Path(fp) for fp in filepaths)
         if os.path.isdir(self.path):
             files = []
-            basepath = self.path
+            basepath = pathlib.Path(self.path)
             for filepath in sorted(filepaths):
+                # Metainfo stores relative paths
+                try:
+                    relpath = filepath.relative_to(basepath)
+                except ValueError:
+                    # If `filepath` is absolute and `basepath` is relative and
+                    # "/to/basepath/" is a substring of
+                    # "/path/to/basepath/subdir/filepath", we assume that
+                    # "/path/to/basepath" is the absolute path of this torrent.
+                    filepath_str = str(filepath)
+                    basepath_str = f'{os.sep}{str(basepath)}{os.sep}'
+                    _, __, relpath = filepath_str.rpartition(basepath_str)
+                    if relpath == filepath_str:
+                        raise ValueError(f'Not a subpath of {basepath}: {filepath}')
+                    else:
+                        relpath = pathlib.Path(relpath)
                 files.append({'length': utils.real_size(filepath),
-                              'path'  : list(filepath.relative_to(basepath).parts)})
+                              'path'  : list(relpath.parts)})
             info['files'] = files
             info.pop('length', None)
             info.pop('pieces', None)
