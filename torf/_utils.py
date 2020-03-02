@@ -270,7 +270,7 @@ class Filepath(type(pathlib.Path())):
         return hash(pathlib.Path(self.resolve()))
 
 class Filepaths(MonitoredList):
-    """List of `:class:pathlib.Path` objects with change callback"""
+    """Deduplicated list of :class:`Filepath` objects with change callback"""
     def __init__(self, filepaths, callback=None):
         if isinstance(filepaths, str):
             filepaths = (filepaths,)
