@@ -261,6 +261,42 @@ def test_Filepaths_deduplicates_when_inserting():
     fps.insert(0, 'path/to/bar.jpg')
     assert fps == (Path('path/to/foo.jpg'), Path('path/to/bar.jpg'))
 
+def test_Filepaths_treats_relative_paths_as_equal_to_their_absolute_versions(tmp_path):
+    cwd = tmp_path / 'cwd' ; cwd.mkdir()
+    os.chdir(cwd)
+    fps = utils.Filepaths((Path('foo'),))
+    assert fps == ('foo',)
+
+    fps.append(cwd / 'foo')
+    assert fps == ('foo',)
+    fps.append(cwd / 'bar')
+    fps.append('bar')
+    assert fps == ('foo', cwd / 'bar')
+
+def test_Filepaths_handles_directories(tmp_path):
+    # Create directory with 2 files
+    content = tmp_path / 'content' ; content.mkdir()
+    for f in ('a', 'b'): (content / f).write_text('<data>')
+    fps = utils.Filepaths((content / 'a', content / 'b'))
+    assert fps == (content / 'a', content / 'b')
+
+    # Replace one file with multilevel subdirectory
+    subdir = content / 'b' ; subdir.unlink() ; subdir.mkdir()
+    for f in ('c', 'd'): (subdir / f).write_text('<subdata>')
+    subsubdir = subdir / 'subsubdir' ; subsubdir.mkdir()
+    for f in ('e', 'f'): (subsubdir / f).write_text('<subdata>')
+    fps[1] = content / 'b'
+    assert fps == (content / 'a', subdir / 'c', subdir / 'd', subsubdir / 'e', subsubdir / 'f')
+
+    # Replace subdirectory with file again
+    for f in (subdir / 'c', subdir / 'd', subsubdir / 'e', subsubdir / 'f'):
+        f.unlink()
+    subsubdir.rmdir()
+    subdir.rmdir()
+    (content / 'b').write_text('I AM BACK')
+    fps[1] = content / 'b'
+    assert fps == (content / 'a', content / 'b')
+
 def test_Filepaths_calls_callback_after_appending():
     cb = mock.MagicMock()
     fps = utils.Filepaths(('path/to/foo.jpg',), callback=cb)
