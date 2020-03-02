@@ -183,24 +183,24 @@ class MonitoredList(collections.abc.MutableSequence):
         yield
         self._callback = cb
 
-    def __getitem__(self, item):
-        return self._items[item]
+    def __getitem__(self, index):
+        return self._items[index]
 
-    def __delitem__(self, item):
-        del self._items[item]
+    def __delitem__(self, index):
+        del self._items[index]
         if self._callback is not None:
             self._callback(self)
 
-    def _coerce(self, item):
+    def _coerce(self, value):
         if self._type is not None:
-            return self._type(item)
+            return self._type(value)
         else:
-            return item
+            return value
 
-    def __setitem__(self, item, value):
+    def __setitem__(self, index, value):
         value = self._filter_func(self._coerce(value))
         if value is not None:
-            self._items[item] = value
+            self._items[index] = value
         if self._callback is not None:
             self._callback(self)
 
@@ -338,19 +338,19 @@ class Trackers(collections.abc.MutableSequence):
         if self._callback is not None:
             self._callback(self)
 
-    def __getitem__(self, item):
-        return self._tiers[item]
+    def __getitem__(self, index):
+        return self._tiers[index]
 
-    def __setitem__(self, item, value):
+    def __setitem__(self, index, value):
         tier = URLs(value, callback=self._tier_changed,
                     _get_known_urls=lambda self=self: self.flat)
         if len(tier) > 0 and tier not in self._tiers:
-            self._tiers[item] = tier
+            self._tiers[index] = tier
         if self._callback is not None:
             self._callback(self)
 
-    def __delitem__(self, item):
-        del self._tiers[item]
+    def __delitem__(self, index):
+        del self._tiers[index]
         if self._callback is not None:
             self._callback(self)
 
