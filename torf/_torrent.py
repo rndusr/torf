@@ -1109,11 +1109,11 @@ class Torrent():
         filepaths, maybe_cancel = self._verify_prepare(path, callback, interval=interval)
         fs_filepaths = tuple(x[0] for x in filepaths)
 
-        if self.mode == 'singlefile' and os.path.isdir(os.path.realpath(path)):
+        if self.mode == 'singlefile' and os.path.isdir(path):
             exception = error.VerifyNotDirectoryError(path)
             maybe_cancel(cb_args=(self, fs_filepaths[0], 0, self.pieces, 0, None, exception),
                          force_call=True)
-        elif self.mode == 'multifile' and not os.path.isdir(os.path.realpath(path)):
+        elif self.mode == 'multifile' and not os.path.isdir(path):
             exception = error.VerifyIsDirectoryError(path)
             maybe_cancel(cb_args=(self, fs_filepaths[0], 0, self.pieces, 0, None, exception),
                          force_call=True)
