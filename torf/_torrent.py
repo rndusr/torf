@@ -409,8 +409,12 @@ class Torrent():
         """
         if isinstance(path, str):
             path = tuple(path.split(os.sep))
+        elif isinstance(path, pathlib.Path):
+            path = tuple(path.parts)
+        elif isinstance(path, abc.Iterable):
+            path = tuple(str(part) for part in path)
         else:
-            path = tuple(path)
+            raise ValueError(f'Must be str, Path or Iterable, not {type(path).__name__}: {path}')
         if self.mode == 'singlefile' and path == (self.name,):
             return self.metainfo['info']['length']
         elif self.mode == 'multifile':
