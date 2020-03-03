@@ -16,6 +16,8 @@
   - Torrent.filepaths, Torrent.trackers, Torrent.webseeds and Torrent.httpseeds
     are now mutable lists that automatically synchronize to/from
     Torrent.metainfo when get, set or manipulated.
+  - Torrent.path is now a pathlib.Path object.
+  - Torrent.filepaths is now a list of pathlib.Path objects.
   - Torrent.files is now a tuple of pathlib.Path objects.
   - The new class attributes Torrent.piece_size_min and Torrent.piece_size_max
     can now be used to quickly specify piece size limits.  Setting the
