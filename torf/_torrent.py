@@ -158,7 +158,7 @@ class Torrent():
             else:
                 # The filepaths property needs to know the path, but we don't
                 # want to set it if utils.filter_files() fails.
-                self._path = path
+                self._path = pathlib.Path(path)
                 try:
                     self.filepaths = utils.filter_files(path, exclude=self.exclude,
                                                         hidden=False, empty=False)
@@ -188,7 +188,7 @@ class Torrent():
         ``['info']``.
         """
         if 'name' not in self.metainfo['info'] and self.path is not None:
-            self.metainfo['info']['name'] = os.path.basename(self.path)
+            self.metainfo['info']['name'] = self.path.name
         return self.metainfo['info'].get('name', None)
     @name.setter
     def name(self, value):

@@ -13,6 +13,7 @@ def test_path_doesnt_exist(create_torrent, tmpdir):
     with pytest.raises(torf.ReadError) as excinfo:
         torrent.path = '/this/path/does/not/exist'
     assert excinfo.match('^/this/path/does/not/exist: No such file or directory$')
+    assert torrent.path is None
 
 def test_path_is_empty_directory(create_torrent, tmpdir):
     torrent = create_torrent()
@@ -20,6 +21,7 @@ def test_path_is_empty_directory(create_torrent, tmpdir):
     with pytest.raises(torf.PathEmptyError) as excinfo:
         torrent.path = empty
     assert excinfo.match(f'^{str(empty)}: Empty directory$')
+    assert torrent.path is None
 
 def test_path_is_empty_file(create_torrent, tmpdir):
     torrent = create_torrent()
@@ -28,6 +30,7 @@ def test_path_is_empty_file(create_torrent, tmpdir):
     with pytest.raises(torf.PathEmptyError) as excinfo:
         torrent.path = empty
     assert excinfo.match(f'^{str(empty)}: Empty file$')
+    assert torrent.path is None
 
 def test_path_is_directory_with_empty_file(create_torrent, tmpdir):
     torrent = create_torrent()
@@ -37,25 +40,40 @@ def test_path_is_directory_with_empty_file(create_torrent, tmpdir):
     with pytest.raises(torf.PathEmptyError) as excinfo:
         torrent.path = empty
     assert excinfo.match(f'^{str(empty)}: Empty directory$')
+    assert torrent.path is None
 
 def test_path_reset(create_torrent, singlefile_content, multifile_content):
     torrent = create_torrent()
     torrent.path = singlefile_content.path
+    assert torrent.path == Path(singlefile_content.path)
     torrent.private = True
-    torrent.path = multifile_content.path
+    torrent.generate()
+    assert 'pieces' in torrent.metainfo['info']
     assert torrent.metainfo['info']['private'] == True
+
+    torrent.path = multifile_content.path
+    assert torrent.path == Path(multifile_content.path)
+    assert 'pieces' not in torrent.metainfo['info']
+    assert torrent.metainfo['info']['private'] == True
+    torrent.generate()
+    assert 'pieces' in torrent.metainfo['info']
+    assert torrent.metainfo['info']['private'] == True
+
     torrent.path = None
+    assert torrent.path is None
     assert torrent.metainfo['info']['private'] == True
     assert 'pieces' not in torrent.metainfo['info']
 
 def test_path_switch_from_singlefile_to_multifile(create_torrent, singlefile_content, multifile_content):
     torrent = create_torrent()
     torrent.path = singlefile_content.path
+    assert torrent.path == Path(singlefile_content.path)
     for key in ('piece length', 'name', 'length'):
         assert key in torrent.metainfo['info']
     assert 'files' not in torrent.metainfo['info']
 
     torrent.path = multifile_content.path
+    assert torrent.path == Path(multifile_content.path)
     for key in ('piece length', 'name', 'files'):
         assert key in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
@@ -63,34 +81,30 @@ def test_path_switch_from_singlefile_to_multifile(create_torrent, singlefile_con
 def test_path_switch_from_multifile_to_singlefile(create_torrent, singlefile_content, multifile_content):
     torrent = create_torrent()
     torrent.path = multifile_content.path
+    assert torrent.path == Path(multifile_content.path)
     for key in ('piece length', 'name', 'files'):
         assert key in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
 
     torrent.path = singlefile_content.path
+    assert torrent.path == Path(singlefile_content.path)
     for key in ('piece length', 'name', 'length'):
         assert key in torrent.metainfo['info']
     assert 'files' not in torrent.metainfo['info']
 
 def test_path_is_period(create_torrent, multifile_content):
     torrent = create_torrent()
-    cwd = os.getcwd()
-    try:
-        os.chdir(multifile_content.path)
-        torrent.path = '.'
-        assert torrent.name == os.path.basename(multifile_content.path)
-    finally:
-        os.chdir(cwd)
+    os.chdir(multifile_content.path)
+    torrent.path = '.'
+    assert torrent.path == Path('.')
+    assert torrent.name == os.path.basename(multifile_content.path)
 
 def test_path_is_double_period(create_torrent, multifile_content):
     torrent = create_torrent()
-    cwd = os.getcwd()
-    try:
-        os.chdir(multifile_content.path)
-        torrent.path = '..'
-        assert torrent.name == os.path.basename(os.path.dirname(multifile_content.path))
-    finally:
-        os.chdir(cwd)
+    os.chdir(multifile_content.path)
+    torrent.path = '..'
+    assert torrent.path == Path('..')
+    assert torrent.name == os.path.basename(os.path.dirname(multifile_content.path))
 
 
 def test_mode(singlefile_content, multifile_content):
