@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import patch
 import os
 from pathlib import Path
+import glob
 
 
 def test_path_doesnt_exist(create_torrent, tmpdir):
@@ -334,14 +335,12 @@ def test_name(create_torrent, singlefile_content, multifile_content):
     torrent = create_torrent()
     def generate_exp_files(content, torrent_name):
         if content is singlefile_content:
-            return (torrent_name,)
+            return (Path(torrent_name),)
         else:
-            import glob
-            filewalker = (f for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
+            filewalker = (Path(f) for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
                           if os.path.isfile(f))
-            rootdir_len = len(os.path.dirname(content.path)) + 1  # Include final '/'
-            rel_paths = sorted(path[rootdir_len:] for path in filewalker)
-            exp_files = tuple(torrent_name + os.sep + os.path.join(*path.split(os.sep)[1:])
+            rel_paths = sorted(path.relative_to(content.path) for path in filewalker)
+            exp_files = tuple(Path(torrent_name, path)
                               for path in rel_paths)
             return exp_files
 
@@ -349,7 +348,6 @@ def test_name(create_torrent, singlefile_content, multifile_content):
         if content is singlefile_content:
             return (Path(content.path),)
         else:
-            import glob
             return tuple(sorted(Path(f) for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
                                 if os.path.isfile(f)))
 
