@@ -229,7 +229,7 @@ class VerifyContentError(TorfError):
                 msg += f' in {corrupt_files[0]}'
             else:
                 msg += (', at least one of these files is corrupt: ' +
-                        ', '.join(corrupt_files))
+                        ', '.join(str(f) for f in corrupt_files))
 
         self._files = tuple(corrupt_files)
         super().__init__(msg, piece_index, piece_size, file_sizes)
