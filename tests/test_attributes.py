@@ -163,10 +163,21 @@ def test_filepaths_multifile(create_torrent, multifile_content):
     assert torrent.filepaths == exp_filepaths1
     assert torrent.filepaths == exp_filepaths2
 
-def test_filepaths_with_no_path(create_torrent, multifile_content):
-    torrent = create_torrent(path=multifile_content.path)
-    torrent.filepaths = ()
-    assert torrent.filepaths == ()
+def test_filepaths_is_set_to_empty_tuple(create_torrent, multifile_content, singlefile_content):
+    for content in (singlefile_content, multifile_content):
+        torrent = create_torrent(path=content.path)
+        torrent.generate()
+        assert 'name' in torrent.metainfo['info']
+        assert 'pieces' in torrent.metainfo['info']
+        if content is singlefile_content:
+            assert 'length' in torrent.metainfo['info']
+        else:
+            assert 'files' in torrent.metainfo['info']
+        torrent.filepaths = ()
+        assert torrent.filepaths == ()
+        for key in ('files', 'length', 'pieces'):
+            assert key not in torrent.metainfo['info']
+        assert torrent.metainfo['info']['name'] == os.path.basename(content.path)
 
 def test_filepaths_with_single_file_in_directory(create_torrent, tmp_path):
     content = tmp_path / 'content' ; content.mkdir()
@@ -175,6 +186,24 @@ def test_filepaths_with_single_file_in_directory(create_torrent, tmp_path):
     torrent = create_torrent(path=content)
     assert torrent.filepaths == (Path(file1),)
     assert torrent.mode == 'multifile'
+
+def test_filepaths_with_single_file_cannot_be_set(create_torrent, tmp_path):
+    (tmp_path / 'content').write_bytes(b'foo')
+    torrent = create_torrent(path=tmp_path / 'content')
+    assert torrent.filepaths == (tmp_path / 'content',)
+    (tmp_path / 'content2').write_bytes(b'foo')
+    with pytest.raises(RuntimeError) as excinfo:
+        torrent.filepaths = (tmp_path / 'content2',)
+    assert str(excinfo.value) == 'Cannot change "filepaths" of single-file torrent; set the "path" property instead'
+
+def test_filepaths_with_single_file_cannot_be_manipulated(create_torrent, tmp_path):
+    (tmp_path / 'content').write_bytes(b'foo')
+    torrent = create_torrent(path=tmp_path / 'content')
+    assert torrent.filepaths == (tmp_path / 'content',)
+    (tmp_path / 'content2').write_bytes(b'foo')
+    with pytest.raises(RuntimeError) as excinfo:
+        torrent.filepaths.append(tmp_path / 'content2')
+    assert str(excinfo.value) == 'Cannot change "filepaths" of single-file torrent; set the "path" property instead'
 
 def test_filepaths_updates_metainfo_automatically_when_manipulated(create_torrent, tmp_path):
     content = tmp_path / 'content' ; content.mkdir()
@@ -203,16 +232,14 @@ def test_filepaths_gets_information_from_metainfo(create_torrent, tmp_path):
     content = tmp_path / 'content' ; content.mkdir()
     for i in range(1, 5): (content / f'file{i}').write_text('<data>')
     torrent = create_torrent(path=content)
-
     torrent.metainfo['info']['files'].remove({'path': ['file1'], 'length': 6})
     torrent.metainfo['info']['files'].remove({'path': ['file2'], 'length': 6})
     torrent.metainfo['info']['files'].append({'path': ['file9'], 'length': 6000})
-
     assert torrent.filepaths == [content / 'file3',
                                  content / 'file4',
                                  content / 'file9']
 
-def test_filepaths_does_not_accept_paths_outside_of_path(create_torrent, tmp_path):
+def test_filepaths_only_accepts_subpaths(create_torrent, tmp_path):
     content = tmp_path / 'content' ; content.mkdir()
     for i in range(1, 5):
         (content / f'file{i}').write_text('<data>')
@@ -221,7 +248,7 @@ def test_filepaths_does_not_accept_paths_outside_of_path(create_torrent, tmp_pat
 
     with pytest.raises(ValueError) as excinfo:
         torrent.filepaths.append(tmp_path / 'outsider')
-    assert str(excinfo.value) == f'Not a subpath of {str(torrent.path)}: {str(tmp_path / "outsider")}'
+    assert str(excinfo.value) == f'{str(tmp_path / "outsider")}: Not a subpath of {str(torrent.path)}'
     # Metainfo must not haved changed
     assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
                                                  {'path': ['file2'], 'length': 6},
@@ -247,7 +274,7 @@ def test_filepaths_understands_relative_paths(create_torrent, tmp_path):
     outsider_relpath = Path(tmp_path.name, 'outsider')
     with pytest.raises(ValueError) as excinfo:
         torrent.filepaths.append(outsider_relpath)
-    assert str(excinfo.value) == f'Not a subpath of {str(torrent.path)}: {outsider_relpath}'
+    assert str(excinfo.value) == f'{outsider_relpath}: Not a subpath of {str(torrent.path)}'
 
 def test_filepaths_does_not_accept_nonexisting_files(create_torrent, tmp_path):
     content = tmp_path / 'content' ; content.mkdir()
@@ -257,6 +284,14 @@ def test_filepaths_does_not_accept_nonexisting_files(create_torrent, tmp_path):
     with pytest.raises(torf.ReadError) as excinfo:
         torrent.filepaths.append(content / 'asdf')
     assert str(excinfo.value) == f'{str(content / "asdf")}: No such file or directory'
+
+def test_filepaths_cannot_be_set_without_path_being_set(create_torrent, tmp_path):
+    torrent = create_torrent()
+    assert torrent.path is None
+    assert torrent.filepaths == ()
+    with pytest.raises(RuntimeError) as excinfo:
+        torrent.filepaths.append('foo')
+    assert str(excinfo.value) == 'Cannot modify "filepaths" with "path" being None'
 
 
 def test_filetree_with_no_path(create_torrent):
@@ -432,7 +467,7 @@ def test_piece_size_defaults_to_return_value_of_calculate_piece_size(create_torr
 
 def test_piece_size_when_torrent_size_is_zero(create_torrent, multifile_content):
     torrent = torf.Torrent(path=multifile_content.path, exclude='*')
-    assert torrent.size == 0
+    assert torrent.size == None
     assert torrent.piece_size is None
     assert 'piece length' not in torrent.metainfo['info']
 

@@ -234,10 +234,19 @@ class Torrent():
     @property
     def filepaths(self):
         """
-        List of paths to existing files in :attr:`path` to include in the torrent
+        List of paths of existing files in :attr:`path` included in the torrent
 
-        Setting or manipulating this property removes ``pieces`` and ``md5sum``
-        from :attr:`metainfo`\ ``['info']`` and updates ``files`` or ``length``.
+        Paths are :class:`pathlib.Path` objects and are automatically
+        deduplicated.
+
+        Setting or manipulating this property automatically updates
+        :attr:`metainfo`\ ``['info']`` accordingly: ``pieces`` and ``md5sum``
+        are removed and ``files`` or ``length`` are updated.
+
+        :raises ValueError: if any path is not a subpath of :attr:`path`
+        :raises RuntimeError: if set or manipulated and :attr:`path` is ``None``
+            or if the path of a single-file torrent is changed via this property
+        :raises ReadError: if any path is not readable
         """
         filepaths = ()
         if self.path is not None:
@@ -253,36 +262,48 @@ class Torrent():
     def filepaths(self, filepaths):
         info = self.metainfo['info']
         filepaths = tuple(pathlib.Path(fp) for fp in filepaths)
-        if os.path.isdir(self.path):
-            files = []
-            basepath = pathlib.Path(self.path)
-            for filepath in sorted(filepaths):
-                # Metainfo stores relative paths
-                try:
-                    relpath = filepath.relative_to(basepath)
-                except ValueError:
-                    # If `filepath` is absolute and `basepath` is relative and
-                    # "/to/basepath/" is a substring of
-                    # "/path/to/basepath/subdir/filepath", we assume that
-                    # "/path/to/basepath" is the absolute path of this torrent.
-                    filepath_str = str(filepath)
-                    basepath_str = f'{os.sep}{str(basepath)}{os.sep}'
-                    _, __, relpath = filepath_str.rpartition(basepath_str)
-                    if relpath == filepath_str:
-                        raise ValueError(f'Not a subpath of {basepath}: {filepath}')
-                    else:
-                        relpath = pathlib.Path(relpath)
-                files.append({'length': utils.real_size(filepath),
-                              'path'  : list(relpath.parts)})
-            info['files'] = files
+        if not filepaths:
+            info.pop('files', None)
             info.pop('length', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
+        elif self.path is None:
+            raise RuntimeError('Cannot modify "filepaths" with "path" being None')
         else:
-            info['length'] = utils.real_size(filepaths[0])
-            info.pop('files', None)
-            info.pop('pieces', None)
-            info.pop('md5sum', None)
+            if os.path.isdir(self.path):
+                files = []
+                basepath = pathlib.Path(self.path)
+                for filepath in sorted(filepaths):
+                    # Metainfo stores relative paths
+                    try:
+                        relpath = filepath.relative_to(basepath)
+                    except ValueError:
+                        # If `filepath` is absolute and `basepath` is relative and
+                        # "/to/basepath/" is a substring of
+                        # "/path/to/basepath/subdir/filepath", we assume that
+                        # "/path/to/basepath" is the absolute path of this torrent.
+                        filepath_str = str(filepath)
+                        basepath_str = f'{os.sep}{str(basepath)}{os.sep}'
+                        _, __, relpath = filepath_str.rpartition(basepath_str)
+                        if relpath == filepath_str:
+                            raise ValueError(f'{filepath}: Not a subpath of {basepath}')
+                        else:
+                            relpath = pathlib.Path(relpath)
+                    files.append({'length': utils.real_size(filepath),
+                                  'path'  : list(relpath.parts)})
+                info['files'] = files
+                info.pop('length', None)
+                info.pop('pieces', None)
+                info.pop('md5sum', None)
+            else:
+                if len(filepaths) > 1 or filepaths[0] != self.path:
+                    raise RuntimeError('Cannot change "filepaths" of single-file torrent; '
+                                       'set the "path" property instead')
+                else:
+                    info['length'] = utils.real_size(filepaths[0])
+                    info.pop('files', None)
+                    info.pop('pieces', None)
+                    info.pop('md5sum', None)
         # Calculate new piece size
         self.piece_size = None
 
