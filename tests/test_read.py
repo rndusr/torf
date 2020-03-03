@@ -6,6 +6,7 @@ import flatbencode as bencode
 from datetime import datetime
 from hashlib import sha1
 from collections import OrderedDict
+from pathlib import Path
 
 
 def test_non_bencoded_data():
@@ -37,8 +38,8 @@ def test_successful_read(valid_singlefile_metainfo):
     fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
     t = torf.Torrent.read_stream(fo)
     assert t.path is None
-    assert tuple(t.files) == (str(valid_singlefile_metainfo[b'info'][b'name'], encoding='utf-8'),)
-    assert tuple(t.filepaths) == ()
+    assert t.files == (Path(str(valid_singlefile_metainfo[b'info'][b'name'], encoding='utf-8')),)
+    assert t.filepaths == ()
     assert t.name == str(valid_singlefile_metainfo[b'info'][b'name'], encoding='utf-8')
     assert t.size == valid_singlefile_metainfo[b'info'][b'length']
     assert t.infohash == sha1(bencode.encode(valid_singlefile_metainfo[b'info'])).hexdigest()
@@ -143,9 +144,9 @@ def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmpdir):
     t = torf.Torrent.read(str(f))
     exp_info = valid_multifile_metainfo[b'info']
     assert t.path is None
-    assert tuple(t.files) == tuple(str(b'/'.join([exp_info[b'name']] + f[b'path']), encoding='utf-8')
-                                   for f in exp_info[b'files'])
-    assert tuple(t.filepaths) == ()
+    assert t.files == tuple(Path(str(b'/'.join([exp_info[b'name']] + f[b'path']), encoding='utf-8'))
+                            for f in exp_info[b'files'])
+    assert t.filepaths == ()
     assert t.name == str(exp_info[b'name'], encoding='utf-8')
     assert t.size == sum(f[b'length'] for f in exp_info[b'files'])
     assert t.infohash == sha1(bencode.encode(exp_info)).hexdigest()
