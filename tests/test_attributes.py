@@ -248,6 +248,52 @@ def test_filetree_with_no_path(create_torrent):
     torrent = create_torrent()
     assert torrent.filetree == {}
 
+def test_filetree_with_subdirectories(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    for i in range(1, 3): (content / f'file{i}').write_text('<data>')
+    subdir = content / 'subdir' ; subdir.mkdir()
+    for i in range(3, 5): (subdir / f'file{i}').write_text('<subdata>')
+    subsubdir = subdir / 'subsubdir' ; subsubdir.mkdir()
+    for i in range(5, 7): (subsubdir / f'file{i}').write_text('<subsubdata>')
+    torrent = create_torrent(path=content)
+    File = torf.Torrent.File
+    assert torrent.filetree == {
+        'content': {
+            'file1': File(name='file1', size=6, path=Path('content', 'file1'), dir=Path('content')),
+            'file2': File(name='file2', size=6, path=Path('content', 'file2'), dir=Path('content')),
+            'subdir': {
+                'file3': File(name='file3', size=9,
+                              path=Path('content', 'subdir', 'file3'),
+                              dir=Path('content', 'subdir')),
+                'file4': File(name='file4', size=9,
+                              path=Path('content', 'subdir', 'file4'),
+                              dir=Path('content', 'subdir')),
+                'subsubdir': {
+                    'file5': File(name='file5', size=12,
+                                  path=Path('content/subdir/subsubdir/file5'),
+                                  dir=Path('content/subdir/subsubdir')),
+                    'file6': File(name='file6', size=12,
+                                  path=Path('content/subdir/subsubdir/file6'),
+                                  dir=Path('content/subdir/subsubdir'))}}}}
+
+def test_filetree_with_single_file_in_directory(create_torrent, tmp_path):
+    content = tmp_path / 'content' ; content.mkdir()
+    (content / 'file').write_text('<data>')
+    torrent = create_torrent(path=content)
+    File = torf.Torrent.File
+    assert torrent.filetree == {'content': {'file': File(name='file', size=6,
+                                                         path=Path('content', 'file'),
+                                                         dir=Path('content'))}}
+
+def test_filetree_with_single_file(create_torrent, tmp_path):
+    content = tmp_path / 'content'
+    content.write_text('<data>')
+    torrent = create_torrent(path=content)
+    File = torf.Torrent.File
+    assert torrent.filetree == {'content': File(name='content', size=6,
+                                                path=Path('content'),
+                                                dir=Path('.'))}
+
 
 def test_exclude(create_torrent, multifile_content, tmpdir):
     torrent = create_torrent()
