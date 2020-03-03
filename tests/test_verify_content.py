@@ -28,7 +28,7 @@ class CollectingCallback():
         assert pieces_total == t.pieces
         assert 1 <= pieces_done <= pieces_total
         self.seen_pieces_done.append(pieces_done)
-        self._seen_piece_indexes[os.path.basename(path)].append(piece_index)
+        self._seen_piece_indexes[path.name].append(piece_index)
         if exc is not None:
             if isinstance(exc, torf.VerifyContentError):
                 assert type(piece_hash) is bytes and len(piece_hash) == 20
@@ -37,11 +37,11 @@ class CollectingCallback():
             self.seen_exceptions.append(ComparableException(exc))
         elif piece_hash is None:
             assert exc is None
-            self._seen_skipped_pieces[os.path.basename(path)].append(piece_index)
+            self._seen_skipped_pieces[path.name].append(piece_index)
         else:
             assert exc is None
             assert type(piece_hash) is bytes and len(piece_hash) == 20
-            self._seen_good_pieces[os.path.basename(path)].append(piece_index)
+            self._seen_good_pieces[path.name].append(piece_index)
 
     @property
     def seen_piece_indexes(self):

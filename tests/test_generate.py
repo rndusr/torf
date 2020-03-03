@@ -153,7 +153,8 @@ def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create
         assert torrent is t
         assert pieces_done == exp_pieces_done
         exp_pieces_done += 1
-        seen_filepaths[os.path.basename(filepath)] += 1
+        assert isinstance(filepath, Path)
+        seen_filepaths[filepath.name] += 1
         assert pieces_total == t.pieces
 
     with forced_piece_size(piece_size):

@@ -31,7 +31,7 @@ def test_file_in_singlefile_torrent_doesnt_exist(create_file, create_torrent_fil
         cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
-            assert str(fs_path) == str('/some/nonexisting/path')
+            assert fs_path == Path('/some/nonexisting/path')
             assert files_done == 1
             assert files_total == 1
             assert str(exc) == '/some/nonexisting/path: No such file or directory'
