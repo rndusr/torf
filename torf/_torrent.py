@@ -221,12 +221,12 @@ class Torrent():
         """
         info = self.metainfo['info']
         if self.mode == 'singlefile':
-            return (info['name'],)
+            return (pathlib.Path(info['name']),)
         elif self.mode == 'multifile':
             rootdir = self.name
             if rootdir is None:
                 raise RuntimeError('Torrent has no name')
-            return tuple(os.path.join(rootdir, os.path.join(*fileinfo['path']))
+            return tuple(pathlib.Path(rootdir, *fileinfo['path'])
                          for fileinfo in info['files'])
         else:
             return ()
@@ -319,7 +319,7 @@ class Torrent():
                                                  size=123456)}}}
         """
         tree = {}   # Complete directory tree
-        paths = (f.split(os.sep) for f in self.files)
+        paths = (tuple(f.parts) for f in self.files)
         for path in paths:
             dirpath = path[:-1]  # Path without filename
             filename = path[-1]

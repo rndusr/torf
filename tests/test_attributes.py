@@ -104,17 +104,17 @@ def test_mode(singlefile_content, multifile_content):
 
 def test_files_singlefile(create_torrent, singlefile_content):
     torrent = create_torrent(path=singlefile_content.path)
-    exp_files1 = (singlefile_content.exp_metainfo['info']['name'],)
-    exp_files2 = (torrent.name,)
+    exp_files1 = (Path(singlefile_content.exp_metainfo['info']['name']),)
+    exp_files2 = (Path(torrent.name),)
     assert torrent.files == exp_files1
     assert torrent.files == exp_files2
 
 def test_files_multifile(create_torrent, multifile_content):
     torrent = create_torrent(path=multifile_content.path)
     torrent_name = os.path.basename(multifile_content.path)
-    exp_files1 = tuple(os.path.join(torrent_name, os.path.join(*fileinfo['path']))
+    exp_files1 = tuple(Path(torrent_name, *fileinfo['path'])
                        for fileinfo in multifile_content.exp_metainfo['info']['files'])
-    exp_files2 = tuple(os.path.join(torrent.name, os.path.join(*fileinfo['path']))
+    exp_files2 = tuple(Path(torrent.name, *fileinfo['path'])
                        for fileinfo in torrent.metainfo['info']['files'])
     assert torrent.files == exp_files1
     assert torrent.files == exp_files2
