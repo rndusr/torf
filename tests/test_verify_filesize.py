@@ -4,6 +4,7 @@ import pytest
 from unittest import mock
 import os
 import shutil
+from pathlib import Path
 
 
 def test_validate_is_called_first(monkeypatch):
@@ -66,16 +67,16 @@ def test_file_in_multifile_torrent_doesnt_exist(create_dir, create_torrent_file)
             assert files_done == cb.call_count
             assert files_total == 3
             if cb.call_count == 1:
-                assert fs_path == str(content_path / 'a.jpg')
-                assert t_path == os.sep.join(str(content_path / 'a.jpg').split(os.sep)[-2:])
+                assert fs_path == content_path / 'a.jpg'
+                assert t_path == Path(*(content_path / 'a.jpg').parts[-2:])
                 assert str(exc) == f'{fs_path}: No such file or directory'
             elif cb.call_count == 2:
-                assert fs_path == str(content_path / 'b.jpg')
-                assert t_path == os.sep.join(str(content_path / 'b.jpg').split(os.sep)[-2:])
+                assert fs_path == content_path / 'b.jpg'
+                assert t_path == Path(*(content_path / 'b.jpg').parts[-2:])
                 assert exc is None
             elif cb.call_count == 3:
-                assert fs_path == str(content_path / 'c.jpg')
-                assert t_path == os.sep.join(str(content_path / 'c.jpg').split(os.sep)[-2:])
+                assert fs_path == content_path / 'c.jpg'
+                assert t_path == Path(*(content_path / 'c.jpg').parts[-2:])
                 assert str(exc) == f'{fs_path}: No such file or directory'
             return None
         cb.side_effect = assert_call
@@ -100,8 +101,8 @@ def test_file_in_singlefile_torrent_has_wrong_size(create_file, create_torrent_f
         cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
-            assert fs_path == str(content_path)
-            assert t_path == os.path.basename(content_path)
+            assert fs_path == content_path
+            assert t_path == Path(Path(content_path).name)
             assert files_done == cb.call_count
             assert files_total == 1
             assert str(exc) == f'{content_path}: Too big: 22 instead of 12 bytes'
@@ -136,17 +137,17 @@ def test_file_in_multifile_torrent_has_wrong_size(create_dir, create_torrent_fil
             assert files_done == cb.call_count
             assert files_total == 3
             if cb.call_count == 1:
-                assert fs_path == str(content_path / 'a.jpg')
-                assert t_path == os.path.join(content_path.name, 'a.jpg')
+                assert fs_path == content_path / 'a.jpg'
+                assert t_path == Path(content_path.name, 'a.jpg')
                 assert exc is None
             elif cb.call_count == 2:
-                assert fs_path == str(content_path / 'b.jpg')
-                assert t_path == os.path.join(content_path.name, 'b.jpg')
-                assert str(exc)  == f'{content_path / "b.jpg"}: Too big: 201 instead of 200 bytes'
+                assert fs_path == content_path / 'b.jpg'
+                assert t_path == Path(content_path.name, 'b.jpg')
+                assert str(exc)  == f'{fs_path}: Too big: 201 instead of 200 bytes'
             elif cb.call_count == 3:
-                assert fs_path == str(content_path / 'c.jpg')
-                assert t_path == os.path.join(content_path.name, 'c.jpg')
-                assert str(exc) == f'{content_path / "c.jpg"}: Too small: 299 instead of 300 bytes'
+                assert fs_path == content_path / 'c.jpg'
+                assert t_path == Path(content_path.name, 'c.jpg')
+                assert str(exc) == f'{fs_path}: Too small: 299 instead of 300 bytes'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
@@ -174,8 +175,8 @@ def test_path_is_directory_and_torrent_contains_single_file(create_file, create_
             assert t == torrent
             assert files_done == 1
             assert files_total == 1
-            assert fs_path == str(content_path)
-            assert t_path == os.path.basename(content_path)
+            assert fs_path == Path(content_path)
+            assert t_path == Path(Path(content_path).name)
             assert str(exc) == f'{content_path}: Is a directory'
             return None
         cb.side_effect = assert_call
@@ -208,13 +209,13 @@ def test_path_is_file_and_torrent_contains_directory(create_file, create_dir, cr
             assert files_done == cb.call_count
             assert files_total == 2
             if cb.call_count == 1:
-                assert fs_path == str(content_path / 'a.jpg')
-                assert t_path == os.path.join(content_path.name, 'a.jpg')
-                assert str(exc) == f'{content_path / "a.jpg"}: No such file or directory'
+                assert fs_path == content_path / 'a.jpg'
+                assert t_path == Path(content_path.name, 'a.jpg')
+                assert str(exc) == f'{fs_path}: No such file or directory'
             elif cb.call_count == 2:
-                assert fs_path == str(content_path / 'b.jpg')
-                assert t_path == os.path.join(content_path.name, 'b.jpg')
-                assert str(exc) == f'{content_path / "b.jpg"}: No such file or directory'
+                assert fs_path == content_path / 'b.jpg'
+                assert t_path == Path(content_path.name, 'b.jpg')
+                assert str(exc) == f'{fs_path}: No such file or directory'
             return None
         cb.side_effect = assert_call
         assert torrent.verify_filesize(content_path, callback=cb) == False
@@ -250,16 +251,16 @@ def test_parent_path_of_multifile_torrent_is_unreadable(create_dir, create_torre
                 assert files_done == cb.call_count
                 assert files_total == 3
                 if cb.call_count == 1:
-                    assert fs_path == str(content_path / 'readable/b/c/c.jpg')
-                    assert t_path == os.path.join(content_path.name, 'readable/b/c/c.jpg')
+                    assert fs_path == content_path / 'readable/b/c/c.jpg'
+                    assert t_path == Path(content_path.name, 'readable/b/c/c.jpg')
                     assert exc is None
                 elif cb.call_count == 2:
-                    assert fs_path == str(content_path / 'unreadable1/b/c/a.jpg')
-                    assert t_path == os.path.join(content_path.name, 'unreadable1/b/c/a.jpg')
+                    assert fs_path == content_path / 'unreadable1/b/c/a.jpg'
+                    assert t_path == Path(content_path.name, 'unreadable1/b/c/a.jpg')
                     assert str(exc) == f'{fs_path}: No such file or directory'
                 elif cb.call_count == 3:
-                    assert fs_path == str(content_path / 'unreadable2/b/c/b.jpg')
-                    assert t_path == os.path.join(content_path.name, 'unreadable2/b/c/b.jpg')
+                    assert fs_path == Path(content_path / 'unreadable2/b/c/b.jpg')
+                    assert t_path == Path(content_path.name, 'unreadable2/b/c/b.jpg')
                     assert str(exc) == f'{fs_path}: No such file or directory'
                 return None
             cb.side_effect = assert_call
@@ -296,8 +297,8 @@ def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torr
                 assert t == torrent
                 assert files_done == 1
                 assert files_total == 1
-                assert fs_path == str(content_file)
-                assert t_path == os.path.basename(content_file)
+                assert fs_path == Path(content_file)
+                assert t_path == Path(Path(content_file).name)
                 assert str(exc) == f'{content_file}: No such file or directory'
                 return None
             cb.side_effect = assert_call
@@ -320,14 +321,14 @@ def test_verify__callback_raises_exception(create_dir, create_torrent_file):
             assert files_done == cb.call_count
             assert files_total == 3
             if cb.call_count == 1:
-                assert fs_path == str(content_path / 'a.jpg')
-                assert t_path == os.path.join(content_path.name, 'a.jpg')
+                assert fs_path == content_path / 'a.jpg'
+                assert t_path == Path(content_path.name, 'a.jpg')
                 assert exc is None
             elif cb.call_count == 2:
                 raise RuntimeError("I'm off")
             elif cb.call_count == 3:
-                assert fs_path == str(content_path / 'c.jpg')
-                assert t_path == os.path.join(content_path.name, 'c.jpg')
+                assert fs_path == content_path / 'c.jpg'
+                assert t_path == Path(content_path.name, 'c.jpg')
                 assert exc is None
             return None
         cb.side_effect = assert_call

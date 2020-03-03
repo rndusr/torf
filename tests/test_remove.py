@@ -2,13 +2,14 @@ import torf
 
 import pytest
 import os
+from pathlib import Path
 
 def test_remove__singlefile_torrent(create_torrent, singlefile_content):
     t = create_torrent(path=singlefile_content.path)
     with pytest.raises(RuntimeError) as e:
         t.remove('anything')
     assert str(e.value) == 'Cannot remove files from single-file torrent'
-    assert t.path == singlefile_content.path
+    assert t.path == Path(singlefile_content.path)
 
 def test_remove__no_path_set(create_torrent):
     t = create_torrent()
