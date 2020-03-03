@@ -965,8 +965,8 @@ class Torrent():
         # paths inside the torrent
         paths = []
         for torrent_filepath in self.files:
-            torrent_subpath = torrent_filepath.split(os.sep)[1:]
-            fs_filepath = os.path.normpath(os.path.join(path, *torrent_subpath))
+            torrent_subpath = torrent_filepath.parts[1:]
+            fs_filepath = pathlib.Path(path, *torrent_subpath)
             paths.append((fs_filepath, torrent_filepath))
 
         return paths, callback
