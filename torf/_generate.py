@@ -417,7 +417,7 @@ class _FileFaker():
             and first_piece_contains_bytes_from_previous_file
             and (first_piece_is_not_last_piece or last_piece_ends_at_piece_boundary)):
             _debug(f'faker: Faking first piece_index: {piece_index}')
-            prev_affected_files = self._files_in_piece(piece_index, exclude=filepath)
+            prev_affected_files = self._files_in_piece(piece_index, exclude=(filepath,))
             _debug(f'faker: Files affected by first faked piece_index:')
             for fp in prev_affected_files:
                 _debug(f'faker:   {fp}')
@@ -479,7 +479,7 @@ class _FileFaker():
                 _debug(f'faker: Updated forced error piece_indexes: {forced_error_piece_indexes}')
         else:
             # This is the final file in the stream
-            next_affected_files = self._files_in_piece(next_piece_index, exclude=filepath)
+            next_affected_files = self._files_in_piece(next_piece_index, exclude=(filepath,))
             _debug(f'faker: Other affected files: {next_affected_files}')
             _debug(f'faker: Faked files: {self._faked_files}')
 
