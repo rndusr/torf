@@ -306,17 +306,17 @@ class Torrent():
         .. code:: python
 
             {'Torrent': {'foo.txt': File(name='foo.txt',
-                                         path='Torrent/foo.txt',
-                                         dir='Torrent',
+                                         path=Path('Torrent/foo.txt'),
+                                         dir=Path('Torrent'),
                                          size=123456),
                          'bar': {'baz.pdf': File(name='baz.pdf',
-                                                 path='Torrent/bar/baz.pdf',
-                                                 dir='Torrent/bar',
-                                                 size=123456),
+                                                 path=Path('Torrent/bar/baz.pdf'),
+                                                 dir=Path('Torrent/bar'),
+                                                 size=999),
                                  'baz.mp3': File(name='baz.mp3',
-                                                 path='Torrent/bar/baz.mp3',
-                                                 dir='Torrent/bar',
-                                                 size=123456)}}}
+                                                 path=Path('Torrent/bar/baz.mp3'),
+                                                 dir=Path('Torrent/bar'),
+                                                 size=543210)}}}
         """
         tree = {}   # Complete directory tree
         paths = (tuple(f.parts) for f in self.files)
@@ -328,10 +328,10 @@ class Torrent():
                 if item not in subtree:
                     subtree[item] = {}
                 subtree = subtree[item]
-            subtree[filename] = self.File(filename,
-                                          os.path.join(*path),
-                                          os.path.join(*dirpath) if dirpath else '',
-                                          self.partial_size(path))
+            subtree[filename] = self.File(name=filename,
+                                          path=pathlib.Path(*path),
+                                          dir=pathlib.Path(*dirpath),
+                                          size=self.partial_size(path))
         return tree
 
     File = namedtuple('File', ('name', 'path', 'dir', 'size'))
