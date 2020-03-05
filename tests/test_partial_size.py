@@ -15,18 +15,18 @@ def test_partial_size__singlefile__providing_wrong_name(tmpdir):
     content_path.write('some data')
     t = torf.Torrent(content_path)
     for path in ('foo.jpg', ['foo.jpg']):
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^foo.jpg: No such file or directory$')
+        assert excinfo.match(f'^foo.jpg: Not specified in metainfo$')
 
 def test_partial_size__singlefile__providing_path(tmpdir):
     content_path = tmpdir.join('content.jpg')
     content_path.write('some data')
     t = torf.Torrent(content_path)
     for path in ('bar/foo.jpg', ['bar', 'foo.jpg']):
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^bar/foo.jpg: No such file or directory$')
+        assert excinfo.match(f'^bar/foo.jpg: Not specified in metainfo$')
 
 
 def test_partial_size__multifile__providing_path_to_file(tmpdir):
@@ -77,14 +77,14 @@ def test_partial_size__multifile__providing_unknown_path(tmpdir):
     content_file3.write('some more data')
     t = torf.Torrent(content_path)
     for path in ('content/subcontent/file1.jpg', ['content', 'subcontent', 'file1.jpg']):
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^content/subcontent/file1.jpg: No such file or directory$')
+        assert excinfo.match(f'^content/subcontent/file1.jpg: Not specified in metainfo$')
     for path in ('content/file3.jpg', ['content', 'file3.jpg']):
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^content/file3.jpg: No such file or directory$')
+        assert excinfo.match(f'^content/file3.jpg: Not specified in metainfo$')
     for path in ('file1.jpg', ['file1.jpg']):
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^file1.jpg: No such file or directory$')
+        assert excinfo.match(f'^file1.jpg: Not specified in metainfo$')

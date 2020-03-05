@@ -106,31 +106,17 @@ class MagnetError(TorfError):
         return self._reason
 
 
-class PathNotFoundError(TorfError):
-    """Path does not exist"""
-    def __init__(self, path):
+class PathError(TorfError):
+    """General invalid or unexpected path"""
+    def __init__(self, path, msg):
         self._path = path
-        super().__init__(f'{path}: No such file or directory', path)
-
-    @property
-    def path(self):
-        """Path of the non-existing file or directory"""
-        return self._path
-
-
-class PathEmptyError(TorfError):
-    """Empty file or directory or directory that contains only empty files"""
-    def __init__(self, path):
-        self._path = path
-        if os.path.isfile(path):
-            super().__init__(f'{path}: Empty file', path)
-        else:
-            super().__init__(f'{path}: Empty directory', path)
+        super().__init__(f'{path}: {msg}', path, msg)
 
     @property
     def path(self):
         """Path of the offending file or directory"""
         return self._path
+
 
 class NoCommonPathError(TorfError):
     """Files don't share parent directory"""

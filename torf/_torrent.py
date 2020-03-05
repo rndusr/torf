@@ -135,8 +135,8 @@ class Torrent():
         implicitly when this property is set and ``pieces`` is removed from
         :attr:`metainfo`\ ``['info']``.
 
-        :raises PathEmptyError: if :attr:`path` contains no data (i.e. empty
-            file, empty directory or directory containing only empty files)
+        :raises PathError: if :attr:`path` contains no data (i.e. empty file,
+            empty directory or directory containing only empty files)
         :raises ReadError: if :attr:`path` is not readable for any reason
         """
         return getattr(self, '_path', None)
@@ -154,7 +154,7 @@ class Torrent():
 
             # Empty torrents are not allowed
             if utils.real_size(path) <= 0:
-                raise error.PathEmptyError(path)
+                raise error.PathError(path, msg='Empty')
             else:
                 # The filepaths property needs to know the path, but we don't
                 # want to set it if utils.filter_files() fails.
@@ -408,7 +408,7 @@ class Torrent():
                      may point to file or directory
         :type path: str or iterable
 
-        :raises PathNotFoundError: if path is not specified in :attr:`metainfo`
+        :raises PathError: if path is not specified in :attr:`metainfo`
         """
         if isinstance(path, str):
             path = tuple(path.split(os.sep))
@@ -432,7 +432,7 @@ class Torrent():
                     file_sizes.append(info['length'])
             if file_sizes:
                 return sum(file_sizes)
-        raise error.PathNotFoundError(os.path.join(*path))
+        raise error.PathError(os.path.join(*path), msg='Not specified in metainfo')
 
     @property
     def piece_size(self):
@@ -789,7 +789,7 @@ class Torrent():
         [!seq]
           matches any char not in seq
 
-        :raises PathEmptyError: if all files are excluded
+        :raises PathError: if all files are excluded
         """
         return self._exclude
     @exclude.setter
@@ -882,9 +882,7 @@ class Torrent():
         :param float interval: Minimum number of seconds between calls to
             `callback`; if 0, `callback` is called once per hashed piece
 
-        :raises PathEmptyError: if :attr:`path` contains only empty
-            files/directories
-        :raises PathNotFoundError: if :attr:`path` does not exist
+        :raises PathError: if :attr:`path` contains only empty files/directories
         :raises ReadError: if :attr:`path` or any file beneath it is not
             readable
         :raises RuntimeError: if :attr:`path` is None
@@ -896,10 +894,8 @@ class Torrent():
 
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
-        elif not os.path.exists(self.path):
-            raise error.PathNotFoundError(self.path)
         elif sum(utils.real_size(fp) for fp in self.filepaths) < 1:
-            raise error.PathEmptyError(self.path)
+            raise error.PathError(self.path, msg='Empty or all files filtered')
 
         if callback is not None:
             maybe_cancel = generate.CancelCallback(callback, interval)
@@ -1006,7 +1002,7 @@ class Torrent():
         :raises VerifyFileSizeError: if a file has an unexpected size
         :raises VerifyNotDirectoryError: if `path` is a directory and this
             torrent contains a single file
-        :raises PathNotFoundError: if a file doesn't exist
+        :raises ReadError: if any file's size can't be determined
         :raises MetainfoError: if :meth:`validate` fails
 
         :return: ``True`` if `path` is verified successfully, ``False``
@@ -1020,7 +1016,7 @@ class Torrent():
         for files_done,(fs_filepath,torrent_filepath) in enumerate(filepaths, start=1):
             # Check if path exists
             if not os.path.exists(fs_filepath):
-                exception = error.PathNotFoundError(fs_filepath)
+                exception = error.ReadError(errno.ENOENT, fs_filepath)
                 if cancel(cb_args=(self, fs_filepath, torrent_filepath,
                                    files_done, files_total, exception),
                           force_call=True):
@@ -1031,7 +1027,7 @@ class Torrent():
             # If we expect a file, check if path is a file.  We don't need to
             # check for a directory if we expect one because we are iterating
             # over files (filepaths), so the path "foo/bar/baz" will result in a
-            # PathNotFoundError if "foo" or "foo/bar" is a file.
+            # ReadError if "foo" or "foo/bar" is a file.
             if self.mode == 'singlefile' and os.path.isdir(path):
                 exception = error.VerifyNotDirectoryError(fs_filepath)
                 if cancel(cb_args=(self, fs_filepath, torrent_filepath,

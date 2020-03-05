@@ -23,7 +23,7 @@ def test_file_in_singlefile_torrent_doesnt_exist(create_file, create_torrent_fil
         torrent = torf.Torrent.read(torrent_file)
 
         # Without callback
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.ReadError) as excinfo:
             torrent.verify_filesize('/some/nonexisting/path')
         assert excinfo.match(f'^/some/nonexisting/path: No such file or directory$')
 
@@ -56,7 +56,7 @@ def test_file_in_multifile_torrent_doesnt_exist(create_dir, create_torrent_file)
         assert not os.path.exists(content_path / 'c.jpg')
 
         # Without callback
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.ReadError) as excinfo:
             torrent.verify_filesize(content_path)
         assert excinfo.match(f'^{content_path / "a.jpg"}: No such file or directory$')
 
@@ -198,7 +198,7 @@ def test_path_is_file_and_torrent_contains_directory(create_file, create_dir, cr
         assert os.path.isfile(content_path)
 
         # Without callback
-        with pytest.raises(torf.PathNotFoundError) as excinfo:
+        with pytest.raises(torf.ReadError) as excinfo:
             torrent.verify_filesize(content_path)
         assert excinfo.match(f'^{content_path / "a.jpg"}: No such file or directory$')
 
@@ -240,7 +240,7 @@ def test_parent_path_of_multifile_torrent_is_unreadable(create_dir, create_torre
             # thus raises "No such file or directory".
 
             # Without callback
-            with pytest.raises(torf.PathNotFoundError) as excinfo:
+            with pytest.raises(torf.ReadError) as excinfo:
                 torrent.verify_filesize(content_path)
             assert excinfo.match(f'^{content_path / "unreadable1/b/c/a.jpg"}: No such file or directory$')
 
@@ -287,7 +287,7 @@ def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torr
             # raises "No such file or directory".
 
             # Without callback
-            with pytest.raises(torf.PathNotFoundError) as excinfo:
+            with pytest.raises(torf.ReadError) as excinfo:
                 torrent.verify_filesize(content_file)
             assert excinfo.match(f'^{content_file}: No such file or directory$')
 

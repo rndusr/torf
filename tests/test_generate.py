@@ -25,9 +25,9 @@ def test_with_empty_file(create_file):
     content_path = create_file('file.jpg', '<image data>')
     t = torf.Torrent(content_path)
     content_path.write_text('')
-    with pytest.raises(torf.PathEmptyError) as e:
+    with pytest.raises(torf.PathError) as e:
         t.generate()
-    assert str(e.value) == f'{t.path}: Empty file'
+    assert str(e.value) == f'{t.path}: Empty or all files filtered'
 
 
 def test_with_empty_directory(create_dir):
@@ -44,7 +44,7 @@ def test_nonexisting_path(create_file):
     content_path = create_file('file.jpg', '<image data>')
     t = torf.Torrent(content_path)
     content_path.unlink()
-    with pytest.raises(torf.PathNotFoundError) as e:
+    with pytest.raises(torf.ReadError) as e:
         t.generate()
     assert str(e.value) == f'{content_path}: No such file or directory'
 
@@ -56,9 +56,9 @@ def test_with_all_files_excluded(create_dir):
                               ('b.jpg', '<image data>'),
                               ('c.jpg', '<image data>'))
     t = torf.Torrent(content_path, exclude=['*.jpg'])
-    with pytest.raises(torf.PathEmptyError) as e:
+    with pytest.raises(torf.PathError) as e:
         t.generate()
-    assert str(e.value) == f'{t.path}: Empty directory'
+    assert str(e.value) == f'{t.path}: Empty or all files filtered'
 
 
 def test_unreadable_basedir_in_multifile_torrent(create_dir):

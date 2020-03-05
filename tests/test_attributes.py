@@ -19,18 +19,18 @@ def test_path_doesnt_exist(create_torrent, tmpdir):
 def test_path_is_empty_directory(create_torrent, tmpdir):
     torrent = create_torrent()
     empty = tmpdir.mkdir('empty')
-    with pytest.raises(torf.PathEmptyError) as excinfo:
+    with pytest.raises(torf.PathError) as excinfo:
         torrent.path = empty
-    assert excinfo.match(f'^{str(empty)}: Empty directory$')
+    assert excinfo.match(f'^{str(empty)}: Empty$')
     assert torrent.path is None
 
 def test_path_is_empty_file(create_torrent, tmpdir):
     torrent = create_torrent()
     empty = tmpdir.join('empty')
     empty.write('')
-    with pytest.raises(torf.PathEmptyError) as excinfo:
+    with pytest.raises(torf.PathError) as excinfo:
         torrent.path = empty
-    assert excinfo.match(f'^{str(empty)}: Empty file$')
+    assert excinfo.match(f'^{str(empty)}: Empty$')
     assert torrent.path is None
 
 def test_path_is_directory_with_empty_file(create_torrent, tmpdir):
@@ -38,9 +38,9 @@ def test_path_is_directory_with_empty_file(create_torrent, tmpdir):
     empty = tmpdir.mkdir('empty')
     empty_file = empty.join('nothing')
     empty_file.write('')
-    with pytest.raises(torf.PathEmptyError) as excinfo:
+    with pytest.raises(torf.PathError) as excinfo:
         torrent.path = empty
-    assert excinfo.match(f'^{str(empty)}: Empty directory$')
+    assert excinfo.match(f'^{str(empty)}: Empty$')
     assert torrent.path is None
 
 def test_path_reset(create_torrent, singlefile_content, multifile_content):

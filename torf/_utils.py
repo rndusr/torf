@@ -131,13 +131,11 @@ def filter_files(path, exclude=(), hidden=True, empty=True):
     hidden: Whether to include hidden files
     empty: Whether to include empty files
 
-    Raise PathNotFoundError if path doesn't exist.
-    Raise ReadError if path doesn't look readable.
+    Raise ReadError if path is not readable.
     """
-    if not os.path.exists(path):
-        raise error.PathNotFoundError(path)
-    elif not os.access(path, os.R_OK,
-                       effective_ids=os.access in os.supports_effective_ids):
+    if (not os.path.exists(path) or
+        not os.access(path, os.R_OK,
+                      effective_ids=os.access in os.supports_effective_ids)):
         raise error.ReadError(errno.EACCES, path)
 
     if os.path.isfile(path):

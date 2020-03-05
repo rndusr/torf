@@ -31,12 +31,6 @@
 .. autoexception:: torf.MagnetError
    :members:
 
-.. autoexception:: torf.PathNotFoundError
-   :members:
-
-.. autoexception:: torf.PathEmptyError
-   :members:
-
 .. autoexception:: torf.VerifyContentError
    :members:
 
