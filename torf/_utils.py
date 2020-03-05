@@ -278,9 +278,9 @@ class Filepaths(MonitoredList):
         super().__init__(filepaths, callback=callback, type=Filepath,
                          filter_func=self._filter_func)
 
-    def _filter_func(self, file):
-        if file not in self._items:
-            return file
+    def _filter_func(self, filepath):
+        if filepath not in self._items:
+            return filepath
 
     def __setitem__(self, index, path):
         path = self._coerce(path)
