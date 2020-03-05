@@ -184,7 +184,7 @@ def test_files_only_accepts_relative_paths(create_torrent, tmp_path):
     (tmp_path / 'foo').write_text('asdf')
     torrent = create_torrent(path=tmp_path / 'foo')
     torrent.generate()
-    with pytest.raises(torf.NotRelativePathError) as excinfo:
+    with pytest.raises(torf.PathError) as excinfo:
         torrent.files = (torf.File('/1/2/3', size=123),)
     assert str(excinfo.value) == '/1/2/3: Not a relative path'
 

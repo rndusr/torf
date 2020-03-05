@@ -224,9 +224,9 @@ class Torrent():
 
         See :attr:`filepaths` for a list of existing file system paths.
 
+        :raises PathError: if any path is absolute
         :raises NoCommonPathError: if not all files share a common parent
             directory
-        :raises NotRelativePathError: if any path is absolute
         :raises ValueError: if any file is not a :class:`File` object
         :raises RuntimeError: if the :attr:`name` is ``None``
         """

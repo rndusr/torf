@@ -147,17 +147,6 @@ class SubpathError(TorfError):
         """Path that `path` should be a subpath of"""
         return self._basepath
 
-class NotRelativePathError(TorfError):
-    """Path `path` is absolute, but we need a relative path"""
-    def __init__(self, path):
-        self._path = path
-        super().__init__(f'{path}: Not a relative path', path)
-
-    @property
-    def path(self):
-        """Path that is not relative"""
-        return self._path
-
 
 class VerifyNotDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
