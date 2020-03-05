@@ -303,6 +303,7 @@ class Filepaths(MonitoredList):
     def insert(self, index, path):
         path = self._coerce(path)
         if path.is_dir():
+            # Add files in directory recursively
             with self._callback_disabled():
                 for i,child in enumerate(sorted(path.iterdir())):
                     self.insert(index + i, child)
