@@ -213,40 +213,78 @@ class Torrent():
     @property
     def files(self):
         """
-        Tuple of relative file paths in this torrent
+        List of relative paths in this torrent
 
-        Paths always starts with :attr:`name`.
+        Paths are :class:`File` objects and the list is automatically
+        deduplicated.  Every path starts with :attr:`name`.
 
-        See :attr:`filepaths` for a mutable list of existing file system paths.
+        Setting or manipulating this property automatically updates
+        :attr:`metainfo`\ ``['info']`` accordingly: ``pieces`` and ``md5sum``
+        are removed and ``files`` or ``length`` are updated.
+
+        See :attr:`filepaths` for a list of existing file system paths.
+
+        :raises NoCommonPathError: if not all files share a common parent
+            directory
+        :raises NotRelativePathError: if any path is absolute
+        :raises ValueError: if any file is not a :class:`File` object
+        :raises RuntimeError: if the :attr:`name` is ``None``
         """
         info = self.metainfo['info']
+        if self.mode is not None and info.get('name') is None:
+            raise RuntimeError('Torrent has no name')
         if self.mode == 'singlefile':
-            return (pathlib.Path(info['name']),)
+            files = (utils.File(info['name'], size=self.size),)
         elif self.mode == 'multifile':
-            rootdir = self.name
-            if rootdir is None:
-                raise RuntimeError('Torrent has no name')
-            return tuple(pathlib.Path(rootdir, *fileinfo['path'])
-                         for fileinfo in info['files'])
+            basedir = self.name
+            files = (utils.File(pathlib.Path(basedir, *fileinfo['path']),
+                                size=self.partial_size((basedir,) + tuple(fileinfo['path'])))
+                     for fileinfo in info['files'])
         else:
-            return ()
+            files = ()
+        return utils.Files(files, callback=self._files_changed)
+
+    def _files_changed(self, files):
+        self.files = files
+
+    @files.setter
+    def files(self, files):
+        info = self.metainfo['info']
+        if not isinstance(files, utils.Iterable):
+            raise ValueError(f'Not an Iterable: {files}')
+        for f in files:
+            if not isinstance(f, utils.File):
+                raise ValueError(f'Not a File object: {f}')
+        files = tuple((f, f.size) for f in files)
+
+        # Find common parent path
+        filepaths = tuple(f[0] for f in files)
+        try:
+            basepath = pathlib.Path(os.path.commonpath(filepaths))
+        except ValueError:
+            basepath = pathlib.Path('/')
+        # pathlib.Path defaults to '.' for relative paths and '/' for absolute paths
+        if str(basepath) in ('.', '/'):
+            raise error.NoCommonPathError(filepaths)
+
+        self._set_metainfo_files(basepath, files)
 
     @property
     def filepaths(self):
         """
         List of paths of existing files in :attr:`path` included in the torrent
 
-        Paths are :class:`pathlib.Path` objects and are automatically
-        deduplicated.
+        Paths are :class:`Filepath` objects and the list is automatically
+        deduplicated.  Directories are resolved automatically into a list of
+        files they contain.
 
         Setting or manipulating this property automatically updates
         :attr:`metainfo`\ ``['info']`` accordingly: ``pieces`` and ``md5sum``
         are removed and ``files`` or ``length`` are updated.
 
-        :raises ValueError: if any path is not a subpath of :attr:`path`
-        :raises RuntimeError: if set or manipulated and :attr:`path` is ``None``
-            or if the path of a single-file torrent is changed via this property
+        :raises SubpathError: if any path is not a subpath of :attr:`path`
         :raises ReadError: if any path is not readable
+        :raises RuntimeError: if set or manipulated and :attr:`path` is ``None``
         """
         filepaths = ()
         if self.path is not None:
@@ -258,64 +296,74 @@ class Torrent():
                              for fileinfo in self.metainfo['info']['files'])
         return utils.Filepaths(filepaths, callback=self._filepaths_changed)
 
+    def _filepaths_changed(self, filepaths):
+        self.filepaths = filepaths
+
     @filepaths.setter
     def filepaths(self, filepaths):
         info = self.metainfo['info']
-        filepaths = tuple(pathlib.Path(fp) for fp in filepaths)
-        if not filepaths:
+        if not isinstance(filepaths, utils.Iterable):
+            raise ValueError(f'Not an Iterable: {filepaths}')
+        # Resolve directories
+        filepaths = utils.Filepaths(filepaths)
+        # Add file sizes
+        filepaths = tuple((pathlib.Path(fp), utils.real_size(fp))
+                          for fp in filepaths)
+        if self.path is None:
+            raise RuntimeError('Cannot modify "filepaths" if "path" is None')
+        self._set_metainfo_files(self.path, filepaths)
+
+    def _set_metainfo_files(self, basepath, fileinfos):
+        """
+        Update ``name`` and ``files`` or ``length``, remove ``pieces`` and
+        ``md5sum`` in :attr:`metainfo`\ ``['info']``
+
+        :param basepath: :class:`os.PathLike` that all paths in `fileinfos`
+            start with
+        :param fileinfos: Sequence of (:class:`os.PathLike`, :class:`int`) tuples
+        """
+        info = self.metainfo['info']
+        if not fileinfos:
             info.pop('files', None)
             info.pop('length', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
-        elif self.path is None:
-            raise RuntimeError('Cannot modify "filepaths" with "path" being None')
+        elif len(fileinfos) == 1 and basepath.resolve() == fileinfos[0][0].resolve():
+            # There is only one file and it is not in a directory.
+            filepath, filesize = fileinfos[0]
+            info['length'] = filesize
+            info['name'] = filepath.name
+            info.pop('files', None)
+            info.pop('pieces', None)
+            info.pop('md5sum', None)
         else:
-            if os.path.isdir(self.path):
-                files = []
-                basepath = pathlib.Path(self.path)
-                for filepath in sorted(filepaths):
-                    # Metainfo stores relative paths
-                    try:
-                        relpath = filepath.relative_to(basepath)
-                    except ValueError:
-                        # If `filepath` is absolute and `basepath` is relative and
-                        # "/to/basepath/" is a substring of
-                        # "/path/to/basepath/subdir/filepath", we assume that
-                        # "/path/to/basepath" is the absolute path of this torrent.
-                        filepath_str = str(filepath)
-                        basepath_str = f'{os.sep}{str(basepath)}{os.sep}'
-                        _, __, relpath = filepath_str.rpartition(basepath_str)
-                        if relpath == filepath_str:
-                            raise ValueError(f'{filepath}: Not a subpath of {basepath}')
-                        else:
-                            relpath = pathlib.Path(relpath)
-                    files.append({'length': utils.real_size(filepath),
-                                  'path'  : list(relpath.parts)})
-                info['files'] = files
-                info.pop('length', None)
-                info.pop('pieces', None)
-                info.pop('md5sum', None)
-            else:
-                if len(filepaths) > 1 or filepaths[0] != self.path:
-                    raise RuntimeError('Cannot change "filepaths" of single-file torrent; '
-                                       'set the "path" property instead')
-                else:
-                    info['length'] = utils.real_size(filepaths[0])
-                    info.pop('files', None)
-                    info.pop('pieces', None)
-                    info.pop('md5sum', None)
+            def abspath(path):
+                return path if path.is_absolute() else pathlib.Path.cwd() / path
+            basepath_abs = abspath(basepath)
+            files = []
+            for filepath,filesize in sorted(fileinfos):
+                filepath_abs = abspath(filepath)
+                try:
+                    relpath = filepath_abs.relative_to(basepath_abs)
+                except ValueError:
+                    raise error.SubpathError(filepath, basepath)
+                files.append({'length': filesize,
+                              'path'  : list(relpath.parts)})
+            info['files'] = files
+            info['name'] = os.path.basename(basepath)
+            info.pop('length', None)
+            info.pop('pieces', None)
+            info.pop('md5sum', None)
+
         # Calculate new piece size
         self.piece_size = None
-
-    def _filepaths_changed(self, filepaths):
-        self.filepaths = filepaths
 
     @property
     def filetree(self):
         """
         :attr:`files` as a dictionary tree
 
-        Parent nodes are dictionaries and leaf nodes are :attr:`File` instances.
+        Parent nodes are dictionaries and leaf nodes are :class:`File` objects.
         The top node is always a dictionary with the single key :attr:`name`.
 
         If :attr:`path` is ``None``, this is an empty ``dict``.
@@ -324,18 +372,9 @@ class Torrent():
 
         .. code:: python
 
-            {'Torrent': {'foo.txt': File(name='foo.txt',
-                                         path=Path('Torrent/foo.txt'),
-                                         dir=Path('Torrent'),
-                                         size=123456),
-                         'bar': {'baz.pdf': File(name='baz.pdf',
-                                                 path=Path('Torrent/bar/baz.pdf'),
-                                                 dir=Path('Torrent/bar'),
-                                                 size=999),
-                                 'baz.mp3': File(name='baz.mp3',
-                                                 path=Path('Torrent/bar/baz.mp3'),
-                                                 dir=Path('Torrent/bar'),
-                                                 size=543210)}}}
+            {'Torrent': {'foo.txt': File('Torrent/foo.txt', size=123456),
+                         'bar': {'baz.pdf': File('Torrent/bar/baz.pdf', size=999),
+                                 'baz.mp3': File('Torrent/bar/baz.mp3', size=543210)}}}
         """
         tree = {}   # Complete directory tree
         paths = (tuple(f.parts) for f in self.files)
@@ -347,13 +386,8 @@ class Torrent():
                 if item not in subtree:
                     subtree[item] = {}
                 subtree = subtree[item]
-            subtree[filename] = self.File(name=filename,
-                                          path=pathlib.Path(*path),
-                                          dir=pathlib.Path(*dirpath),
-                                          size=self.partial_size(path))
+            subtree[filename] = utils.File(path, size=self.partial_size(path))
         return tree
-
-    File = namedtuple('File', ('name', 'path', 'dir', 'size'))
 
     def remove(self, *paths):
         """
@@ -428,7 +462,7 @@ class Torrent():
         """
         if isinstance(path, str):
             path = tuple(path.split(os.sep))
-        elif isinstance(path, pathlib.Path):
+        elif isinstance(path, os.PathLike):
             path = tuple(path.parts)
         elif isinstance(path, abc.Iterable):
             path = tuple(str(part) for part in path)

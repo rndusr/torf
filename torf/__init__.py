@@ -21,3 +21,5 @@ __version__ = '3.0.0'
 from ._errors import *
 from ._torrent import Torrent
 from ._magnet import Magnet
+# Export _utils.File so users can use to add items to Torrent.files.
+from ._utils import File
