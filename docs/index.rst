@@ -31,16 +31,25 @@
 .. autoexception:: torf.MagnetError
    :members:
 
-.. autoexception:: torf.VerifyContentError
+.. autoexception:: torf.PathError
    :members:
 
-.. autoexception:: torf.VerifyFileSizeError
+.. autoexception:: torf.CommonPathError
+   :members:
+
+.. autoexception:: torf.SubpathError
+   :members:
+
+.. autoexception:: torf.VerifyNotDirectoryError
    :members:
 
 .. autoexception:: torf.VerifyIsDirectoryError
    :members:
 
-.. autoexception:: torf.VerifyNotDirectoryError
+.. autoexception:: torf.VerifyFileSizeError
+   :members:
+
+.. autoexception:: torf.VerifyContentError
    :members:
 
 .. autoexception:: torf.ReadError
