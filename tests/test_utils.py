@@ -277,7 +277,7 @@ def test_Filepaths_handles_directories(tmp_path):
     # Create directory with 2 files
     content = tmp_path / 'content' ; content.mkdir()
     for f in ('a', 'b'): (content / f).write_text('<data>')
-    fps = utils.Filepaths((content / 'a', content / 'b'))
+    fps = utils.Filepaths((content,))
     assert fps == (content / 'a', content / 'b')
 
     # Replace one file with multilevel subdirectory

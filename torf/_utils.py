@@ -215,10 +215,9 @@ class MonitoredList(collections.abc.MutableSequence):
         if not isinstance(items, Iterable):
             raise ValueError(f'Not an iterable: {urls!r}')
         self._items.clear()
-        for value in items:
-            value = self._filter_func(self._coerce(value))
-            if value is not None:
-                self._items.append(self._coerce(value))
+        with self._callback_disabled():
+            for value in items:
+                self.append(value)
         if self._callback is not None:
             self._callback(self)
 
