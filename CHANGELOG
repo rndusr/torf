@@ -3,28 +3,26 @@
   - Bug fixed: Setting the "private" property to False removed the flag from the
     metainfo which could potentially change the info hash if a torrent file had
     the flag explicitly disabled.
-  - Hashing pieces now uses multiple threads for better performance.
+  - Hashing pieces uses multiple threads for better performance.
   - Support for the "md5sum" field was dropped.  Calculating MD5 hashes besides
     the SHA1 hashes is no longer easily possible due to multithreading and it's
     unclear to me if/how this field is even useful.
-  - Torrent.filetree now uses Torrent.File instances as leaf nodes instead of
-    None.  Torrent.File is a namedtuple that provides the file name, path,
-    directory and size.
   - The new methods Torrent.verify_content() and Torrent.verify_filesize() check
     if on-disk data matches a given torrent file.
-  - Torrent.remove() removes individual files and directories.
-  - Torrent.filepaths, Torrent.trackers, Torrent.webseeds and Torrent.httpseeds
-    are now mutable lists that automatically synchronize to/from
-    Torrent.metainfo when get, set or manipulated.
-  - Torrent.path is now a pathlib.Path object.
-  - Torrent.filepaths is now a list of pathlib.Path objects.
-  - Torrent.files is now a tuple of pathlib.Path objects.
+  - Torrent.path is a PathLike object.
+  - Torrent.files, Torrent.filepaths, Torrent.trackers, Torrent.webseeds and
+    Torrent.httpseeds are mutable lists of PathLike objects that automatically
+    synchronize with Torrent.metainfo.
+  - Torrent.filetree uses File objects as leaf nodes.  File is a PathLike that
+    also stores the file size.
   - The new class attributes Torrent.piece_size_min and Torrent.piece_size_max
-    can now be used to quickly specify piece size limits.  Setting the
-    piece_size property to an out-of-bounds piece size or returning one with
+    can be used to quickly specify piece size limits.  Setting the piece_size
+    property to an out-of-bounds piece size or returning one with
     Torrent.calculate_piece_size() raises PieceSizeError.
-  - Torrent.validate() is now better at finding invalid stuff in the metainfo.
-  - Except for ReadError and WriteError, exceptions no longer have an 'errno'
+  - Torrent.validate() is better at finding invalid stuff in the metainfo.
+  - Exceptions added and removed.  If you don't catch TorfError, make sure
+    you're expecting the correct exceptions.
+  - Except for ReadError and WriteError, exceptions no longer have an "errno"
     property.
   - When setting the Torrent.path property to None, only "pieces" is removed
     from the metainfo.  "piece length", "pieces", "length" and "files" are kept.
