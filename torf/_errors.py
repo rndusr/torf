@@ -132,6 +132,46 @@ class PathEmptyError(TorfError):
         """Path of the offending file or directory"""
         return self._path
 
+class NoCommonPathError(TorfError):
+    """Files don't share parent directory"""
+    def __init__(self, filepaths):
+        self._filepaths = filepaths
+        filepaths_str = ', '.join(str(fp) for fp in filepaths)
+        super().__init__(f'No common parent path: {filepaths_str}', filepaths)
+
+    @property
+    def filepaths(self):
+        """Paths to offending files"""
+        return self._filepaths
+
+class SubpathError(TorfError):
+    """Path `path` is not a subpath of path `basepath`"""
+    def __init__(self, path, basepath):
+        self._path = path
+        self._basepath = basepath
+        super().__init__(f'{path}: Not a subpath of {basepath}', path, basepath)
+
+    @property
+    def path(self):
+        """Path that is not a subpath `basepath`"""
+        return self._path
+
+    @property
+    def basepath(self):
+        """Path that `path` should be a subpath of"""
+        return self._basepath
+
+class NotRelativePathError(TorfError):
+    """Path `path` is absolute, but we need a relative path"""
+    def __init__(self, path):
+        self._path = path
+        super().__init__(f'{path}: Not a relative path', path)
+
+    @property
+    def path(self):
+        """Path that is not relative"""
+        return self._path
+
 
 class VerifyNotDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
