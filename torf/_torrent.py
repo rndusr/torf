@@ -372,9 +372,12 @@ class Torrent():
 
         .. code:: python
 
-            {'Torrent': {'foo.txt': File('Torrent/foo.txt', size=123456),
-                         'bar': {'baz.pdf': File('Torrent/bar/baz.pdf', size=999),
-                                 'baz.mp3': File('Torrent/bar/baz.mp3', size=543210)}}}
+            {'Torrent': {'bar': {'baz.mp3': File(Torrent/bar/baz.mp3,
+                                                 size=543210),
+                                 'baz.pdf': File(Torrent/bar/baz.pdf,
+                                                 size=999)},
+                         'foo.txt': File(Torrent/foo.txt,
+                                         size=123456)}}
         """
         tree = {}   # Complete directory tree
         paths = (tuple(f.parts) for f in self.files)
