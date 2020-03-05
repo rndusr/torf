@@ -302,7 +302,12 @@ class Filepaths(MonitoredList):
 
     def insert(self, index, path):
         path = self._coerce(path)
-        if path.is_dir():
+        try:
+            path_is_dir = path.is_dir()
+        except OSError as exc:
+            raise error.ReadError(getattr(exc, 'errno', None),
+                                  getattr(exc, 'filename', None))
+        if path_is_dir:
             # Add files in directory recursively
             with self._callback_disabled():
                 for i,child in enumerate(sorted(path.iterdir())):
