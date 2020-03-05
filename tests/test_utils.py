@@ -136,7 +136,7 @@ def testdir(tmp_path):
         (path / '.not_empty').write_text('more dummy content')
     return base
 
-def test_filepaths(testdir):
+def test_filter_files_with_default_arguments(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filter_files(testdir)]
     exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty', '/base/foo/not_empty',
@@ -144,13 +144,13 @@ def test_filepaths(testdir):
                   '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty', '/base/.bar/baz/not_empty'])
     assert files == exp
 
-def test_filepaths__without_hidden(testdir):
+def test_filter_files_without_hidden_files(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filter_files(testdir, hidden=False)]
     exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
     assert files == exp
 
-def test_filepath__without_empty(testdir):
+def test_filter_files_without_empty_files(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filter_files(testdir, empty=False)]
     exp = sorted(['/base/foo/.not_empty', '/base/foo/not_empty',
@@ -158,7 +158,7 @@ def test_filepath__without_empty(testdir):
                   '/base/.bar/baz/.not_empty', '/base/.bar/baz/not_empty'])
     assert files == exp
 
-def test_filepaths__exclude(testdir):
+def test_filter_files_with_exclude_argument(testdir):
     files = [filepath[len(os.path.dirname(str(testdir))):]
              for filepath in utils.filter_files(testdir, exclude=('.*',))]
     exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
