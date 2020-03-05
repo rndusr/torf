@@ -256,11 +256,11 @@ class MonitoredList(collections.abc.MutableSequence):
 
 class Filepath(type(pathlib.Path())):
     """
-    :class:`pathlib.Path` subclass that makes relative paths equal to their
-    absolute versions
+    :class:`os.PathLike` that makes relative paths equal to their absolute
+    versions
     """
     def __eq__(self, other):
-        if isinstance(other, type(self)):
+        if isinstance(other, os.PathLike):
             return pathlib.Path(self.resolve()) == pathlib.Path(other.resolve())
         else:
             return pathlib.Path(self.resolve()) == pathlib.Path(other).resolve()
