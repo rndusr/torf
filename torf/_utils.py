@@ -254,6 +254,95 @@ class MonitoredList(collections.abc.MutableSequence):
         return repr(self._items)
 
 
+class File(os.PathLike):
+    """
+    :class:`os.PathLike` that only accepts relative paths and also stores the
+    file size
+    """
+    def __fspath__(self):
+        return str(self._path)
+
+    def __init__(self, path, size):
+        if isinstance(path, str):
+            self._path = pathlib.Path(path)
+        elif isinstance(path, os.PathLike):
+            self._path = path
+        elif isinstance(path, collections.abc.Iterable):
+            self._path = pathlib.Path(*path)
+        else:
+            raise ValueError(f'Path must be str, PathLike or Iterable, not {type(path).__name__}: {path}')
+        if self.is_absolute():
+            raise error.NotRelativePathError(path)
+        try:
+            self._size = int(size)
+        except (ValueError, TypeError):
+            raise ValueError(f'Size must be int, not {type(size).__name__}: {size}')
+
+    @property
+    def size(self):
+        return self._size
+
+    def __getattr__(self, name):
+        return getattr(self._path, name)
+
+    def __str__(self):
+        return str(self._path)
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return self._path == other._path and self._size == other._size
+        elif isinstance(other, os.PathLike):
+            return self._path == other
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash((self._path, self._size))
+
+    def __gt__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self._path > other._path
+
+    def __lt__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self._path < other._path
+
+    def __ge__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self._path >= other._path
+
+    def __le__(self, other):
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self._path <= other._path
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self._path}, size={self._size})'
+
+class Files(MonitoredList):
+    """Deduplicated list of :class:`Files` objects"""
+    def __init__(self, files, callback=None):
+        if isinstance(files, str):
+            files = (files,)
+        else:
+            files = list(flatten(files))
+        super().__init__(files, callback=callback, type=File,
+                         filter_func=self._filter_func)
+
+    def _coerce(self, value):
+        if not isinstance(value, self._type):
+            raise ValueError(f'Not a File object: {value} ({type(value).__name__})')
+        else:
+            return value
+
+    def _filter_func(self, file):
+        if file not in self._items:
+            return file
+
+
 class Filepath(type(pathlib.Path())):
     """
     :class:`os.PathLike` that makes relative paths equal to their absolute
