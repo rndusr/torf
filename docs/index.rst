@@ -9,6 +9,10 @@
    :members:
    :member-order: bysource
 
+.. autoclass:: torf.File
+   :members:
+   :member-order: bysource
+
 .. autoexception:: torf.TorfError
    :members:
 
