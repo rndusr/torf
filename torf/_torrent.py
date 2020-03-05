@@ -554,7 +554,8 @@ class Torrent():
         else:
             pieces = size / 10240
         # Math is magic!
-        return int(min(max(1 << max(0, math.ceil(math.log(pieces, 2))), cls.piece_size_min),
+        return int(min(max(1 << max(0, math.ceil(math.log(pieces, 2))),
+                           cls.piece_size_min),
                        cls.piece_size_max))
 
     piece_size_min = 16 * 1024  # 16 KiB
