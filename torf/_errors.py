@@ -118,7 +118,7 @@ class PathError(TorfError):
         return self._path
 
 
-class NoCommonPathError(TorfError):
+class CommonPathError(TorfError):
     """Files don't share parent directory"""
     def __init__(self, filepaths):
         self._filepaths = filepaths
@@ -129,6 +129,7 @@ class NoCommonPathError(TorfError):
     def filepaths(self):
         """Paths to offending files"""
         return self._filepaths
+
 
 class SubpathError(TorfError):
     """Path `path` is not a subpath of path `basepath`"""

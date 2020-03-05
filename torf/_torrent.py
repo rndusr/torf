@@ -225,7 +225,7 @@ class Torrent():
         See :attr:`filepaths` for a list of existing file system paths.
 
         :raises PathError: if any path is absolute
-        :raises NoCommonPathError: if not all files share a common parent
+        :raises CommonPathError: if not all files share a common parent
             directory
         :raises ValueError: if any file is not a :class:`File` object
         :raises RuntimeError: if the :attr:`name` is ``None``
@@ -265,7 +265,7 @@ class Torrent():
             basepath = pathlib.Path('/')
         # pathlib.Path defaults to '.' for relative paths and '/' for absolute paths
         if str(basepath) in ('.', '/'):
-            raise error.NoCommonPathError(filepaths)
+            raise error.CommonPathError(filepaths)
 
         self._set_metainfo_files(basepath, files)
 

@@ -199,7 +199,7 @@ def test_files_needs_common_path(create_torrent, tmp_path):
     for i in range(1, 3): (content / f'file{i}').write_text('<data>')
     torrent = create_torrent(path=content)
     torrent.generate()
-    with pytest.raises(torf.NoCommonPathError) as excinfo:
+    with pytest.raises(torf.CommonPathError) as excinfo:
         torrent.files = (torf.File(Path('foo/bar/baz'), size=123),
                          torf.File(Path('quux/bar/bam'), size=456),)
     assert str(excinfo.value) == 'No common parent path: foo/bar/baz, quux/bar/bam'
