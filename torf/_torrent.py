@@ -174,43 +174,6 @@ class Torrent():
                     self.name = None  # Set default name
 
     @property
-    def name(self):
-        """
-        Name of the torrent
-
-        Default to last item in :attr:`path` or ``None`` if :attr:`path` is
-        ``None``.
-
-        If this property is set to ``None`` and :attr:`path` is not ``None``, it
-        is set to the default name, i.e. the last item in :attr:`path`.
-
-        Setting this property sets or removes ``name`` in :attr:`metainfo`\
-        ``['info']``.
-        """
-        if 'name' not in self.metainfo['info'] and self.path is not None:
-            self.metainfo['info']['name'] = self.path.name
-        return self.metainfo['info'].get('name', None)
-    @name.setter
-    def name(self, value):
-        if value is None:
-            self.metainfo['info'].pop('name', None)
-            self.name  # Set default name
-        else:
-            self.metainfo['info']['name'] = str(value)
-
-    @property
-    def mode(self):
-        """
-        "singlefile" if this torrent contains one file that is not in a directory,
-        "multifile" if it contains one or more files in a directory, or ``None``
-        if no content is specified (i.e. :attr:`path` is None).
-        """
-        if 'length' in self.metainfo['info']:
-            return 'singlefile'
-        elif 'files' in self.metainfo['info']:
-            return 'multifile'
-
-    @property
     def files(self):
         """
         List of relative paths in this torrent
@@ -391,6 +354,43 @@ class Torrent():
                 subtree = subtree[item]
             subtree[filename] = utils.File(path, size=self.partial_size(path))
         return tree
+
+    @property
+    def name(self):
+        """
+        Name of the torrent
+
+        Default to last item in :attr:`path` or ``None`` if :attr:`path` is
+        ``None``.
+
+        If this property is set to ``None`` and :attr:`path` is not ``None``, it
+        is set to the default name, i.e. the last item in :attr:`path`.
+
+        Setting this property sets or removes ``name`` in :attr:`metainfo`\
+        ``['info']``.
+        """
+        if 'name' not in self.metainfo['info'] and self.path is not None:
+            self.metainfo['info']['name'] = self.path.name
+        return self.metainfo['info'].get('name', None)
+    @name.setter
+    def name(self, value):
+        if value is None:
+            self.metainfo['info'].pop('name', None)
+            self.name  # Set default name
+        else:
+            self.metainfo['info']['name'] = str(value)
+
+    @property
+    def mode(self):
+        """
+        "singlefile" if this torrent contains one file that is not in a directory,
+        "multifile" if it contains one or more files in a directory, or ``None``
+        if no content is specified (i.e. :attr:`path` is None).
+        """
+        if 'length' in self.metainfo['info']:
+            return 'singlefile'
+        elif 'files' in self.metainfo['info']:
+            return 'multifile'
 
     @property
     def size(self):
