@@ -7,6 +7,7 @@ import os
 from collections import OrderedDict
 from pathlib import Path
 from unittest import mock
+import re
 
 
 ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
@@ -137,58 +138,69 @@ def testdir(tmp_path):
     return base
 
 def test_filter_files_with_default_arguments(testdir):
-    files = [filepath[len(os.path.dirname(str(testdir))):]
+    files = [Path(filepath).relative_to(testdir.parent)
              for filepath in utils.filter_files(testdir)]
-    exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty', '/base/foo/not_empty',
-                  '/base/.bar/.empty', '/base/.bar/.not_empty', '/base/.bar/empty', '/base/.bar/not_empty',
-                  '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty', '/base/.bar/baz/not_empty'])
-    assert files == exp
+    exp = sorted(['base/foo/.empty', 'base/foo/.not_empty', 'base/foo/empty', 'base/foo/not_empty',
+                  'base/.bar/.empty', 'base/.bar/.not_empty', 'base/.bar/empty', 'base/.bar/not_empty',
+                  'base/.bar/baz/.empty', 'base/.bar/baz/.not_empty', 'base/.bar/baz/empty', 'base/.bar/baz/not_empty'])
+    assert files == [Path(p) for p in exp]
 
-def test_filter_files_without_hidden_files(testdir):
-    files = [filepath[len(os.path.dirname(str(testdir))):]
+def test_filter_files_without_hidden_files_or_directories(testdir):
+    files = [Path(filepath).relative_to(testdir.parent)
              for filepath in utils.filter_files(testdir, hidden=False)]
-    exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
-    assert files == exp
+    exp = sorted(['base/foo/empty', 'base/foo/not_empty'])
+    assert files == [Path(p) for p in exp]
+
+def test_filter_files_never_filters_hidden_parent_directories(testdir):
+    hidden_parent_path = testdir / '.bar/baz'
+    (hidden_parent_path / '.bam').mkdir()
+    (hidden_parent_path / '.bam/bambam').write_text('not empty')
+    files = [Path(filepath).relative_to(hidden_parent_path.parent)
+             for filepath in utils.filter_files(hidden_parent_path, hidden=False)]
+    exp = sorted(['baz/empty', 'baz/not_empty'])
+    assert files == [Path(p) for p in exp]
+
+    hidden_parent_path = testdir / '.bar'
+    files = [Path(filepath).relative_to(hidden_parent_path.parent)
+             for filepath in utils.filter_files(hidden_parent_path, hidden=False)]
+    exp = sorted(['.bar/empty', '.bar/not_empty',
+                  '.bar/baz/empty', '.bar/baz/not_empty'])
+    assert files == [Path(p) for p in exp]
 
 def test_filter_files_without_empty_files(testdir):
-    files = [filepath[len(os.path.dirname(str(testdir))):]
+    files = [Path(filepath).relative_to(testdir.parent)
              for filepath in utils.filter_files(testdir, empty=False)]
-    exp = sorted(['/base/foo/.not_empty', '/base/foo/not_empty',
-                  '/base/.bar/.not_empty', '/base/.bar/not_empty',
-                  '/base/.bar/baz/.not_empty', '/base/.bar/baz/not_empty'])
-    assert files == exp
+    exp = sorted(['base/foo/.not_empty', 'base/foo/not_empty',
+                  'base/.bar/.not_empty', 'base/.bar/not_empty',
+                  'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty'])
+    assert files == [Path(p) for p in exp]
 
-def test_filter_files_with_exclude_argument(testdir):
-    files = [filepath[len(os.path.dirname(str(testdir))):]
-             for filepath in utils.filter_files(testdir, exclude=('.*',))]
-    exp = sorted(['/base/foo/empty', '/base/foo/not_empty'])
-    assert files == exp
+def test_filter_files_exclude_argument(testdir):
+    regexp = re.compile(rf'{os.sep}\.')
+    files = [Path(filepath).relative_to(testdir.parent)
+             for filepath in utils.filter_files(testdir, exclude=(regexp,))]
+    exp = sorted(['base/foo/empty', 'base/foo/not_empty'])
+    assert files == [Path(p) for p in exp]
 
-    for pattern in ('foo', 'fo?', 'f*', '?oo', '*o', 'f?o'):
-        files = [filepath[len(os.path.dirname(str(testdir))):]
-                 for filepath in utils.filter_files(testdir, exclude=(pattern,))]
-        exp = sorted(['/base/.bar/.empty', '/base/.bar/.not_empty', '/base/.bar/empty', '/base/.bar/not_empty',
-                      '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty', '/base/.bar/baz/not_empty'])
-        assert files == exp
+    for pattern in ('foo', 'foo?', 'fo*', 'f?oo'):
+        regex = re.compile(pattern)
+        files = [Path(filepath).relative_to(testdir.parent)
+                 for filepath in utils.filter_files(testdir, exclude=(regex,))]
+        exp = sorted(['base/.bar/.empty', 'base/.bar/.not_empty', 'base/.bar/empty', 'base/.bar/not_empty',
+                      'base/.bar/baz/.empty', 'base/.bar/baz/.not_empty', 'base/.bar/baz/empty', 'base/.bar/baz/not_empty'])
+    assert files == [Path(p) for p in exp]
 
-    files = [filepath[len(os.path.dirname(str(testdir))):]
-             for filepath in utils.filter_files(testdir, exclude=('*ba?',))]
-    exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty', '/base/foo/not_empty'])
-    assert files == exp
+    regex = re.compile(r'ba[rz]')
+    files = [Path(filepath).relative_to(testdir.parent)
+             for filepath in utils.filter_files(testdir, exclude=(regex,))]
+    exp = sorted(['base/foo/.empty', 'base/foo/.not_empty', 'base/foo/empty', 'base/foo/not_empty'])
+    assert files == [Path(p) for p in exp]
 
-    files = [filepath[len(os.path.dirname(str(testdir))):]
-             for filepath in utils.filter_files(testdir, exclude=('not_*',))]
-    exp = sorted(['/base/foo/.empty', '/base/foo/.not_empty', '/base/foo/empty',
-                  '/base/.bar/.empty', '/base/.bar/.not_empty', '/base/.bar/empty',
-                  '/base/.bar/baz/.empty', '/base/.bar/baz/.not_empty', '/base/.bar/baz/empty'])
-    assert files == exp
-
-    files = [filepath[len(os.path.dirname(str(testdir))):]
-             for filepath in utils.filter_files(testdir, exclude=('*not_*',))]
-    exp = sorted(['/base/foo/.empty', '/base/foo/empty',
-                  '/base/.bar/.empty', '/base/.bar/empty',
-                  '/base/.bar/baz/.empty', '/base/.bar/baz/empty'])
-    assert files == exp
+    regexps = (re.compile(r'\.not'), re.compile(r'ba[rz]'))
+    files = [Path(filepath).relative_to(testdir.parent)
+             for filepath in utils.filter_files(testdir, exclude=regexps)]
+    exp = sorted(['base/foo/.empty', 'base/foo/empty', 'base/foo/not_empty'])
+    assert files == [Path(p) for p in exp]
 
 
 

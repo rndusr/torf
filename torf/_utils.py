@@ -109,25 +109,12 @@ def real_size(path):
             raise error.ReadError(getattr(exc, 'errno', None),
                                   getattr(exc, 'filename', None))
 
-def is_hidden(path):
-    """Whether file or directory is hidden"""
-    for name in path.split(os.sep):
-        if name != '.' and name != '..' and name and name[0] == '.':
-            return True
-    return False
-
-def is_match(path, pattern):
-    for name in path.split(os.sep):
-        if fnmatch(name, pattern):
-            return True
-    return False
-
 def filter_files(path, exclude=(), hidden=True, empty=True):
     """
     Return list of absolute, sorted file paths
 
     path: Path to file or directory
-    exclude: List of file name patterns to exclude
+    exclude: Sequence of regular expressions
     hidden: Whether to include hidden files
     empty: Whether to include empty files
 
@@ -141,10 +128,19 @@ def filter_files(path, exclude=(), hidden=True, empty=True):
     if os.path.isfile(path):
         return [path]
     else:
+        def is_hidden(path):
+            """Whether file or directory is hidden"""
+            for name in str(path).split(os.sep):
+                if name != '.' and name != '..' and name and name[0] == '.':
+                    return True
+            return False
+
         filepaths = []
         for dirpath, dirnames, filenames in os.walk(path):
-            # Ignore hidden directory
-            if not hidden and is_hidden(dirpath):
+            # Ignore hidden directory; don't regard directory as hidden if any
+            # segment in `path` is hidden.
+            dirpath_rel = pathlib.Path(dirpath).relative_to(path)
+            if not hidden and is_hidden(dirpath_rel):
                 continue
 
             for filename in filenames:
@@ -154,14 +150,14 @@ def filter_files(path, exclude=(), hidden=True, empty=True):
 
                 filepath = os.path.join(dirpath, filename)
                 # Ignore excluded file
-                if any(is_match(filepath, pattern) for pattern in exclude):
+                if any(r.search(filepath) for r in exclude):
                     continue
                 else:
                     # Ignore empty file
                     if empty or real_size(filepath) > 0:
                         filepaths.append(filepath)
 
-        return sorted(filepaths, key=lambda fp: fp.casefold())
+        return sorted(filepaths, key=lambda fp: str(fp).casefold())
 
 
 class MonitoredList(collections.abc.MutableSequence):
