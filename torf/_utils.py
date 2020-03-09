@@ -162,10 +162,9 @@ def filter_files(path, exclude=(), hidden=True, empty=True):
 
 class MonitoredList(collections.abc.MutableSequence):
     """List with change callback"""
-    def __init__(self, items, callback=None, type=None, filter_func=lambda item: item):
+    def __init__(self, items, callback=None, type=None):
         self._items = []
         self._type = type
-        self._filter_func = filter_func
         self._callback = callback
         with self._callback_disabled():
             self.replace(items)
@@ -190,6 +189,10 @@ class MonitoredList(collections.abc.MutableSequence):
             return self._type(value)
         else:
             return value
+
+    def _filter_func(self, item):
+        if item not in self._items:
+            return item
 
     def __setitem__(self, index, value):
         value = self._filter_func(self._coerce(value))
@@ -323,18 +326,13 @@ class Files(MonitoredList):
             files = (files,)
         else:
             files = list(flatten(files))
-        super().__init__(files, callback=callback, type=File,
-                         filter_func=self._filter_func)
+        super().__init__(files, callback=callback, type=File)
 
     def _coerce(self, value):
         if not isinstance(value, self._type):
             raise ValueError(f'Not a File object: {value} ({type(value).__name__})')
         else:
             return value
-
-    def _filter_func(self, file):
-        if file not in self._items:
-            return file
 
 
 class Filepath(type(pathlib.Path())):
@@ -358,12 +356,7 @@ class Filepaths(MonitoredList):
             filepaths = (filepaths,)
         else:
             filepaths = list(flatten(filepaths))
-        super().__init__(filepaths, callback=callback, type=Filepath,
-                         filter_func=self._filter_func)
-
-    def _filter_func(self, filepath):
-        if filepath not in self._items:
-            return filepath
+        super().__init__(filepaths, callback=callback, type=Filepath)
 
     def __setitem__(self, index, path):
         path = self._coerce(path)
@@ -427,7 +420,7 @@ class URLs(MonitoredList):
             urls = (urls,)
         else:
             urls = flatten(urls)
-        super().__init__(urls, callback=callback, type=URL, filter_func=self._filter_func)
+        super().__init__(urls, callback=callback, type=URL)
 
     def _filter_func(self, url):
         # _get_known_urls is a hack for the Trackers class to deduplicate across
