@@ -183,7 +183,7 @@ def filter_files(items, filepath_getter=lambda x: x,
 
 class MonitoredList(collections.abc.MutableSequence):
     """List with change callback"""
-    def __init__(self, items, callback=None, type=None):
+    def __init__(self, items=(), callback=None, type=None):
         self._items = []
         self._type = type
         self._callback = callback
