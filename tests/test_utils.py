@@ -137,71 +137,117 @@ def testdir(tmp_path):
         (path / '.not_empty').write_text('more dummy content')
     return base
 
-def test_filter_files_with_default_arguments(testdir):
+
+def test_list_files_with_file(testdir):
     files = [Path(filepath).relative_to(testdir.parent)
-             for filepath in utils.filter_files(testdir)]
+             for filepath in utils.list_files(testdir / 'foo/empty')]
+    exp = ['base/foo/empty']
+    assert files == [Path(p) for p in exp]
+
+def test_list_files_with_directory(testdir):
+    files = [Path(filepath).relative_to(testdir.parent)
+             for filepath in utils.list_files(testdir)]
     exp = sorted(['base/foo/.empty', 'base/foo/.not_empty', 'base/foo/empty', 'base/foo/not_empty',
                   'base/.bar/.empty', 'base/.bar/.not_empty', 'base/.bar/empty', 'base/.bar/not_empty',
                   'base/.bar/baz/.empty', 'base/.bar/baz/.not_empty', 'base/.bar/baz/empty', 'base/.bar/baz/not_empty'])
     assert files == [Path(p) for p in exp]
 
-def test_filter_files_without_hidden_files_or_directories(testdir):
-    files = [Path(filepath).relative_to(testdir.parent)
-             for filepath in utils.filter_files(testdir, hidden=False)]
-    exp = sorted(['base/foo/empty', 'base/foo/not_empty'])
-    assert files == [Path(p) for p in exp]
+def test_list_files_with_unreadable_file(tmp_path):
+    file = tmp_path / 'foo.jpg'
+    file.write_text('asdf')
+    file_mode = os.stat(file).st_mode
+    os.chmod(file, mode=0o222)
+    try:
+        with pytest.raises(errors.ReadError) as exc_info:
+            print(utils.list_files(file))
+        assert str(exc_info.value) == f'{file}: Permission denied'
+    finally:
+        os.chmod(file, mode=file_mode)
 
-def test_filter_files_never_filters_hidden_parent_directories(testdir):
-    hidden_parent_path = testdir / '.bar/baz'
-    (hidden_parent_path / '.bam').mkdir()
-    (hidden_parent_path / '.bam/bambam').write_text('not empty')
-    files = [Path(filepath).relative_to(hidden_parent_path.parent)
-             for filepath in utils.filter_files(hidden_parent_path, hidden=False)]
-    exp = sorted(['baz/empty', 'baz/not_empty'])
-    assert files == [Path(p) for p in exp]
+def test_list_files_with_unreadable_directory(tmp_path):
+    dir = tmp_path / 'dir'
+    dir.mkdir()
+    file = dir / 'foo.jpg'
+    file.write_text('asdf')
+    dir_mode = os.stat(dir).st_mode
+    os.chmod(dir, mode=0o222)
+    try:
+        for path in (dir, file):
+            with pytest.raises(errors.ReadError) as exc_info:
+                print(utils.list_files(path))
+            assert str(exc_info.value) == f'{path}: Permission denied'
+    finally:
+        os.chmod(dir, mode=dir_mode)
 
-    hidden_parent_path = testdir / '.bar'
-    files = [Path(filepath).relative_to(hidden_parent_path.parent)
-             for filepath in utils.filter_files(hidden_parent_path, hidden=False)]
-    exp = sorted(['.bar/empty', '.bar/not_empty',
-                  '.bar/baz/empty', '.bar/baz/not_empty'])
-    assert files == [Path(p) for p in exp]
+def test_list_files_with_unreadable_file_in_directory(tmp_path):
+    dir = tmp_path / 'dir'
+    dir.mkdir()
+    file = dir / 'foo.jpg'
+    file.write_text('asdf')
+    file_mode = os.stat(file).st_mode
+    os.chmod(file, mode=0o222)
+    try:
+        with pytest.raises(errors.ReadError) as exc_info:
+            print(utils.list_files(dir))
+        assert str(exc_info.value) == f'{file}: Permission denied'
+    finally:
+        os.chmod(file, mode=file_mode)
+
+
+def test_filter_files_with_default_arguments():
+    filelist = ['base/foo/.hidden', 'base/foo/not_hidden',
+                'base/.hidden/.hidden', 'base/.hiddendir/not_hidden',
+                'base/.hidden/not_hidden/.hidden', 'base/.hidden/not_hidden/not_hidden']
+    assert utils.filter_files(filelist) == filelist
+
+def test_filter_files_without_hidden_files_or_directories():
+    filelist = ['base/foo/.hidden', 'base/foo/not_hidden',
+                'base/.hidden/.hidden', 'base/.hiddendir/not_hidden',
+                'base/.hidden/not_hidden/.hidden', 'base/.hidden/not_hidden/not_hidden']
+    assert utils.filter_files(filelist, hidden=False) == ['base/foo/not_hidden']
+
+def test_filter_files_ignores_hidden_parent_directories():
+    filelist = ['.base/foo/.hidden',                '.base/foo/not_hidden',
+                '.base/.hidden/.hidden',            '.base/.hiddendir/not_hidden',
+                '.base/.hidden/not_hidden/.hidden', '.base/.hidden/not_hidden/not_hidden']
+    assert utils.filter_files(filelist, hidden=False) == ['.base/foo/not_hidden']
+
+    filelist = ['path/to/.hidden/base/foo/.hidden',                'path/to/.hidden/base/foo/not_hidden',
+                'path/to/.hidden/base/.hidden/.hidden',            'path/to/.hidden/base/.hiddendir/not_hidden',
+                'path/to/.hidden/base/.hidden/not_hidden/.hidden', 'path/to/.hidden/base/.hidden/not_hidden/not_hidden']
+    assert utils.filter_files(filelist, hidden=False) == ['path/to/.hidden/base/foo/not_hidden']
 
 def test_filter_files_without_empty_files(testdir):
-    files = [Path(filepath).relative_to(testdir.parent)
-             for filepath in utils.filter_files(testdir, empty=False)]
-    exp = sorted(['base/foo/.not_empty', 'base/foo/not_empty',
-                  'base/.bar/.not_empty', 'base/.bar/not_empty',
-                  'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty'])
-    assert files == [Path(p) for p in exp]
+    filelist = [str(Path(filepath).relative_to(testdir.parent))
+                for filepath in utils.list_files(testdir)]
+    os.chdir(testdir.parent)
+    assert utils.filter_files(filelist, empty=False) == sorted(['base/foo/.not_empty', 'base/foo/not_empty',
+                                                                'base/.bar/.not_empty', 'base/.bar/not_empty',
+                                                                'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty'])
 
 def test_filter_files_exclude_argument(testdir):
-    regexp = re.compile(rf'{os.sep}\.')
-    files = [Path(filepath).relative_to(testdir.parent)
-             for filepath in utils.filter_files(testdir, exclude=(regexp,))]
-    exp = sorted(['base/foo/empty', 'base/foo/not_empty'])
-    assert files == [Path(p) for p in exp]
+    filelist = ['base/foo/bar/baz',
+                'base/foo/two/three',
+                'base/one/two/foo']
+    assert utils.filter_files(filelist, exclude=(re.compile(r'two'),)) == ['base/foo/bar/baz']
+    assert utils.filter_files(filelist, exclude=(re.compile(r'foo$'),)) == ['base/foo/bar/baz', 'base/foo/two/three']
+    assert utils.filter_files(filelist, exclude=(re.compile(r'base/foo'),)) == ['base/one/two/foo']
+    assert utils.filter_files(filelist, exclude=(re.compile(r'foo/bar'),
+                                                 re.compile(r'one/two'))) == ['base/foo/two/three']
 
-    for pattern in ('foo', 'foo?', 'fo*', 'f?oo'):
-        regex = re.compile(pattern)
-        files = [Path(filepath).relative_to(testdir.parent)
-                 for filepath in utils.filter_files(testdir, exclude=(regex,))]
-        exp = sorted(['base/.bar/.empty', 'base/.bar/.not_empty', 'base/.bar/empty', 'base/.bar/not_empty',
-                      'base/.bar/baz/.empty', 'base/.bar/baz/.not_empty', 'base/.bar/baz/empty', 'base/.bar/baz/not_empty'])
-    assert files == [Path(p) for p in exp]
+def test_filter_files_with_no_common_path(testdir):
+    filelist = ['foo/bar/baz',
+                'bar/two/three',
+                'one/two/foo']
+    assert utils.filter_files(filelist) == filelist
+    assert utils.filter_files(filelist, exclude=(re.compile(r'bar'),)) == ['one/two/foo']
 
-    regex = re.compile(r'ba[rz]')
-    files = [Path(filepath).relative_to(testdir.parent)
-             for filepath in utils.filter_files(testdir, exclude=(regex,))]
-    exp = sorted(['base/foo/.empty', 'base/foo/.not_empty', 'base/foo/empty', 'base/foo/not_empty'])
-    assert files == [Path(p) for p in exp]
-
-    regexps = (re.compile(r'\.not'), re.compile(r'ba[rz]'))
-    files = [Path(filepath).relative_to(testdir.parent)
-             for filepath in utils.filter_files(testdir, exclude=regexps)]
-    exp = sorted(['base/foo/.empty', 'base/foo/empty', 'base/foo/not_empty'])
-    assert files == [Path(p) for p in exp]
-
+def test_filter_files_with_filepath_getter_argument(testdir):
+    items = [(123, 'foo/bar/baz', 456),
+             (123, 'bar/two/three', 456),
+             (123, 'one/two/foo', 456)]
+    assert utils.filter_files(items, filepath_getter=lambda i: i[1],
+                              exclude=(re.compile(r'foo'),)) == [(123, 'bar/two/three', 456)]
 
 
 def test_decoding():

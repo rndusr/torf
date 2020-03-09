@@ -109,55 +109,76 @@ def real_size(path):
             raise error.ReadError(getattr(exc, 'errno', None),
                                   getattr(exc, 'filename', None))
 
-def filter_files(path, exclude=(), hidden=True, empty=True):
+def list_files(path):
     """
-    Return list of absolute, sorted file paths
+    Return list of sorted file paths in `path`
 
-    path: Path to file or directory
+    Raise ReadError if `path` or any file or directory underneath it is not
+    readable.
+    """
+    def assert_readable(path):
+        os_supports_effective_ids = os.access in os.supports_effective_ids
+        if not os.access(path, os.R_OK, effective_ids=os_supports_effective_ids):
+            raise error.ReadError(errno.EACCES, path)
+
+    if os.path.isfile(path):
+        assert_readable(path)
+        return [path]
+    else:
+        def onerror(exc):
+            raise error.ReadError(getattr(exc, 'errno', None),
+                                  getattr(exc, 'filename', None))
+        filepaths = []
+        for dirpath, dirnames, filenames in os.walk(path, onerror=onerror):
+            for filename in filenames:
+                filepath = os.path.join(dirpath, filename)
+                assert_readable(filepath)
+                filepaths.append(filepath)
+        return list(sorted(filepaths, key=lambda fp: str(fp).casefold()))
+
+
+def filter_files(items, filepath_getter=lambda x: x,
+                 exclude=(), hidden=True, empty=True):
+    """
+    Return `items` with matching file paths removed
+
+    items: Iterable of file paths or objects that `filepath_getter` can turn
+        into a file path
+    filepath_getter: Callable that gets an element from `items` and returns the
+        corresponding file path
     exclude: Sequence of regular expressions
     hidden: Whether to include hidden files
     empty: Whether to include empty files
-
-    Raise ReadError if path is not readable.
     """
-    if (not os.path.exists(path) or
-        not os.access(path, os.R_OK,
-                      effective_ids=os.access in os.supports_effective_ids)):
-        raise error.ReadError(errno.EACCES, path)
+    def is_hidden(path):
+        """Whether file or directory is hidden"""
+        for name in str(path).split(os.sep):
+            if name != '.' and name != '..' and name and name[0] == '.':
+                return True
+        return False
 
-    if os.path.isfile(path):
-        return [path]
-    else:
-        def is_hidden(path):
-            """Whether file or directory is hidden"""
-            for name in str(path).split(os.sep):
-                if name != '.' and name != '..' and name and name[0] == '.':
-                    return True
-            return False
-
-        filepaths = []
-        for dirpath, dirnames, filenames in os.walk(path):
-            # Ignore hidden directory; don't regard directory as hidden if any
-            # segment in `path` is hidden.
-            dirpath_rel = pathlib.Path(dirpath).relative_to(path)
-            if not hidden and is_hidden(dirpath_rel):
-                continue
-
-            for filename in filenames:
-                # Ignore hidden file
-                if not hidden and is_hidden(filename):
-                    continue
-
-                filepath = os.path.join(dirpath, filename)
-                # Ignore excluded file
-                if any(r.search(filepath) for r in exclude):
-                    continue
-                else:
-                    # Ignore empty file
-                    if empty or real_size(filepath) > 0:
-                        filepaths.append(filepath)
-
-        return sorted(filepaths, key=lambda fp: str(fp).casefold())
+    try:
+        basepath = pathlib.Path(os.path.commonpath(tuple(map(filepath_getter, items))))
+    except ValueError:
+        basepath = pathlib.Path('')
+    items_filtered = []
+    for item in items:
+        filepath = filepath_getter(item)
+        relpath_without_base = pathlib.Path(filepath).relative_to(basepath)
+        relpath_with_base = pathlib.Path(filepath).relative_to(basepath.parent)
+        # Exclude hidden files and directories, but not hidden directories in
+        # `basepath`
+        if not hidden and is_hidden(relpath_without_base):
+            continue
+        # Exclude empty file
+        elif not empty and os.path.exists(filepath) and real_size(filepath) <= 0:
+            continue
+        # Exclude file matching regex
+        elif any(r.search(str(relpath_with_base)) for r in exclude):
+            continue
+        else:
+            items_filtered.append(item)
+    return items_filtered
 
 
 class MonitoredList(collections.abc.MutableSequence):
