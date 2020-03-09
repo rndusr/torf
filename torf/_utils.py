@@ -216,9 +216,11 @@ class MonitoredList(collections.abc.MutableSequence):
             return item
 
     def __setitem__(self, index, value):
-        value = self._filter_func(self._coerce(value))
-        if value is not None:
-            self._items[index] = value
+        if isinstance(value, Iterable):
+            value = map(self._filter_func, map(self._coerce, value))
+        else:
+            value = self._filter_func(self._coerce(value))
+        self._items[index] = value
         if self._callback is not None:
             self._callback(self)
 
