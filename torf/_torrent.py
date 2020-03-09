@@ -23,6 +23,9 @@ import errno
 import inspect
 import io
 import pathlib
+import fnmatch
+import re
+import itertools
 
 from . import _utils as utils
 from . import _errors as error
@@ -84,11 +87,14 @@ class Torrent():
     """
 
     def __init__(self, path=None, name=None,
-                 exclude=(), trackers=None, webseeds=None, httpseeds=None,
-                 private=None, comment=None, source=None,
-                 creation_date=None, created_by='%s/%s' % (_PACKAGE_NAME, __version__),
+                 exclude_files=(), exclude_globs=(),
+                 trackers=None, webseeds=None, httpseeds=None,
+                 private=None, comment=None, source=None, creation_date=None,
+                 created_by='%s/%s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
         self._metainfo = {}
+        self._exclude = {'files'  : utils.MonitoredList(callback=self._filters_changed, type=str),
+                         'globs'     : utils.MonitoredList(callback=self._filters_changed, type=str)}
         self.trackers = trackers
         self.webseeds = webseeds
         self.httpseeds = httpseeds
@@ -98,7 +104,8 @@ class Torrent():
         self.created_by = created_by
         self.source = source
         self.randomize_infohash = randomize_infohash
-        self.exclude = exclude
+        self.exclude_files = exclude_files
+        self.exclude_globs = exclude_globs
         self.path = path
         # Values that are implicitly changed by setting self.path
         if piece_size is not None:
@@ -128,8 +135,8 @@ class Torrent():
         """
         File system path to torrent content
 
-        Setting this property creates a list of files, excluding any that match
-        any pattern in :attr:`exclude`, and passes it to :attr:`filepaths`.
+        Setting this property creates a list of files from the given path and
+        passes the result to :attr:`filepaths`.
 
         The properties :attr:`name` and :attr:`piece_size` are changed
         implicitly when this property is set and ``pieces`` is removed from
@@ -150,22 +157,15 @@ class Torrent():
         info.pop('pieces', None)
 
         if value is not None:
-            path = str(value)
+            path = pathlib.Path(value)
 
             # Empty torrents are not allowed
             if utils.real_size(path) <= 0:
                 raise error.PathError(path, msg='Empty')
             else:
-                # The filepaths property needs to know the path, but we don't
-                # want to set it if utils.filter_files() fails.
-                self._path = pathlib.Path(path)
-                try:
-                    self.filepaths = utils.filter_files(path, exclude=self.exclude,
-                                                        hidden=False, empty=False)
-                except:
-                    delattr(self, '_path')
-                    raise
-                # Set the new name
+                filepaths = utils.list_files(path)
+                self._path = path
+                self.filepaths = filepaths
                 if path == '.':
                     self.name = os.path.basename(os.path.abspath('.'))
                 elif path == '..':
@@ -286,6 +286,14 @@ class Torrent():
         :param fileinfos: Sequence of (:class:`os.PathLike`, :class:`int`) tuples
         """
         info = self.metainfo['info']
+
+        # Apply filters
+        filter_files = (re.compile(rf'^{re.escape(f)}$') for f in self._exclude['files'])
+        filter_globs = (re.compile(fnmatch.translate(g)) for g in self._exclude['globs'])
+        filters = tuple(itertools.chain(filter_files, filter_globs))
+        fileinfos = utils.filter_files(fileinfos, filepath_getter=lambda fi: fi[0],
+                                       exclude=filters, hidden=False, empty=False)
+
         if not fileinfos:
             info.pop('files', None)
             info.pop('length', None)
@@ -320,6 +328,53 @@ class Torrent():
 
         # Calculate new piece size
         self.piece_size = None
+
+    @property
+    def exclude_files(self):
+        """
+        List of relative file paths to exclude (see :attr:`files`)
+
+        :raises RuntimeError: if set or manipulated while :attr:`path` is None
+        """
+        return self._exclude['files']
+    @exclude_files.setter
+    def exclude_files(self, value):
+        if not isinstance(value, utils.Iterable):
+            raise ValueError(f'Must be Iterable, not {type(value).__name__}: {value}')
+        self._exclude['files'][:] = value
+
+    @property
+    def exclude_globs(self):
+        """
+        List of relative file paths to exclude with basic wildcards
+
+        ======== ============================
+        Wildcard Description
+        ======== ============================
+        \*       matches everything
+        ?        matches any single character
+        [seq]    matches any character in seq
+        [!seq]   matches any char not in seq
+        ======== ============================
+
+        :raises RuntimeError: if set or manipulated while :attr:`path` is None
+        """
+        return self._exclude['globs']
+    @exclude_globs.setter
+    def exclude_globs(self, value):
+        if not isinstance(value, utils.Iterable):
+            raise ValueError(f'Must be Iterable, not {type(value).__name__}: {value}')
+        self._exclude['globs'][:] = value
+
+    def _filters_changed(self, _):
+        """Callback for MonitoredLists in Torrent._exclude"""
+        # Apply filters
+        if self.path is not None:
+            # Read file list from disk again
+            self.path = self.path
+        else:
+            # There are no existing files specified so we can just remove files
+            self.files = self.files
 
     @property
     def filetree(self):
@@ -768,42 +823,6 @@ class Torrent():
             self.metainfo['info']['source'] = str(value)
         else:
             self.metainfo['info'].pop('source', None)
-
-    @property
-    def exclude(self):
-        """
-        List of file/directory name patterns to exclude
-
-        Every file path is split at the directory separator and each part, from
-        base directory to file, is matched against each pattern.
-
-        Matching is done with :func:`fnmatch.fnmatch`, which uses these special
-        characters:
-
-        \*
-          matches everything
-
-        ?
-          matches any single character
-
-        [seq]
-          matches any character in seq
-
-        [!seq]
-          matches any char not in seq
-
-        :raises PathError: if all files are excluded
-        """
-        return self._exclude
-    @exclude.setter
-    def exclude(self, value):
-        if isinstance(value, str):
-            value = [value]
-        else:
-            value = list(value)
-        if value != getattr(self, '_exclude', None):
-            self._exclude = value
-            self.path = self.path  # Re-filter file paths
 
     @property
     def infohash(self):

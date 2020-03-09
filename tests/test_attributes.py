@@ -477,27 +477,6 @@ def test_filetree_with_single_file(create_torrent, tmp_path):
     assert torrent.filetree == {'content': File(Path('content'), size=6)}
 
 
-def test_exclude(create_torrent, multifile_content, tmpdir):
-    torrent = create_torrent()
-    root = tmpdir.mkdir('content')
-    subdir1 = root.mkdir('subdir1')
-    file1 = subdir1.join('file1.jpg')
-    file1.write('data1')
-    file2 = subdir1.join('file2.jpg')
-    file2.write('data2')
-    subdir2 = root.mkdir('subdir2')
-    file3 = subdir2.join('file3.txt')
-    file3.write('data3')
-    file4 = subdir2.join('file4.txt')
-    file4.write('data4')
-
-    torrent.path = str(root)
-    assert torrent.filepaths == (file1, file2, file3, file4)
-
-    torrent.exclude = ['*.txt']
-    assert torrent.filepaths == (file1, file2)
-
-
 def test_name(create_torrent, singlefile_content, multifile_content):
     torrent = create_torrent()
     def generate_exp_files(content, torrent_name):

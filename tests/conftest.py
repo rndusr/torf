@@ -350,7 +350,6 @@ def generated_multifile_torrent(create_torrent, multifile_content):
 def create_torrent():
     def _create_torrent(**kwargs):
         rand_kwargs = {
-            'exclude' : random.choice(([], ['no*matches'])),
             'trackers' : random.choice(([],
                                         ['http://localhost:123/announce'],
                                         ['http://localhost:123/announce', 'http://localhost:456/announce'],
