@@ -227,7 +227,7 @@ class Torrent():
         except ValueError:
             basepath = pathlib.Path('/')
         # pathlib.Path defaults to '.' for relative paths and '/' for absolute paths
-        if str(basepath) in ('.', '/'):
+        if files and str(basepath) in ('.', '/'):
             raise error.CommonPathError(filepaths)
 
         self._set_metainfo_files(basepath, files)
