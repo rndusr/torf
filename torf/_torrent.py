@@ -220,12 +220,10 @@ class Torrent():
                 raise ValueError(f'Not a File object: {f}')
             elif f.is_absolute():
                 raise error.PathError(f, msg='Not a relative path')
-        files = tuple((f, f.size) for f in files)
 
         # Find common parent path
-        filepaths = tuple(f[0] for f in files)
         try:
-            basepath = pathlib.Path(os.path.commonpath(filepaths))
+            basepath = pathlib.Path(os.path.commonpath(files))
         except ValueError:
             basepath = pathlib.Path('/')
         # pathlib.Path defaults to '.' for relative paths and '/' for absolute paths
@@ -272,20 +270,20 @@ class Torrent():
         # Resolve directories
         filepaths = utils.Filepaths(filepaths)
         # Add file sizes
-        filepaths = tuple((pathlib.Path(fp), utils.real_size(fp))
+        filepaths = tuple(utils.File(fp, size=utils.real_size(fp))
                           for fp in filepaths)
         if self.path is None:
             raise RuntimeError('Cannot modify "filepaths" if "path" is None')
         self._set_metainfo_files(self.path, filepaths)
 
-    def _set_metainfo_files(self, basepath, fileinfos):
+    def _set_metainfo_files(self, basepath, files):
         """
         Update ``name`` and ``files`` or ``length``, remove ``pieces`` and
         ``md5sum`` in :attr:`metainfo`\ ``['info']``
 
-        :param basepath: :class:`os.PathLike` that all paths in `fileinfos`
-            start with
-        :param fileinfos: Sequence of (:class:`os.PathLike`, :class:`int`) tuples
+        :param basepath: :class:`os.PathLike` that all paths in `files` start
+            with
+        :param files: Sequence of :class:`File`
         """
         info = self.metainfo['info']
 
@@ -293,19 +291,17 @@ class Torrent():
         filter_files = (re.compile(rf'^{re.escape(f)}$') for f in self._exclude['files'])
         filter_globs = (re.compile(fnmatch.translate(g)) for g in self._exclude['globs'])
         filters = tuple(itertools.chain(filter_files, filter_globs))
-        fileinfos = utils.filter_files(fileinfos, filepath_getter=lambda fi: fi[0],
-                                       exclude=filters, hidden=False, empty=False)
+        files = utils.filter_files(files, exclude=filters, hidden=False, empty=False)
 
-        if not fileinfos:
+        if not files:
             info.pop('files', None)
             info.pop('length', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
-        elif len(fileinfos) == 1 and basepath.resolve() == fileinfos[0][0].resolve():
+        elif len(files) == 1 and basepath.resolve() == files[0].resolve():
             # There is only one file and it is not in a directory.
-            filepath, filesize = fileinfos[0]
-            info['length'] = filesize
-            info['name'] = filepath.name
+            info['length'] = files[0].size
+            info['name'] = files[0].name
             info.pop('files', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
@@ -313,16 +309,16 @@ class Torrent():
             def abspath(path):
                 return path if path.is_absolute() else pathlib.Path.cwd() / path
             basepath_abs = abspath(basepath)
-            files = []
-            for filepath,filesize in sorted(fileinfos):
-                filepath_abs = abspath(filepath)
+            files_info = []
+            for file in sorted(files):
+                filepath_abs = abspath(file)
                 try:
-                    relpath = filepath_abs.relative_to(basepath_abs)
+                    filepath_rel = filepath_abs.relative_to(basepath_abs)
                 except ValueError:
-                    raise error.SubpathError(filepath, basepath)
-                files.append({'length': filesize,
-                              'path'  : list(relpath.parts)})
-            info['files'] = files
+                    raise error.SubpathError(file, basepath)
+                files_info.append({'length': file.size,
+                                   'path'  : list(filepath_rel.parts)})
+            info['files'] = files_info
             info['name'] = os.path.basename(basepath)
             info.pop('length', None)
             info.pop('pieces', None)
