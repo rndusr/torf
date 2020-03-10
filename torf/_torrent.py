@@ -166,9 +166,9 @@ class Torrent():
                 filepaths = utils.list_files(path)
                 self._path = path
                 self.filepaths = filepaths
-                if path == '.':
+                if str(path) == '.':
                     self.name = os.path.basename(os.path.abspath('.'))
-                elif path == '..':
+                elif str(path) == '..':
                     self.name = os.path.basename(os.path.abspath('..'))
                 else:
                     self.name = None  # Set default name
