@@ -291,8 +291,6 @@ class File(os.PathLike):
             self._path = pathlib.Path(*path)
         else:
             raise ValueError(f'Path must be str, PathLike or Iterable, not {type(path).__name__}: {path}')
-        if self.is_absolute():
-            raise error.PathError(path, msg='Not a relative path')
         try:
             self._size = int(size)
         except (ValueError, TypeError):

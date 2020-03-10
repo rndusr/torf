@@ -218,6 +218,8 @@ class Torrent():
         for f in files:
             if not isinstance(f, utils.File):
                 raise ValueError(f'Not a File object: {f}')
+            elif f.is_absolute():
+                raise error.PathError(f, msg='Not a relative path')
         files = tuple((f, f.size) for f in files)
 
         # Find common parent path
