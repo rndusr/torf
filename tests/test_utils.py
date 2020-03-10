@@ -242,12 +242,6 @@ def test_filter_files_with_no_common_path(testdir):
     assert utils.filter_files(filelist) == filelist
     assert utils.filter_files(filelist, exclude=(re.compile(r'bar'),)) == ['one/two/foo']
 
-def test_filter_files_with_filepath_getter_argument(testdir):
-    items = [(123, 'foo/bar/baz', 456),
-             (123, 'bar/two/three', 456),
-             (123, 'one/two/foo', 456)]
-    assert utils.filter_files(items, filepath_getter=lambda i: i[1],
-                              exclude=(re.compile(r'foo'),)) == [(123, 'bar/two/three', 456)]
 
 
 def test_decoding():

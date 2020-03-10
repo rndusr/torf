@@ -137,15 +137,11 @@ def list_files(path):
         return list(sorted(filepaths, key=lambda fp: str(fp).casefold()))
 
 
-def filter_files(items, filepath_getter=lambda x: x,
-                 exclude=(), hidden=True, empty=True):
+def filter_files(filepaths, exclude=(), hidden=True, empty=True):
     """
-    Return `items` with matching file paths removed
+    Return `filepaths` with matching file paths removed
 
-    items: Iterable of file paths or objects that `filepath_getter` can turn
-        into a file path
-    filepath_getter: Callable that gets an element from `items` and returns the
-        corresponding file path
+    filepaths: Iterable of file paths
     exclude: Sequence of regular expressions
     hidden: Whether to include hidden files
     empty: Whether to include empty files
@@ -157,15 +153,16 @@ def filter_files(items, filepath_getter=lambda x: x,
                 return True
         return False
 
+    filepaths = tuple(filepaths)
     try:
-        basepath = pathlib.Path(os.path.commonpath(tuple(map(filepath_getter, items))))
+        basepath = pathlib.Path(os.path.commonpath(filepaths))
     except ValueError:
         basepath = pathlib.Path('')
-    items_filtered = []
-    for item in items:
-        filepath = filepath_getter(item)
+    filepaths_filtered = []
+
+    for filepath in filepaths:
         relpath_without_base = pathlib.Path(filepath).relative_to(basepath)
-        relpath_with_base = pathlib.Path(filepath).relative_to(basepath.parent)
+        relpath_with_base = pathlib.Path(basepath.parent, filepath)
         # Exclude hidden files and directories, but not hidden directories in
         # `basepath`
         if not hidden and is_hidden(relpath_without_base):
@@ -177,8 +174,8 @@ def filter_files(items, filepath_getter=lambda x: x,
         elif any(r.search(str(relpath_with_base)) for r in exclude):
             continue
         else:
-            items_filtered.append(item)
-    return items_filtered
+            filepaths_filtered.append(filepath)
+    return filepaths_filtered
 
 
 class MonitoredList(collections.abc.MutableSequence):
