@@ -157,11 +157,11 @@ def filter_files(filepaths, exclude=(), hidden=True, empty=True):
     try:
         basepath = pathlib.Path(os.path.commonpath(filepaths))
     except ValueError:
-        basepath = pathlib.Path('')
-    filepaths_filtered = []
+        basepath = pathlib.Path().cwd()
 
+    filepaths_filtered = []
     for filepath in filepaths:
-        relpath_without_base = pathlib.Path(filepath).relative_to(basepath)
+        relpath_without_base = pathlib.Path(os.path.relpath(filepath, basepath))
         relpath_with_base = pathlib.Path(basepath.parent, filepath)
         # Exclude hidden files and directories, but not hidden directories in
         # `basepath`
