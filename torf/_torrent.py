@@ -92,6 +92,7 @@ class Torrent():
                  private=None, comment=None, source=None, creation_date=None,
                  created_by='%s/%s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
+        self._path = None
         self._metainfo = {}
         self._exclude = {'files'  : utils.MonitoredList(callback=self._filters_changed, type=str),
                          'globs'     : utils.MonitoredList(callback=self._filters_changed, type=str)}
@@ -146,32 +147,18 @@ class Torrent():
             empty directory or directory containing only empty files)
         :raises ReadError: if :attr:`path` is not readable for any reason
         """
-        return getattr(self, '_path', None)
+        return self._path
     @path.setter
     def path(self, value):
-        info = self.metainfo['info']
-
-        # Unset path and remove related metainfo
-        if hasattr(self, '_path'):
-            delattr(self, '_path')
-        info.pop('pieces', None)
-
-        if value is not None:
-            path = pathlib.Path(value)
-
-            # Empty torrents are not allowed
-            if utils.real_size(path) <= 0:
-                raise error.PathError(path, msg='Empty')
-            else:
-                filepaths = utils.list_files(path)
-                self._path = path
-                self.filepaths = filepaths
-                if str(path) == '.':
-                    self.name = os.path.basename(os.path.abspath('.'))
-                elif str(path) == '..':
-                    self.name = os.path.basename(os.path.abspath('..'))
-                else:
-                    self.name = None  # Set default name
+        if value is None:
+            # Keep info about name and files, but forget where they are stored
+            self._path = None
+            self.metainfo['info'].pop('pieces', None)
+        else:
+            basepath = pathlib.Path(str(value))
+            filepaths = tuple(utils.File(fp, size=utils.real_size(fp))
+                              for fp in utils.list_files(basepath))
+            self._set_files(filepaths, basepath)
 
     @property
     def files(self):
@@ -221,16 +208,18 @@ class Torrent():
             elif f.is_absolute():
                 raise error.PathError(f, msg='Not a relative path')
 
-        # Find common parent path
-        try:
-            basepath = pathlib.Path(os.path.commonpath(files))
-        except ValueError:
-            basepath = pathlib.Path('/')
-        # pathlib.Path defaults to '.' for relative paths and '/' for absolute paths
-        if files and str(basepath) in ('.', '/'):
-            raise error.CommonPathError(filepaths)
-
-        self._set_metainfo_files(basepath, files)
+        if not files:
+            self._set_files(files=())
+        else:
+            # os.path.commonpath() returns '' if there is no common path and
+            # raises ValueError if there are absolute and relative paths.
+            try:
+                basepath = os.path.commonpath(files)
+            except ValueError:
+                basepath = ''
+            if basepath == '':
+                raise error.CommonPathError(files)
+            self._set_files(files, pathlib.Path(basepath))
 
     @property
     def filepaths(self):
@@ -264,65 +253,104 @@ class Torrent():
 
     @filepaths.setter
     def filepaths(self, filepaths):
-        info = self.metainfo['info']
         if not isinstance(filepaths, utils.Iterable):
             raise ValueError(f'Not an Iterable: {filepaths}')
-        # Resolve directories
-        filepaths = utils.Filepaths(filepaths)
-        # Add file sizes
-        filepaths = tuple(utils.File(fp, size=utils.real_size(fp))
-                          for fp in filepaths)
-        if self.path is None:
-            raise RuntimeError('Cannot modify "filepaths" if "path" is None')
-        self._set_metainfo_files(self.path, filepaths)
 
-    def _set_metainfo_files(self, basepath, files):
+        info = self.metainfo['info']
+        filepaths = utils.Filepaths(filepaths)  # Resolve directories
+        if not filepaths:
+            self._set_files(files=())
+        else:
+            # Make all paths absolute so we can find the common path.  Do not
+            # resolve symlinks so the user isn't confronted with unexpected
+            # paths in case of an error.
+            cwd = pathlib.Path.cwd()
+            filepaths_abs = tuple(fp if fp.is_absolute() else cwd / fp
+                                  for fp in filepaths)
+            try:
+                basepath = pathlib.Path(os.path.commonpath(filepaths_abs))
+            except ValueError:
+                raise error.CommonPathError(filepaths)
+            filepaths = tuple(utils.File(fp, size=utils.real_size(fp))
+                              for fp in filepaths)
+            self._set_files(filepaths, basepath)
+
+    def _set_files(self, files, basepath=None):
         """
         Update ``name`` and ``files`` or ``length``, remove ``pieces`` and
         ``md5sum`` in :attr:`metainfo`\ ``['info']``
 
-        :param basepath: :class:`os.PathLike` that all paths in `files` start
-            with
         :param files: Sequence of :class:`File`
+        :param basepath: :class:`os.PathLike` that all paths in `files` start
+            with; may be ``None`` if ``files`` is empty
         """
-        info = self.metainfo['info']
+        def abspath(p):
+            # Absolute path without resolved symlinks
+            if p.is_absolute():
+                return pathlib.Path(os.path.normpath(p))
+            else:
+                return pathlib.Path.cwd() / os.path.normpath(p)
 
-        # Apply filters
+        def relpath_without_parent(p):
+            # Relative path without common parent directory
+            return pathlib.Path(abspath(p)).relative_to(abspath(basepath))
+
+        def relpath_with_parent(p):
+            # Relative path with common parent directory
+            return pathlib.Path(abspath(p)).relative_to(abspath(basepath).parent)
+
+        # Apply exclude filters to relative paths with torrent name as first segment
         filter_files = (re.compile(rf'^{re.escape(f)}$') for f in self._exclude['files'])
         filter_globs = (re.compile(fnmatch.translate(g)) for g in self._exclude['globs'])
-        filters = tuple(itertools.chain(filter_files, filter_globs))
-        files = utils.filter_files(files, exclude=filters, hidden=False, empty=False)
+        filter_regexs = (re.compile(r) for r in self._exclude['regexs'])
+        filters = tuple(itertools.chain(filter_files, filter_globs, filter_regexs))
+        files = utils.filter_files(files, getter=relpath_with_parent,
+                                   exclude=filters, hidden=False, empty=False)
 
-        if not files:
+        info = self.metainfo['info']
+        if not files or all(f.size <= 0 for f in files):
             info.pop('files', None)
             info.pop('length', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
-        elif len(files) == 1 and basepath.resolve() == files[0].resolve():
+        elif len(files) == 1 and files[0] == basepath:
             # There is only one file and it is not in a directory.
+            # NOTE: A directory with a single file in it is a multifile torrent.
             info['length'] = files[0].size
             info['name'] = files[0].name
             info.pop('files', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
         else:
-            def abspath(path):
-                return path if path.is_absolute() else pathlib.Path.cwd() / path
-            basepath_abs = abspath(basepath)
+            if str(basepath) == os.curdir:
+                # Name of current working directory
+                name = pathlib.Path.cwd().name
+            elif str(basepath) == os.pardir:
+                # Name of logical parent directory
+                # NOTE: Path.resolve() returns the physical parent directory; if
+                # the parent directory is a symlink, we get an unexpected name
+                name = os.path.basename(os.path.dirname(os.getcwd()))
+            elif str(basepath).endswith(os.curdir) or str(basepath).endswith(os.pardir):
+                # Name of current/parent directory (logical parent, see NOTE above)
+                name = pathlib.Path(os.path.normpath(basepath)).name
+            else:
+                name = basepath.name
+
             files_info = []
-            for file in sorted(files):
-                filepath_abs = abspath(file)
-                try:
-                    filepath_rel = filepath_abs.relative_to(basepath_abs)
-                except ValueError:
-                    raise error.SubpathError(file, basepath)
-                files_info.append({'length': file.size,
-                                   'path'  : list(filepath_rel.parts)})
+            for f in sorted(files):
+                files_info.append({'length': f.size,
+                                   'path'  : list(relpath_without_parent(f).parts)})
+            info['name'] = name
             info['files'] = files_info
-            info['name'] = os.path.basename(basepath)
             info.pop('length', None)
             info.pop('pieces', None)
             info.pop('md5sum', None)
+
+        # Set new path attribute if basepath exists
+        if basepath is not None and os.path.exists(basepath):
+            self._path = basepath
+        else:
+            self._path = None
 
         # Calculate new piece size
         self.piece_size = None
