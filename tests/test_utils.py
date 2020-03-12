@@ -220,10 +220,14 @@ def test_filter_files_ignores_hidden_parent_directories():
 def test_filter_files_without_empty_files(testdir):
     filelist = [str(Path(filepath).relative_to(testdir.parent))
                 for filepath in utils.list_files(testdir)]
-    os.chdir(testdir.parent)
-    assert utils.filter_files(filelist, empty=False) == sorted(['base/foo/.not_empty', 'base/foo/not_empty',
-                                                                'base/.bar/.not_empty', 'base/.bar/not_empty',
-                                                                'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty'])
+    cwd = os.getcwd()
+    try:
+        os.chdir(testdir.parent)
+        assert utils.filter_files(filelist, empty=False) == sorted(['base/foo/.not_empty', 'base/foo/not_empty',
+                                                                    'base/.bar/.not_empty', 'base/.bar/not_empty',
+                                                                    'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty'])
+    finally:
+        os.chdir(cwd)
 
 def test_filter_files_exclude_argument(testdir):
     filelist = ['base/foo/bar/baz',
@@ -326,16 +330,20 @@ def test_Filepaths_deduplicates_when_inserting():
     assert fps == (Path('path/to/foo.jpg'), Path('path/to/bar.jpg'))
 
 def test_Filepaths_treats_relative_paths_as_equal_to_their_absolute_versions(tmp_path):
-    cwd = tmp_path / 'cwd' ; cwd.mkdir()
-    os.chdir(cwd)
-    fps = utils.Filepaths((Path('foo'),))
-    assert fps == ('foo',)
+    (tmp_path / 'cwd').mkdir()
+    cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path / 'cwd')
+        fps = utils.Filepaths((Path('foo'),))
+        assert fps == ('foo',)
 
-    fps.append(cwd / 'foo')
-    assert fps == ('foo',)
-    fps.append(cwd / 'bar')
-    fps.append('bar')
-    assert fps == ('foo', cwd / 'bar')
+        fps.append(tmp_path / 'cwd' / 'foo')
+        assert fps == ('foo',)
+        fps.append(tmp_path / 'cwd' / 'bar')
+        fps.append('bar')
+        assert fps == ('foo', tmp_path / 'cwd' / 'bar')
+    finally:
+        os.chdir(cwd)
 
 def test_Filepaths_handles_directories(tmp_path):
     # Create directory with 2 files
