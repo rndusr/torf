@@ -55,7 +55,7 @@ def test_with_all_files_excluded(create_dir):
                               ('a.jpg', '<image data>'),
                               ('b.jpg', '<image data>'),
                               ('c.jpg', '<image data>'))
-    t = torf.Torrent(content_path, exclude=['*.jpg'])
+    t = torf.Torrent(content_path, exclude_globs=['*.jpg'])
     with pytest.raises(torf.PathError) as e:
         t.generate()
     assert str(e.value) == f'{t.path}: Empty or all files filtered'

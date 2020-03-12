@@ -578,7 +578,7 @@ def test_piece_size_defaults_to_return_value_of_calculate_piece_size(create_torr
     assert torrent.metainfo['info']['piece length'] == 4*2**20
 
 def test_piece_size_when_torrent_size_is_zero(create_torrent, multifile_content):
-    torrent = torf.Torrent(path=multifile_content.path, exclude='*')
+    torrent = torf.Torrent(path=multifile_content.path, exclude_globs=('*',))
     assert torrent.size == None
     assert torrent.piece_size is None
     assert 'piece length' not in torrent.metainfo['info']
