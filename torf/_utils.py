@@ -137,11 +137,13 @@ def list_files(path):
         return list(sorted(filepaths, key=lambda fp: str(fp).casefold()))
 
 
-def filter_files(filepaths, exclude=(), hidden=True, empty=True):
+def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True):
     """
-    Return `filepaths` with matching file paths removed
+    Return reduced copy of `items`
 
-    filepaths: Iterable of file paths
+    items: Iterable of file paths or abritrary objects that `getter` can turn
+        into a a file path
+    getter: Callable that takes an item of `filepaths` and returns a file path
     exclude: Sequence of regular expressions
     hidden: Whether to include hidden files
     empty: Whether to include empty files
@@ -153,14 +155,16 @@ def filter_files(filepaths, exclude=(), hidden=True, empty=True):
                 return True
         return False
 
-    filepaths = tuple(filepaths)
+    items = tuple(items)
+    filepaths = tuple(getter(i) for i in items)
     try:
         basepath = pathlib.Path(os.path.commonpath(filepaths))
     except ValueError:
         basepath = pathlib.Path().cwd()
 
-    filepaths_filtered = []
-    for filepath in filepaths:
+    items_filtered = []
+    for item in items:
+        filepath = getter(item)
         relpath_without_base = pathlib.Path(os.path.relpath(filepath, basepath))
         relpath_with_base = pathlib.Path(basepath.parent, filepath)
         # Exclude hidden files and directories, but not hidden directories in
@@ -174,8 +178,8 @@ def filter_files(filepaths, exclude=(), hidden=True, empty=True):
         elif any(r.search(str(relpath_with_base)) for r in exclude):
             continue
         else:
-            filepaths_filtered.append(filepath)
-    return filepaths_filtered
+            items_filtered.append(item)
+    return items_filtered
 
 
 class MonitoredList(collections.abc.MutableSequence):

@@ -249,6 +249,12 @@ def test_filter_files_with_absolute_and_relative_paths(testdir):
                 '/some/where/foo/bar/four']
     assert utils.filter_files(filelist) == filelist
 
+def test_filter_files_with_getter_argument(testdir):
+    items = [(123, 'foo/bar/baz', 456),
+             (123, 'bar/two/three', 456),
+             (123, 'one/two/foo', 456)]
+    assert utils.filter_files(items, getter=lambda i: i[1],
+                              exclude=(re.compile(r'foo'),)) == [(123, 'bar/two/three', 456)]
 
 def test_decoding():
     encoded = {
