@@ -9,7 +9,7 @@ from pathlib import Path
 import glob
 
 
-def test_path_doesnt_exist(create_torrent, tmpdir):
+def test_path_doesnt_exist(create_torrent):
     torrent = create_torrent()
     with pytest.raises(torf.ReadError) as excinfo:
         torrent.path = '/this/path/does/not/exist'
@@ -25,11 +25,10 @@ def test_path_is_empty_directory(create_torrent, tmp_path):
     for key in ('name', 'files', 'length', 'pieces'):
         assert key not in torrent.metainfo['info']
 
-def test_path_is_empty_file(create_torrent, tmpdir):
-    torrent = create_torrent()
-    empty_file = tmpdir.join('empty')
-    empty_file.write('')
-    torrent.path = empty_file
+def test_path_is_empty_file(create_torrent, tmp_path):
+    (tmp_path / 'empty').write_text('')
+    torrent = create_torrent(path=tmp_path / 'empty')
+    assert torrent.path == tmp_path / 'empty'
     for key in ('name', 'files', 'length', 'pieces'):
         assert key not in torrent.metainfo['info']
 
@@ -145,6 +144,8 @@ def test_mode(singlefile_content, multifile_content):
     torrent.path = singlefile_content.path
     assert torrent.mode == 'singlefile'
     torrent.path = multifile_content.path
+    assert torrent.mode == 'multifile'
+    torrent.path = None
     assert torrent.mode == 'multifile'
 
 
@@ -284,9 +285,10 @@ def test_files_switch_from_singlefile_to_multifile(create_torrent, tmp_path):
                              torf.File(Path('bar', 'file2'), size=456))
 
 def test_files_switch_from_multifile_to_singlefile(create_torrent, tmp_path):
-    content = tmp_path / 'bar' ; content.mkdir()
-    for i in range(1, 3): (content / f'file{i}').write_text('<data>')
-    torrent = create_torrent(path=content)
+    (tmp_path / 'bar').mkdir()
+    for i in range(1, 3):
+        (tmp_path / 'bar' / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=tmp_path / 'bar')
     torrent.generate()
     assert torrent.metainfo['info']['name'] == 'bar'
     assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
@@ -337,12 +339,13 @@ def test_filepaths_is_set_to_empty_tuple(create_torrent, multifile_content, sing
         assert torrent.metainfo['info']['name'] == os.path.basename(content.path)
 
 def test_filepaths_with_single_file_in_directory(create_torrent, tmp_path):
-    content = tmp_path / 'content' ; content.mkdir()
-    file1 = content / 'file1'
-    file1.write_text('not empty')
-    torrent = create_torrent(path=content)
-    assert torrent.filepaths == (Path(file1),)
+    (tmp_path / 'content').mkdir()
+    (tmp_path / 'content' / 'file1').write_text('not empty')
+    torrent = create_torrent(path=tmp_path / 'content')
+    assert torrent.filepaths == (tmp_path / 'content' / 'file1',)
     assert torrent.mode == 'multifile'
+    assert torrent.metainfo['info']['name'] == 'content'
+    assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 9}]
 
 def test_filepaths_with_single_file_is_changed_to_different_file(create_torrent, tmp_path):
     (tmp_path / 'content').write_bytes(b'foo')
@@ -434,38 +437,44 @@ def test_filepaths_with_single_file_manipulated_into_multifile(create_torrent, t
     assert 'length' not in  torrent.metainfo['info']
 
 def test_filepaths_updates_metainfo_automatically_when_manipulated(create_torrent, tmp_path):
-    content = tmp_path / 'content' ; content.mkdir()
-    for i in range(1, 5): (content / f'file{i}').write_text('<data>')
-    torrent = create_torrent(path=content)
+    (tmp_path / 'content').mkdir()
+    for i in range(1, 5):
+        (tmp_path / 'content' / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=tmp_path / 'content')
 
     assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
                                                  {'path': ['file2'], 'length': 6},
                                                  {'path': ['file3'], 'length': 6},
                                                  {'path': ['file4'], 'length': 6}]
-    torrent.filepaths.remove(content / 'file3')
+    torrent.filepaths.remove(tmp_path / 'content' / 'file3')
     assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
                                                  {'path': ['file2'], 'length': 6},
                                                  {'path': ['file4'], 'length': 6}]
-    torrent.filepaths.append(content / 'file3')
+    torrent.filepaths.append(tmp_path / 'content' / 'file3')
     assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
                                                  {'path': ['file2'], 'length': 6},
                                                  {'path': ['file3'], 'length': 6},
                                                  {'path': ['file4'], 'length': 6}]
-    torrent.filepaths.remove(content / 'file2')
+    torrent.filepaths.remove(tmp_path / 'content' / 'file2')
     assert torrent.metainfo['info']['files'] == [{'path': ['file1'], 'length': 6},
                                                  {'path': ['file3'], 'length': 6},
                                                  {'path': ['file4'], 'length': 6}]
 
 def test_filepaths_gets_information_from_metainfo(create_torrent, tmp_path):
-    content = tmp_path / 'content' ; content.mkdir()
-    for i in range(1, 5): (content / f'file{i}').write_text('<data>')
-    torrent = create_torrent(path=content)
+    (tmp_path / 'content').mkdir()
+    for i in range(1, 5):
+        (tmp_path / 'content' / f'file{i}').write_text('<data>')
+    torrent = create_torrent(path=tmp_path / 'content')
     torrent.metainfo['info']['files'].remove({'path': ['file1'], 'length': 6})
     torrent.metainfo['info']['files'].remove({'path': ['file2'], 'length': 6})
     torrent.metainfo['info']['files'].append({'path': ['file9'], 'length': 6000})
-    assert torrent.filepaths == [content / 'file3',
-                                 content / 'file4',
-                                 content / 'file9']
+    assert torrent.filepaths == [tmp_path / 'content' / 'file3',
+                                 tmp_path / 'content' / 'file4',
+                                 tmp_path / 'content' / 'file9']
+    with pytest.raises(torf.ReadError) as excinfo:
+        torrent.generate()
+    assert str(excinfo.value) == f'{tmp_path / "content" / "file9"}: No such file or directory'
+
 
 def test_filepaths_uses_common_parent_directory(create_torrent, tmp_path):
     (tmp_path / 'content').mkdir()
@@ -578,13 +587,16 @@ def test_filetree_with_no_path(create_torrent):
     assert torrent.filetree == {}
 
 def test_filetree_with_subdirectories(create_torrent, tmp_path):
-    content = tmp_path / 'content' ; content.mkdir()
-    for i in range(1, 3): (content / f'file{i}').write_text('<data>')
-    subdir = content / 'subdir' ; subdir.mkdir()
-    for i in range(3, 5): (subdir / f'file{i}').write_text('<subdata>')
-    subsubdir = subdir / 'subsubdir' ; subsubdir.mkdir()
-    for i in range(5, 7): (subsubdir / f'file{i}').write_text('<subsubdata>')
-    torrent = create_torrent(path=content)
+    (tmp_path / 'content').mkdir()
+    for i in range(1, 3):
+        (tmp_path / 'content' / f'file{i}').write_text('<data>')
+    (tmp_path / 'content' / 'subdir').mkdir()
+    for i in range(3, 5):
+        (tmp_path / 'content' / 'subdir' / f'file{i}').write_text('<subdata>')
+    (tmp_path / 'content' / 'subdir' / 'subsubdir').mkdir()
+    for i in range(5, 7):
+        (tmp_path / 'content' / 'subdir' / 'subsubdir' / f'file{i}').write_text('<subsubdata>')
+    torrent = create_torrent(path=tmp_path / 'content')
     File = torf.File
     assert torrent.filetree == {'content': {
         'file1': File(Path('content', 'file1'), size=6),
@@ -595,16 +607,15 @@ def test_filetree_with_subdirectories(create_torrent, tmp_path):
                           'file6': File(Path('content/subdir/subsubdir/file6'), size=12)}}}}
 
 def test_filetree_with_single_file_in_directory(create_torrent, tmp_path):
-    content = tmp_path / 'content' ; content.mkdir()
-    (content / 'file').write_text('<data>')
-    torrent = create_torrent(path=content)
+    (tmp_path / 'content').mkdir()
+    (tmp_path / 'content' / 'file').write_text('<data>')
+    torrent = create_torrent(path=tmp_path / 'content')
     File = torf.File
     assert torrent.filetree == {'content': {'file': File(Path('content', 'file'), size=6)}}
 
 def test_filetree_with_single_file(create_torrent, tmp_path):
-    content = tmp_path / 'content'
-    content.write_text('<data>')
-    torrent = create_torrent(path=content)
+    (tmp_path / 'content').write_text('<data>')
+    torrent = create_torrent(path=tmp_path / 'content')
     File = torf.File
     assert torrent.filetree == {'content': File(Path('content'), size=6)}
 
@@ -684,6 +695,7 @@ def test_piece_size_is_set_automatically(create_torrent, multifile_content):
     torrent = torf.Torrent()
     assert torrent.piece_size is None
     assert 'piece length' not in torrent.metainfo['info']
+
     torrent.path = multifile_content.path
     assert torrent.piece_size is not None
     assert 'piece length' in torrent.metainfo['info']
@@ -696,6 +708,7 @@ def test_piece_size_is_set_manually(create_torrent, multifile_content):
     torrent = torf.Torrent(piece_size=16*2**20)
     assert torrent.piece_size == 16*2**20
     assert torrent.metainfo['info']['piece length'] == 16*2**20
+
     torrent.path = multifile_content.path
     assert torrent.piece_size != 16*2**20
     assert torrent.metainfo['info']['piece length'] != 16*2**20
@@ -743,21 +756,6 @@ def test_piece_size_can_be_invalid_in_metainfo(create_torrent):
     torrent.metainfo['info']['piece length'] = 'foo'
     torrent.metainfo['info']['piece length'] = -12
 
-
-def test_hashes(create_torrent, multifile_content):
-    torrent = create_torrent()
-    assert torrent.hashes is None
-    torrent.path = multifile_content.path
-    torrent.piece_size = multifile_content.exp_metainfo['info']['piece length']
-    assert torrent.hashes is None
-    torrent.generate()
-    hashes_string = multifile_content.exp_metainfo['info']['pieces']
-    assert torrent.hashes == tuple(hashes_string[pos:pos+20]
-                                   for pos in range(0, len(hashes_string), 20))
-    torrent.path = None
-    assert torrent.hashes is None
-
-
 def test_calculate_piece_size(monkeypatch):
     monkeypatch.setattr(torf.Torrent, 'piece_size_min', 1024)
     monkeypatch.setattr(torf.Torrent, 'piece_size_max', 256 * 2**20)
@@ -787,6 +785,20 @@ def test_calculate_piece_size(monkeypatch):
     assert calc(4000 * 2**30) == 256 * 2**20
     assert calc(40000 * 2**30) == 256 * 2**20
     assert calc(400000 * 2**30) == 256 * 2**20
+
+
+def test_hashes(create_torrent, multifile_content):
+    torrent = create_torrent()
+    assert torrent.hashes is None
+    torrent.path = multifile_content.path
+    torrent.piece_size = multifile_content.exp_metainfo['info']['piece length']
+    assert torrent.hashes is None
+    torrent.generate()
+    hashes_string = multifile_content.exp_metainfo['info']['pieces']
+    assert torrent.hashes == tuple(hashes_string[pos:pos+20]
+                                   for pos in range(0, len(hashes_string), 20))
+    torrent.path = None
+    assert torrent.hashes is None
 
 
 def test_trackers__correct_type(create_torrent):
