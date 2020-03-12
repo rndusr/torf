@@ -715,15 +715,6 @@ def test_piece_size_when_torrent_size_is_zero(create_torrent, multifile_content)
     assert torrent.piece_size is None
     assert 'piece length' not in torrent.metainfo['info']
 
-def test_piece_size_is_set_manually(create_torrent, multifile_content):
-    torrent = create_torrent(path=multifile_content.path)
-    torrent.piece_size = 8*2**20
-    assert torrent.piece_size == 8*2**20
-    assert torrent.metainfo['info']['piece length'] == 8*2**20
-    torrent.piece_size = 2*2**20
-    assert torrent.piece_size == 2*2**20
-    assert torrent.metainfo['info']['piece length'] == 2*2**20
-
 def test_piece_size_is_set_to_wrong_type(create_torrent):
     torrent = create_torrent()
     with pytest.raises(ValueError) as excinfo:
