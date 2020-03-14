@@ -21,5 +21,7 @@ __version__ = '3.0.0'
 from ._errors import *
 from ._torrent import Torrent
 from ._magnet import Magnet
-# Export _utils.File so users can use to add items to Torrent.files.
-from ._utils import File
+
+# Export File class so users can add items to Torrent.files and Filepaths so it
+# is documented by readthedocs.
+from ._utils import File, Filepaths
