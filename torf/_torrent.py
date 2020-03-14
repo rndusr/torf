@@ -1243,8 +1243,8 @@ class Torrent():
         have correct types
 
         The necessary values are documented here:
-            | http://bittorrent.org/beps/bep_0003.html
-            | https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
+        http://bittorrent.org/beps/bep_0003.html
+        https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
 
         :raises MetainfoError: if :attr:`metainfo` would not generate a valid
             torrent file or magnet link
