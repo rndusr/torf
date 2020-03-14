@@ -1118,8 +1118,8 @@ class Torrent():
         Check if `path` contains all the data of this torrent
 
         Generate hashes from the contents of :attr:`files` and compare each
-        generated hash to the ones stored in :attr:`metainfo`\ ``['info']``\
-        ``['pieces']``.
+        generated hash to the ones stored in
+        :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
 
         :param str path: Directory or file to check
         :param bool skip_file_on_first_error: Whether to stop hashing pieces
