@@ -169,17 +169,19 @@ class Torrent():
         Paths are :class:`File` objects and the list is automatically
         deduplicated.  Every path starts with :attr:`name`.
 
-        Setting or manipulating this property automatically updates
-        :attr:`metainfo`\ ``['info']`` accordingly: ``pieces`` and ``md5sum``
-        are removed and ``files`` or ``length`` are updated.
+        Setting or manipulating this property updates :attr:`metainfo`\
+        ``['info']``:
 
-        See :attr:`filepaths` for a list of existing file system paths.
+        - ``name``, ``piece length`` and ``files`` or ``length`` are set.
+        - ``pieces`` and ``md5sum`` are removed if they exist.
+
+        See :attr:`filepaths` for a list of file system paths.
 
         :raises PathError: if any path is absolute
         :raises CommonPathError: if not all files share a common parent
             directory
         :raises ValueError: if any file is not a :class:`File` object
-        :raises RuntimeError: if the :attr:`name` is ``None``
+        :raises RuntimeError: if :attr:`name` is ``None``
         """
         info = self.metainfo['info']
         if self.mode is not None and info.get('name') is None:
