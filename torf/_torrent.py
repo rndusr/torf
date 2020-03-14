@@ -87,15 +87,14 @@ class Torrent():
     """
 
     def __init__(self, path=None, name=None,
-                 exclude_files=(), exclude_globs=(),
+                 exclude_globs=(),
                  trackers=None, webseeds=None, httpseeds=None,
                  private=None, comment=None, source=None, creation_date=None,
                  created_by='%s/%s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
         self._path = None
         self._metainfo = {}
-        self._exclude = {'files'  : utils.MonitoredList(callback=self._filters_changed, type=str),
-                         'globs'     : utils.MonitoredList(callback=self._filters_changed, type=str)}
+        self._exclude = {'globs'  : utils.MonitoredList(callback=self._filters_changed, type=str)}
         self.trackers = trackers
         self.webseeds = webseeds
         self.httpseeds = httpseeds
@@ -105,8 +104,8 @@ class Torrent():
         self.created_by = created_by
         self.source = source
         self.randomize_infohash = randomize_infohash
-        self.exclude_files = exclude_files
         self.exclude_globs = exclude_globs
+        self.exclude_regexs = exclude_regexs
         self.path = path
         # Values that are implicitly changed by setting self.path
         if piece_size is not None:
@@ -136,8 +135,7 @@ class Torrent():
         """
         File system path to torrent content
 
-        Files are filtered according to :attr:`exclude_files`,
-        :attr:`exclude_globs` and :attr:`exclude_regexs`.
+        Files are filtered according to :attr:`exclude_globs`.
 
         Setting or manipulating this property updates
         :attr:`metainfo`\ ``['info']``:
@@ -302,10 +300,8 @@ class Torrent():
             return pathlib.Path(abspath(p)).relative_to(abspath(basepath).parent)
 
         # Apply exclude filters to relative paths with torrent name as first segment
-        filter_files = (re.compile(rf'^{re.escape(f)}$') for f in self._exclude['files'])
         filter_globs = (re.compile(fnmatch.translate(g)) for g in self._exclude['globs'])
-        filter_regexs = (re.compile(r) for r in self._exclude['regexs'])
-        filters = tuple(itertools.chain(filter_files, filter_globs, filter_regexs))
+        filters = tuple(itertools.chain(filter_globs))
         files = utils.filter_files(files, getter=relpath_with_parent,
                                    exclude=filters, hidden=False, empty=False)
 
@@ -358,23 +354,13 @@ class Torrent():
         self.piece_size = None
 
     @property
-    def exclude_files(self):
-        """
-        List of relative file paths to exclude (see :attr:`files`)
-
-        :raises RuntimeError: if set or manipulated while :attr:`path` is None
-        """
-        return self._exclude['files']
-    @exclude_files.setter
-    def exclude_files(self, value):
-        if not isinstance(value, utils.Iterable):
-            raise ValueError(f'Must be Iterable, not {type(value).__name__}: {value}')
-        self._exclude['files'][:] = value
-
-    @property
     def exclude_globs(self):
         """
-        List of relative file paths to exclude with basic wildcards
+        List of wildcard patterns to exclude
+
+        Patterns are matched against :attr:`files`.
+
+        Files are excluded if any segment of their path matches any pattern.
 
         ======== ============================
         Wildcard Description
