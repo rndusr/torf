@@ -230,16 +230,15 @@ class Torrent():
         List of paths of existing files in :attr:`path` included in the torrent
 
         Paths are :class:`Filepath` objects and the list is automatically
-        deduplicated.  Directories are resolved automatically into a list of
-        files they contain.
+        deduplicated.  Directories are resolved into a list of files.
 
-        Setting or manipulating this property automatically updates
-        :attr:`metainfo`\ ``['info']`` accordingly: ``pieces`` and ``md5sum``
-        are removed and ``files`` or ``length`` are updated.
+        Setting or manipulating this property updates :attr:`metainfo`\
+        ``['info']``:
 
-        :raises SubpathError: if any path is not a subpath of :attr:`path`
-        :raises ReadError: if any path is not readable
-        :raises RuntimeError: if set or manipulated and :attr:`path` is ``None``
+        - ``name``, ``piece length`` and ``files`` or ``length`` are set.
+        - ``pieces`` and ``md5sum`` are removed if they exist.
+
+        :raises ReadError: if any file path is not readable
         """
         filepaths = ()
         if self.path is not None:
