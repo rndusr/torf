@@ -136,16 +136,17 @@ class Torrent():
         """
         File system path to torrent content
 
-        Setting this property creates a list of files from the given path and
-        passes the result to :attr:`filepaths`.
+        Files are filtered according to :attr:`exclude_files`,
+        :attr:`exclude_globs` and :attr:`exclude_regexs`.
 
-        The properties :attr:`name` and :attr:`piece_size` are changed
-        implicitly when this property is set and ``pieces`` is removed from
-        :attr:`metainfo`\ ``['info']``.
+        Setting or manipulating this property updates :attr:`metainfo`\
+        ``['info']``:
 
-        :raises PathError: if :attr:`path` contains no data (i.e. empty file,
-            empty directory or directory containing only empty files)
-        :raises ReadError: if :attr:`path` is not readable for any reason
+        - ``name``, ``piece length`` and ``files`` or ``length`` are set.
+        - ``pieces`` and ``md5sum`` are removed if they exist.
+
+        :raises ReadError: if :attr:`path` or any path underneath it is not
+            readable
         """
         return self._path
     @path.setter
