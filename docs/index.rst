@@ -37,9 +37,6 @@
 .. autoexception:: torf.CommonPathError
    :members:
 
-.. autoexception:: torf.SubpathError
-   :members:
-
 .. autoexception:: torf.VerifyNotDirectoryError
    :members:
 

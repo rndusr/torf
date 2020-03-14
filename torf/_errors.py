@@ -131,24 +131,6 @@ class CommonPathError(TorfError):
         return self._filepaths
 
 
-class SubpathError(TorfError):
-    """Path `path` is not a subpath of path `basepath`"""
-    def __init__(self, path, basepath):
-        self._path = path
-        self._basepath = basepath
-        super().__init__(f'{path}: Not a subpath of {basepath}', path, basepath)
-
-    @property
-    def path(self):
-        """Path that is not a subpath `basepath`"""
-        return self._path
-
-    @property
-    def basepath(self):
-        """Path that `path` should be a subpath of"""
-        return self._basepath
-
-
 class VerifyNotDirectoryError(TorfError):
     """Expected file/link/etc, but found directory"""
     def __init__(self, path):
