@@ -139,7 +139,7 @@ class Torrent():
         Files are filtered according to :attr:`exclude_files`,
         :attr:`exclude_globs` and :attr:`exclude_regexs`.
 
-        Setting or manipulating this property updates :attr:`metainfo`\
+        Setting or manipulating this property updates :attr:`metainfo`\ 
         ``['info']``:
 
         - ``name``, ``piece length`` and ``files`` or ``length`` are set.
@@ -169,7 +169,7 @@ class Torrent():
         Paths are :class:`File` objects and the list is automatically
         deduplicated.  Every path starts with :attr:`name`.
 
-        Setting or manipulating this property updates :attr:`metainfo`\
+        Setting or manipulating this property updates :attr:`metainfo`\ 
         ``['info']``:
 
         - ``name``, ``piece length`` and ``files`` or ``length`` are set.
@@ -232,7 +232,7 @@ class Torrent():
         Paths are :class:`Filepath` objects and the list is automatically
         deduplicated.  Directories are resolved into a list of files.
 
-        Setting or manipulating this property updates :attr:`metainfo`\
+        Setting or manipulating this property updates :attr:`metainfo`\ 
         ``['info']``:
 
         - ``name``, ``piece length`` and ``files`` or ``length`` are set.
@@ -449,7 +449,7 @@ class Torrent():
         If this property is set to ``None`` and :attr:`path` is not ``None``, it
         is set to the default name, i.e. the last item in :attr:`path`.
 
-        Setting this property sets or removes ``name`` in :attr:`metainfo`\
+        Setting this property sets or removes ``name`` in :attr:`metainfo`\ 
         ``['info']``.
         """
         if 'name' not in self.metainfo['info'] and self.path is not None:
@@ -528,7 +528,7 @@ class Torrent():
         If set to ``None`` and :attr:`size` is not ``None``, use the return
         value of :attr:`calculate_piece_size`.
 
-        Setting this property sets ``piece length`` in :attr:`metainfo`\
+        Setting this property sets ``piece length`` in :attr:`metainfo`\ 
         ``['info']``.
         """
         if 'piece length' not in self.metainfo['info']:
@@ -656,7 +656,7 @@ class Torrent():
           is set to the first URL and :attr:`metainfo`\ ``['announce-list']`` is
           set to a list of tiers, one tier for each URL.
 
-        - If it contains an iterable of iterables of URLs, :attr:`metainfo`\
+        - If it contains an iterable of iterables of URLs, :attr:`metainfo`\ 
           ``['announce']`` is set to the first URL of the first iterable and
           :attr:`metainfo`\ ``['announce-list']`` is set to a list of tiers, one
           tier for each iterable of URLs.
@@ -705,7 +705,7 @@ class Torrent():
 
         http://bittorrent.org/beps/bep_0019.html
 
-        This property automatically syncronizes with :attr:`metainfo`\
+        This property automatically syncronizes with :attr:`metainfo`\ 
         ``['url-list']``.
 
         :raises URLError: if any URL is invalid
@@ -739,7 +739,7 @@ class Torrent():
 
         http://bittorrent.org/beps/bep_0017.html
 
-        This property automatically syncronizes with :attr:`metainfo`\
+        This property automatically syncronizes with :attr:`metainfo`\ 
         ``['httpseeds']``.
 
         :raises URLError: if any URL is invalid
@@ -771,7 +771,7 @@ class Torrent():
         """
         Whether torrent should use trackers exclusively for peer discovery
 
-        Setting this property sets or removes ``private`` in :attr:`metainfo`\
+        Setting this property sets or removes ``private`` in :attr:`metainfo`\ 
         ``['info']``.  Setting it to ``None`` removes ``private`` from
         :attr:`metainfo`\ ``['info']``.
         """
