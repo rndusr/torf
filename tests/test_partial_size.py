@@ -3,42 +3,36 @@ import torf
 import pytest
 
 
-def test_partial_size__singlefile__providing_correct_name(tmpdir):
-    content_path = tmpdir.join('content.jpg')
-    content_path.write('some data')
-    t = torf.Torrent(content_path)
+def test_partial_size__singlefile__providing_correct_name(tmp_path ):
+    (tmp_path / 'content.jpg').write_text('some data')
+    t = torf.Torrent(tmp_path / 'content.jpg')
     assert t.partial_size('content.jpg') == 9
     assert t.partial_size(['content.jpg']) == 9
 
-def test_partial_size__singlefile__providing_wrong_name(tmpdir):
-    content_path = tmpdir.join('content.jpg')
-    content_path.write('some data')
-    t = torf.Torrent(content_path)
+def test_partial_size__singlefile__providing_wrong_name(tmp_path):
+    (tmp_path / 'content.jpg').write_text('some data')
+    t = torf.Torrent(tmp_path / 'content.jpg')
     for path in ('foo.jpg', ['foo.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
         assert excinfo.match(f'^foo.jpg: Not specified in metainfo$')
 
-def test_partial_size__singlefile__providing_path(tmpdir):
-    content_path = tmpdir.join('content.jpg')
-    content_path.write('some data')
-    t = torf.Torrent(content_path)
+def test_partial_size__singlefile__providing_path(tmp_path):
+    (tmp_path / 'content.jpg').write_text('some data')
+    t = torf.Torrent(tmp_path / 'content.jpg')
     for path in ('bar/foo.jpg', ['bar', 'foo.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
         assert excinfo.match(f'^bar/foo.jpg: Not specified in metainfo$')
 
 
-def test_partial_size__multifile__providing_path_to_file(tmpdir):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file1.write('some data')
-    content_file2 = content_path.join('file2.jpg')
-    content_file2.write('some other data')
-    content_subpath = content_path.mkdir('subcontent')
-    content_file3 = content_subpath.join('file3.jpg')
-    content_file3.write('some more data')
-    t = torf.Torrent(content_path)
+def test_partial_size__multifile__providing_path_to_file(tmp_path):
+    (tmp_path / 'content').mkdir()
+    (tmp_path / 'content' / 'file1.jpg').write_text('some data')
+    (tmp_path / 'content' / 'file2.jpg').write_text('some other data')
+    (tmp_path / 'content' / 'subcontent').mkdir()
+    (tmp_path / 'content' / 'subcontent' / 'file3.jpg').write_text('some more data')
+    t = torf.Torrent(tmp_path / 'content')
     for path in ('content/file1.jpg', ['content', 'file1.jpg']):
         assert t.partial_size(path) == 9
     for path in ('content/file2.jpg', ['content', 'file2.jpg']):
@@ -46,36 +40,31 @@ def test_partial_size__multifile__providing_path_to_file(tmpdir):
     for path in ('content/subcontent/file3.jpg', ['content', 'subcontent', 'file3.jpg']):
         assert t.partial_size(path) == 14
 
-def test_partial_size__multifile__providing_path_to_dir(tmpdir):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file1.write('some data')
-    content_file2 = content_path.join('file2.jpg')
-    content_file2.write('some other data')
-    content_subpath1 = content_path.mkdir('subcontent1')
-    content_file3 = content_subpath1.join('file3.jpg')
-    content_file3.write('some more data')
-    content_subpath2 = content_path.mkdir('subcontent2')
-    content_file4 = content_subpath2.join('file4.jpg')
-    content_file4.write('some more data again')
-    t = torf.Torrent(content_path)
+def test_partial_size__multifile__providing_path_to_dir(tmp_path):
+    (tmp_path / 'content').mkdir()
+    (tmp_path / 'content' / 'file1.jpg').write_text('some data')
+    (tmp_path / 'content' / 'file2.jpg').write_text('some other data')
+    (tmp_path / 'content' / 'subcontent1').mkdir()
+    (tmp_path / 'content' / 'subcontent1' / 'file3.jpg').write_text('some more data')
+    (tmp_path / 'content' / 'subcontent1' / 'file4.jpg').write_text('and even more data')
+    (tmp_path / 'content' / 'subcontent2').mkdir()
+    (tmp_path / 'content' / 'subcontent2' / 'file5.jpg').write_text('some more other data')
+    (tmp_path / 'content' / 'subcontent2' / 'file6.jpg').write_text('and even more other data')
+    t = torf.Torrent(tmp_path / 'content')
     for path in ('content', ['content']):
-        assert t.partial_size(path) == 58
+        assert t.partial_size(path) == 100
     for path in ('content/subcontent1', ['content', 'subcontent1']):
-        assert t.partial_size(path) == 14
+        assert t.partial_size(path) == 32
     for path in ('content/subcontent2', ['content', 'subcontent2']):
-        assert t.partial_size(path) == 20
+        assert t.partial_size(path) == 44
 
-def test_partial_size__multifile__providing_unknown_path(tmpdir):
-    content_path = tmpdir.mkdir('content')
-    content_file1 = content_path.join('file1.jpg')
-    content_file1.write('some data')
-    content_file2 = content_path.join('file2.jpg')
-    content_file2.write('some other data')
-    content_subpath = content_path.mkdir('subcontent')
-    content_file3 = content_subpath.join('file3.jpg')
-    content_file3.write('some more data')
-    t = torf.Torrent(content_path)
+def test_partial_size__multifile__providing_unknown_path(tmp_path):
+    (tmp_path / 'content').mkdir()
+    (tmp_path / 'content' / 'file1.jpg').write_text('some data')
+    (tmp_path / 'content' / 'file2.jpg').write_text('some other data')
+    (tmp_path / 'content' / 'subcontent').mkdir()
+    (tmp_path / 'content' / 'subcontent' / 'file3.jpg').write_text('some more data')
+    t = torf.Torrent(tmp_path / 'content')
     for path in ('content/subcontent/file1.jpg', ['content', 'subcontent', 'file1.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)

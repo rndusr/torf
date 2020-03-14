@@ -16,7 +16,7 @@ def test_non_bencoded_data():
     assert excinfo.match(f'^Invalid metainfo format$')
 
 
-def test_unreadable_stream(tmpdir):
+def test_unreadable_stream():
     class Unreadable(io.BytesIO):
         def read(self, *args, **kwargs):
             raise OSError('Refusing to read')
@@ -57,7 +57,7 @@ def test_single_tracker(valid_singlefile_metainfo):
     t = torf.Torrent.read_stream(fo)
     assert t.trackers == [[str(valid_singlefile_metainfo[b'announce'], encoding='utf-8')]]
 
-def test_multiple_trackers(valid_singlefile_metainfo, tmpdir):
+def test_multiple_trackers(valid_singlefile_metainfo):
     valid_singlefile_metainfo[b'announce-list'] = [[b'http://localhost', b'http://foohost'],
                                                    [b'http://bazhost']]
     valid_singlefile_metainfo.pop(b'announce', None)
@@ -111,37 +111,34 @@ def test_read_nonstandard_data_without_validation():
     assert t.metainfo['dict'] == {'yes': 1, 'no': 0}
 
 
-def test_read_from_unreadable_file(valid_singlefile_metainfo, tmpdir):
-    f = tmpdir.join('a.torrent')
-    f.write_binary(bencode.encode(valid_singlefile_metainfo))
+def test_read_from_unreadable_file(valid_singlefile_metainfo, tmp_path):
+    f = (tmp_path / 'a.torrent')
+    f.write_bytes(bencode.encode(valid_singlefile_metainfo))
     f.chmod(mode=0o222)
-
     with pytest.raises(torf.ReadError) as excinfo:
         torf.Torrent.read(str(f))
-    assert excinfo.match(f'^{str(f)}: Permission denied$')
+    assert excinfo.match(f'^{f}: Permission denied$')
 
 
-def test_read_from_invalid_file(tmpdir):
-    f = tmpdir.join('a.torrent')
-    f.write_binary(b'this is not metainfo')
-
+def test_read_from_invalid_file(tmp_path):
+    f = tmp_path / 'a.torrent'
+    f.write_bytes(b'this is not metainfo')
     with pytest.raises(torf.BdecodeError) as excinfo:
-        torf.Torrent.read(str(f))
-    assert excinfo.match(f'^{str(f)}: Invalid torrent file format$')
+        torf.Torrent.read(f)
+    assert excinfo.match(f'^{f}: Invalid torrent file format$')
 
 
-def test_read_from_nonexisting_file(tmpdir):
-    f = tmpdir.join('a.torrent')
-
+def test_read_from_nonexisting_file(tmp_path):
+    f = tmp_path / 'a.torrent'
     with pytest.raises(torf.ReadError) as excinfo:
-        torf.Torrent.read(str(f))
-    assert excinfo.match(f'^{str(f)}: No such file or directory$')
+        torf.Torrent.read(f)
+    assert excinfo.match(f'^{f}: No such file or directory$')
 
 
-def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmpdir):
-    f = tmpdir.join('a.torrent')
-    f.write_binary(bencode.encode(valid_multifile_metainfo))
-    t = torf.Torrent.read(str(f))
+def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmp_path):
+    f = tmp_path / 'a.torrent'
+    f.write_bytes(bencode.encode(valid_multifile_metainfo))
+    t = torf.Torrent.read(f)
     exp_info = valid_multifile_metainfo[b'info']
     assert t.path is None
     assert t.files == tuple(Path(str(b'/'.join([exp_info[b'name']] + f[b'path']), encoding='utf-8'))

@@ -194,12 +194,13 @@ def _randstr():
     length = random.randint(10, 20)
     return ''.join(random.choice(letters) for _ in range(length))
 
-def _mktempdir(tmpdir_factory, subdir=None):
-    path = tmpdir_factory.mktemp(testdir_base, numbered=True)
+def _mktempdir(tmp_path_factory, subdir=None):
+    path = tmp_path_factory.mktemp(testdir_base, numbered=True)
     if subdir is None:
         subdir = ''
     subdir += ':' + _randstr()
-    return path.mkdir(subdir)
+    (path / subdir).mkdir()
+    return path / subdir
 
 def _generate_random_file(dirpath, filename=None, hidden=False):
     filesize = random.randint(1e3, 1e6)
@@ -216,9 +217,9 @@ def _generate_random_file(dirpath, filename=None, hidden=False):
     return filepath
 
 @pytest.fixture(scope='session')
-def singlefile_content(tmpdir_factory):
+def singlefile_content(tmp_path_factory):
     random.seed(0)  # Make sure random file names and content are identical every time
-    content_path = _mktempdir(tmpdir_factory)
+    content_path = _mktempdir(tmp_path_factory)
     filepath = _generate_random_file(content_path, filename='sinģle fíle')
     random.seed()  # Re-enable randomness
 
@@ -243,13 +244,13 @@ def singlefile_content(tmpdir_factory):
                            exp_attrs=exp_attrs)
 
 @pytest.fixture(scope='session')
-def multifile_content(tmpdir_factory):
+def multifile_content(tmp_path_factory):
     random.seed(0)  # Make sure random file names and content are identical every time
-    content_path = _mktempdir(tmpdir_factory, subdir='Multifile torrent')
+    content_path = _mktempdir(tmp_path_factory, subdir='Multifile torrent')
     for n in range(2):
         _generate_random_file(content_path, filename=f'File {n}')
-    subdir_path = content_path.mkdir('subdir')
-    _generate_random_file(subdir_path, filename='File in subdir')
+    (content_path / 'subdir').mkdir()
+    _generate_random_file(content_path / 'subdir', filename='File in subdir')
     random.seed()  # Re-enable randomness
 
     exp_files=[{'length': 649406, 'path': ['File 0:JïYR WN93kœ']},
