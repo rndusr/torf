@@ -13,6 +13,10 @@
    :members:
    :member-order: bysource
 
+.. autoclass:: torf.Filepath
+   :members:
+   :member-order: bysource
+
 .. autoexception:: torf.TorfError
    :members:
 
