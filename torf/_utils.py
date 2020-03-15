@@ -14,7 +14,7 @@
 
 import os
 import math
-from fnmatch import fnmatch
+import fnmatch
 from urllib.parse import urlparse
 from urllib.parse import quote_plus as urlquote
 import collections
@@ -144,15 +144,24 @@ def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True)
     items: Iterable of file paths or abritrary objects that `getter` can turn
         into a a file path
     getter: Callable that takes an item of `filepaths` and returns a file path
-    exclude: Sequence of regular expressions
+    exclude: Sequence of regular expressions or strings with wildcard characters
+        (see `fnmatch`) that are matched against full paths
     hidden: Whether to include hidden files
     empty: Whether to include empty files
     """
     def is_hidden(path):
-        """Whether file or directory is hidden"""
         for name in str(path).split(os.sep):
             if name != '.' and name != '..' and name and name[0] == '.':
                 return True
+        return False
+
+    def is_excluded(path,
+                    regexs=tuple(x for x in exclude if isinstance(x, re.Pattern)),
+                    globs=tuple(x for x in exclude if isinstance(x, str))):
+        if any(r.search(str(path)) for r in regexs):
+            return True
+        elif any(fnmatch.fnmatch(str(path), g) for g in globs):
+            return True
         return False
 
     items = tuple(items)
@@ -175,7 +184,7 @@ def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True)
         elif not empty and os.path.exists(filepath) and real_size(filepath) <= 0:
             continue
         # Exclude file matching regex
-        elif any(r.search(str(relpath_with_base)) for r in exclude):
+        elif is_excluded(relpath_with_base):
             continue
         else:
             items_filtered.append(item)

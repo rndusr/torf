@@ -235,9 +235,9 @@ def test_filter_files_exclude_argument(testdir):
                 'base/one/two/foo']
     assert utils.filter_files(filelist, exclude=(re.compile(r'two'),)) == ['base/foo/bar/baz']
     assert utils.filter_files(filelist, exclude=(re.compile(r'foo$'),)) == ['base/foo/bar/baz', 'base/foo/two/three']
-    assert utils.filter_files(filelist, exclude=(re.compile(r'base/foo'),)) == ['base/one/two/foo']
+    assert utils.filter_files(filelist, exclude=('base/foo/*',)) == ['base/one/two/foo']
     assert utils.filter_files(filelist, exclude=(re.compile(r'foo/bar'),
-                                                 re.compile(r'one/two'))) == ['base/foo/two/three']
+                                                 '*/one/*')) == ['base/foo/two/three']
 
 def test_filter_files_with_no_common_path(testdir):
     filelist = ['foo/bar/baz',
