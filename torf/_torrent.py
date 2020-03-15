@@ -87,14 +87,15 @@ class Torrent():
     """
 
     def __init__(self, path=None, name=None,
-                 exclude_globs=(),
+                 exclude_globs=(), exclude_regexs=(),
                  trackers=None, webseeds=None, httpseeds=None,
                  private=None, comment=None, source=None, creation_date=None,
                  created_by='%s/%s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
         self._path = None
         self._metainfo = {}
-        self._exclude = {'globs'  : utils.MonitoredList(callback=self._filters_changed, type=str)}
+        self._exclude = {'globs'  : utils.MonitoredList(callback=self._filters_changed, type=str),
+                         'regexs' : utils.MonitoredList(callback=self._filters_changed, type=re.compile)}
         self.trackers = trackers
         self.webseeds = webseeds
         self.httpseeds = httpseeds
@@ -135,7 +136,8 @@ class Torrent():
         """
         File system path to torrent content
 
-        Files are filtered according to :attr:`exclude_globs`.
+        Files are filtered according to :attr:`exclude_globs` and
+        :attr:`exclude_regexs`.
 
         Setting or manipulating this property updates
         :attr:`metainfo`\ ``['info']``:
@@ -300,8 +302,9 @@ class Torrent():
             return pathlib.Path(abspath(p)).relative_to(abspath(basepath).parent)
 
         # Apply exclude filters to relative paths with torrent name as first segment
-        filter_globs = (re.compile(fnmatch.translate(g)) for g in self._exclude['globs'])
-        filters = tuple(itertools.chain(filter_globs))
+        filter_globs = tuple(str(g) for g in self._exclude['globs'])
+        filter_regexs = tuple(re.compile(r) for r in self._exclude['regexs'])
+        filters = tuple(itertools.chain(filter_globs, filter_regexs))
         files = utils.filter_files(files, getter=relpath_with_parent,
                                    exclude=filters, hidden=False, empty=False)
 
@@ -358,9 +361,7 @@ class Torrent():
         """
         List of wildcard patterns to exclude
 
-        Patterns are matched against :attr:`files`.
-
-        Files are excluded if any segment of their path matches any pattern.
+        Patterns are matched against paths in :attr:`files`.
 
         ======== ============================
         Wildcard Description
@@ -379,6 +380,23 @@ class Torrent():
         if not isinstance(value, utils.Iterable):
             raise ValueError(f'Must be Iterable, not {type(value).__name__}: {value}')
         self._exclude['globs'][:] = value
+
+    @property
+    def exclude_regexs(self):
+        """
+        List of regular expression patterns to exclude
+
+        Patterns are matched against paths in :attr:`files`.
+
+        :raises re.error: if any regular expression is invalid
+        :raises RuntimeError: if set or manipulated while :attr:`path` is None
+        """
+        return self._exclude['regexs']
+    @exclude_regexs.setter
+    def exclude_regexs(self, value):
+        if not isinstance(value, utils.Iterable):
+            raise ValueError(f'Must be Iterable, not {type(value).__name__}: {value}')
+        self._exclude['regexs'][:] = value
 
     def _filters_changed(self, _):
         """Callback for MonitoredLists in Torrent._exclude"""
