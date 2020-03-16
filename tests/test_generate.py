@@ -8,8 +8,6 @@ import base64
 from collections import defaultdict
 from pathlib import Path
 
-import logging
-debug = logging.getLogger('test').debug
 from . import *
 
 
@@ -164,10 +162,6 @@ def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create
 
     assert success is True
     assert t.piece_size == piece_size
-
-    debug('Callback calls:')
-    for call in cb.call_args_list:
-        debug(call)
     assert cb.call_count == t.pieces
 
     exp_filepaths = defaultdict(lambda: 0)
@@ -175,8 +169,6 @@ def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create
         files = pos2files(pos, filespecs, piece_size)
         exp_filepaths[files[-1]] += 1
 
-    debug(f'    Seen piece_indexes: {dict(seen_filepaths)}')
-    debug(f'Expected piece_indexes: {dict(exp_filepaths)}')
     assert seen_filepaths == exp_filepaths
 
 
@@ -199,11 +191,8 @@ def test_callback_is_called_at_interval(filespecs, piece_size, create_file, crea
 
             if interval > 1 and t.pieces % interval == 0:
                 exp_call_count = t.pieces // interval + t.pieces % interval + 1
-                debug(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} + 1 = {exp_call_count}')
             else:
                 exp_call_count = t.pieces // interval + t.pieces % interval
-                debug(f'exp_call_count = {t.pieces} // {interval} + {t.pieces} % {interval} = {exp_call_count}')
-
             assert cb.call_count == exp_call_count
 
 
@@ -213,7 +202,6 @@ def test_callback_cancels(piece_size, create_file, forced_piece_size):
     content_path = create_file('file.jpg', piece_size * 1000)
     with forced_piece_size(piece_size):
         def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
-            debug(f'{pieces_done} / {pieces_total}')
             if pieces_done / pieces_total > 0.5:
                 return 'STOP THE PRESSES!'
         cb = mock.Mock(side_effect=maybe_cancel)
