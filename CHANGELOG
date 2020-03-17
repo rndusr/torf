@@ -9,6 +9,9 @@
     unclear to me if/how this field is even useful.
   - The new methods Torrent.verify_content() and Torrent.verify_filesize() check
     if on-disk data matches a given torrent file.
+  - The property Torrent.exclude was replaced by Torrent.exclude_globs and
+    Torrent.exclude_regexs.  These return special lists that filter files when
+    changed.
   - Torrent.path is a PathLike object.
   - Torrent.files, Torrent.filepaths, Torrent.trackers, Torrent.webseeds and
     Torrent.httpseeds are mutable lists of PathLike objects that automatically
