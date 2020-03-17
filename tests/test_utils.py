@@ -159,7 +159,7 @@ def test_list_files_with_unreadable_file(tmp_path):
     os.chmod(file, mode=0o222)
     try:
         with pytest.raises(errors.ReadError) as exc_info:
-            print(utils.list_files(file))
+            utils.list_files(file)
         assert str(exc_info.value) == f'{file}: Permission denied'
     finally:
         os.chmod(file, mode=file_mode)
@@ -174,7 +174,7 @@ def test_list_files_with_unreadable_directory(tmp_path):
     try:
         for path in (dir, file):
             with pytest.raises(errors.ReadError) as exc_info:
-                print(utils.list_files(path))
+                utils.list_files(path)
             assert str(exc_info.value) == f'{path}: Permission denied'
     finally:
         os.chmod(dir, mode=dir_mode)
@@ -188,7 +188,7 @@ def test_list_files_with_unreadable_file_in_directory(tmp_path):
     os.chmod(file, mode=0o222)
     try:
         with pytest.raises(errors.ReadError) as exc_info:
-            print(utils.list_files(dir))
+            utils.list_files(dir)
         assert str(exc_info.value) == f'{file}: Permission denied'
     finally:
         os.chmod(file, mode=file_mode)
