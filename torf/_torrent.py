@@ -1398,11 +1398,6 @@ class Torrent():
         """
         Write :attr:`metainfo` to torrent file
 
-        This method is essentially equivalent to:
-
-        >>> with open('my.torrent', 'wb') as f:
-        ...     f.write_stream(torrent.dump())
-
         :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` first
         :param bool overwrite: Whether to silently overwrite `filepath` (only
