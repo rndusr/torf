@@ -532,7 +532,7 @@ class Torrent():
         If set to ``None`` and :attr:`size` is not ``None``, use the return
         value of :attr:`calculate_piece_size`.
 
-        Setting this property sets ``piece length`` in
+        Setting this property sets or removes ``piece length`` in
         :attr:`metainfo`\ ``['info']``.
         """
         if 'piece length' not in self.metainfo['info']:
