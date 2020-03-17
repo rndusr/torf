@@ -283,8 +283,8 @@ class Torrent():
         ``md5sum`` in :attr:`metainfo`\ ``['info']``
 
         :param files: Sequence of :class:`File`
-        :param basepath: :class:`os.PathLike` that all paths in `files` start
-            with; may be ``None`` if ``files`` is empty
+        :param basepath: path-like that all paths in `files` start with; may be
+            ``None`` if ``files`` is empty
         """
         def abspath(p):
             # Absolute path without resolved symlinks
@@ -496,7 +496,7 @@ class Torrent():
 
         :param path: Relative path within torrent, starting with :attr:`name`;
                      may point to file or directory
-        :type path: str or iterable
+        :type path: str, path-like or iterable
 
         :raises PathError: if path is not specified in :attr:`metainfo`
         """

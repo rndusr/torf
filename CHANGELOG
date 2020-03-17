@@ -12,11 +12,11 @@
   - The property Torrent.exclude was replaced by Torrent.exclude_globs and
     Torrent.exclude_regexs.  These return special lists that filter files when
     changed.
-  - Torrent.path is a PathLike object.
+  - Torrent.path is a path-like object.
   - Torrent.files, Torrent.filepaths, Torrent.trackers, Torrent.webseeds and
-    Torrent.httpseeds are mutable lists of PathLike objects that automatically
+    Torrent.httpseeds are mutable lists of path-like objects that automatically
     synchronize with Torrent.metainfo.
-  - Torrent.filetree uses File objects as leaf nodes.  File is a PathLike that
+  - Torrent.filetree uses File objects as leaf nodes.  File is a path-like that
     also stores the file size.
   - The new class attributes Torrent.piece_size_min and Torrent.piece_size_max
     can be used to quickly specify piece size limits.  Setting the piece_size

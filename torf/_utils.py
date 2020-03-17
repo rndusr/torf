@@ -285,10 +285,7 @@ class MonitoredList(collections.abc.MutableSequence):
 
 
 class File(os.PathLike):
-    """
-    :class:`os.PathLike` that only accepts relative paths and also stores the
-    file size
-    """
+    """Path-like that only accepts relative paths and also stores the file size"""
     def __fspath__(self):
         return str(self._path)
 
@@ -367,10 +364,7 @@ class Files(MonitoredList):
 
 
 class Filepath(type(pathlib.Path())):
-    """
-    :class:`os.PathLike` that makes relative paths equal to their absolute
-    versions
-    """
+    """path-like that makes relative paths equal to their absolute versions"""
     def __eq__(self, other):
         if isinstance(other, os.PathLike):
             return pathlib.Path(self.resolve()) == pathlib.Path(other.resolve())
