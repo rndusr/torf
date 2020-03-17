@@ -348,7 +348,7 @@ class File(os.PathLike):
         return self._path <= other._path
 
     def __repr__(self):
-        return f'{type(self).__name__}({self._path}, size={self._size})'
+        return f'{type(self).__name__}({repr(str(self._path))}, size={self._size})'
 
 class Files(MonitoredList):
     """Deduplicated list of :class:`Files` objects"""
