@@ -38,10 +38,10 @@ class Magnet():
     "x.<name>" in the rendered URI.
 
     References:
-        https://www.bittorrent.org/beps/bep_0009.html
-        https://en.wikipedia.org/wiki/Magnet_URL
-        http://magnet-uri.sourceforge.net/magnet-draft-overview.txt
-        https://wiki.theory.org/index.php/BitTorrent_Magnet-URI_Webseeding
+        | https://www.bittorrent.org/beps/bep_0009.html
+        | https://en.wikipedia.org/wiki/Magnet_URL
+        | http://magnet-uri.sourceforge.net/magnet-draft-overview.txt
+        | https://wiki.theory.org/index.php/BitTorrent_Magnet-URI_Webseeding
     """
 
     _INFOHASH_REGEX = re.compile(r'^[0-9a-f]{40}|[a-z2-7]{32}$', flags=re.IGNORECASE)
