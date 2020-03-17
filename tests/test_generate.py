@@ -196,6 +196,10 @@ def test_callback_is_called_at_interval(filespecs, piece_size, create_file, crea
             assert cb.call_count == exp_call_count
 
 
+# FIXME: This test sometimes hangs indefinitely with no CPU load.  The reason
+#        could be a deadlock in ExhaustableQueue.  To reproduce this issue, put
+#        the complete test below in a for _ in range(1000...) loop and wait 20
+#        minutes.
 def test_callback_cancels(piece_size, create_file, forced_piece_size):
     # We need a large file size because generate() might finish before
     # maybe_cancel() as a chance to cancel.
