@@ -1147,7 +1147,7 @@ class Torrent():
 
         :param float interval: Minimum number of seconds between calls to
             `callback` (if 0, `callback` is called once per piece); this is
-            ignored in case of error
+            ignored if an error is found
 
         If a callback is specified, exceptions are not raised but passed to
         `callback` instead.
