@@ -22,6 +22,6 @@ from ._errors import *
 from ._torrent import Torrent
 from ._magnet import Magnet
 
-# Export File class so users can add items to Torrent.files and Filepaths so it
+# Export File class so users can add items to Torrent.files and Filepath so it
 # is documented by readthedocs.
-from ._utils import File, Filepaths
+from ._utils import File, Filepath
