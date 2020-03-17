@@ -1394,7 +1394,7 @@ class Torrent():
         except OSError as e:
             raise error.WriteError(e.errno)
 
-    def write(self, filepath, validate=True, overwrite=False, mode=0o666):
+    def write(self, filepath, validate=True, overwrite=False):
         """
         Write :attr:`metainfo` to torrent file
 
@@ -1402,7 +1402,6 @@ class Torrent():
         :param bool validate: Whether to run :meth:`validate` first
         :param bool overwrite: Whether to silently overwrite `filepath` (only
             if all pieces were hashed successfully)
-        :param mode: File permissions of `filepath`
 
         :raises WriteError: if writing to `filepath` fails
         :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
