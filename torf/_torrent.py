@@ -1178,7 +1178,7 @@ class Torrent():
                                      file_sizes={fs_path:self.partial_size(t_path)
                                                  for fs_path,t_path in filepaths},
                                      piece_size=self.piece_size,
-                                     queue_size=threads+1,
+                                     queue_size=threads*3,
                                      skip_file_on_first_error=skip_file_on_first_error)
 
             # Pool of workers that pull from reader_thread's piece queue, calculate
