@@ -422,11 +422,11 @@ class Torrent():
 
         .. code:: python
 
-            {'Torrent': {'bar': {'baz.mp3': File(Torrent/bar/baz.mp3,
+            {'Torrent': {'bar': {'baz.mp3': File('Torrent/bar/baz.mp3',
                                                  size=543210),
-                                 'baz.pdf': File(Torrent/bar/baz.pdf,
+                                 'baz.pdf': File('Torrent/bar/baz.pdf',
                                                  size=999)},
-                         'foo.txt': File(Torrent/foo.txt,
+                         'foo.txt': File('Torrent/foo.txt',
                                          size=123456)}}
         """
         tree = {}   # Complete directory tree
