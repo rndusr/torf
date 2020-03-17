@@ -1551,12 +1551,7 @@ class Torrent():
             raise error.BdecodeError(filepath)
 
     def copy(self):
-        """
-        Return a new object with the same metainfo
-
-        Internally, this simply copies the internal metainfo dictionary with
-        :func:`copy.deepcopy` and gives it to the new instance.
-        """
+        """Return a new object with the same metainfo"""
         from copy import deepcopy
         cp = type(self)()
         cp._metainfo = deepcopy(self._metainfo)
