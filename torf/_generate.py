@@ -35,14 +35,14 @@ def _pretty_bytes(b):
         return b
 
 
+# Based on CloseableQueue: https://github.com/intuited/CloseableQueue
 class ExhaustableQueue(queue.Queue):
     """
-    If `exhausted` method is called, unblock all calls raise `queue.Empty` in
-    all calls to get().  The `put` method is disabled after all remaining tasks
-    are consumed.
-    """
-    _EXHAUSTED = object()
+    When `exhausted` is called, unblock all calls to `get` and `put` and raise
+    `queue.Empty`.
 
+    Further calls to `put` or `get` raise `queue.Empty`.
+    """
     def __init__(self, *args, name=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.__is_exhausted = False
@@ -53,52 +53,32 @@ class ExhaustableQueue(queue.Queue):
             while not self.__is_exhausted and not self._qsize():
                 self.not_empty.wait()
             if self.__is_exhausted and not self._qsize():
-                # Tell all other get() callers to stop blocking
-                self.not_empty.notify_all()
                 raise queue.Empty()
-            task = self._get()
-            if task is self._EXHAUSTED:
-                # Mark this queue as exhausted so it won't accept any new tasks
-                # via put()
-                _debug(f'{self} is now exhausted')
-                self.__is_exhausted = True
-                # Tell all other get() callers to stop blocking
-                self.not_empty.notify_all()
-                raise queue.Empty()
+            item = self._get()
             self.not_full.notify()
-            return task
+            return item
 
-    def put(self, task):
-        if self.__is_exhausted:
-            raise RuntimeError('Cannot call put() on exhausted queue: {self}')
-        else:
-            super().put(task)
+    def put(self, item):
+        with self.not_full:
+            if self.maxsize > 0:
+                while not self.__is_exhausted and self._qsize() == self.maxsize:
+                    self.not_full.wait()
+            if self.__is_exhausted:
+                raise queue.Empty()
+            self._put(item)
+            self.not_empty.notify()
 
     def exhausted(self):
         if not self.__is_exhausted:
-            # Unblock one of the get() calls.  If nobody is currently calling
-            # get(), this still marks the end of the queue and will eventually
-            # be consumed after all real tasks.
-            self.put(self._EXHAUSTED)
+            with self.mutex:
+                self.__is_exhausted = True
+                self.not_empty.notify_all()
+                self.not_full.notify_all()
 
     @property
     def is_exhausted(self):
-        return self.__is_exhausted
-
-    # TODO: Add clear() method that get()s tasks from queue until it is empty,
-    #       but only if __is_exhausted is True.  This might be useful when
-    #       skipping files: The reader can clear() its own output queue to stop
-    #       hashers from getting any new pieces.
-
-    @property
-    def name(self):
-        return self.__name
-
-    def __repr__(self):
-        if self.__name:
-            return f'<{type(self).__name__} {self.__name!r} [{self._qsize()}]>'
-        else:
-            return f'<{type(self).__name__} [{self._qsize()}]>'
+        with self.mutex:
+            return self.__is_exhausted
 
 
 class Worker():
