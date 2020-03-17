@@ -709,7 +709,7 @@ class Torrent():
 
         http://bittorrent.org/beps/bep_0019.html
 
-        This property automatically syncronizes with
+        This property automatically synchronizes with
         :attr:`metainfo`\ ``['url-list']``.
 
         :raises URLError: if any URL is invalid
@@ -743,7 +743,7 @@ class Torrent():
 
         http://bittorrent.org/beps/bep_0017.html
 
-        This property automatically syncronizes with
+        This property automatically synchronizes with
         :attr:`metainfo`\ ``['httpseeds']``.
 
         :raises URLError: if any URL is invalid
