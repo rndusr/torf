@@ -487,14 +487,14 @@ class Torrent():
 
     @property
     def size(self):
-        """
-        Total size of content in bytes or ``None`` if :attr:`path` is ``None``
-        """
+        """Total size of content in bytes"""
         if self.mode == 'singlefile':
             return self.metainfo['info']['length']
         elif self.mode == 'multifile':
             return sum(fileinfo['length']
                        for fileinfo in self.metainfo['info']['files'])
+        else:
+            return 0
 
     def partial_size(self, path):
         """
@@ -533,9 +533,9 @@ class Torrent():
     @property
     def piece_size(self):
         """
-        Piece size/length or ``None``
+        Length of each piece in bytes
 
-        If set to ``None`` and :attr:`size` is not ``None``, use the return
+        If set to ``None`` and :attr:`size` is larger than 0, use the return
         value of :attr:`calculate_piece_size`.
 
         Setting this property sets or removes ``piece length`` in
@@ -543,16 +543,15 @@ class Torrent():
         """
         if 'piece length' not in self.metainfo['info']:
             self.piece_size = None  # Calculate piece size
-        return self.metainfo['info'].get('piece length', None)
+        return self.metainfo['info'].get('piece length', 0)
     @piece_size.setter
     def piece_size(self, value):
         if value is None:
-            size = self.size
-            if size is None or size <= 0:
+            if self.size <= 0:
                 self.metainfo['info'].pop('piece length', None)
                 return
             else:
-                value = self.calculate_piece_size(size)
+                value = self.calculate_piece_size(self.size)
         try:
             piece_length = int(value)
         except (TypeError, ValueError):
@@ -623,26 +622,23 @@ class Torrent():
     @property
     def pieces(self):
         """
-        Number of pieces the content is split into or ``None`` if :attr:`piece_size`
-        returns ``None``
+        Number of pieces the content is split into
         """
-        if self.piece_size is None:
-            return None
-        else:
+        if self.size > 0:
             return math.ceil(self.size / self.piece_size)
+        else:
+            return 0
 
     @property
     def hashes(self):
-        """
-        Tuple of SHA1 piece hashes as :class:`bytes` or ``None`` if
-        :attr:`metainfo`\ ``['info']``\ ``['pieces']`` isn't a :class:`bytes` or
-        :class:`bytearray`.
-        """
+        """Tuple of SHA1 piece hashes as :class:`bytes`"""
         hashes = self.metainfo['info'].get('pieces')
         if isinstance(hashes, (bytes, bytearray)):
             # Each hash is 20 bytes long
             return tuple(bytes(hashes[pos:pos+20])
                          for pos in range(0, len(hashes), 20))
+        else:
+            return ()
 
     @property
     def trackers(self):

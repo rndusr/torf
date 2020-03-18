@@ -678,26 +678,26 @@ def test_name(create_torrent, singlefile_content, multifile_content):
 
 def test_size(create_torrent, singlefile_content, multifile_content):
     torrent = create_torrent()
-    assert torrent.size is None
+    assert torrent.size == 0
     for content in (singlefile_content, multifile_content):
         torrent.path = content.path
         assert torrent.size == content.exp_attrs.size
 
 
-def test_piece_size_of_empty_torrent_is_None():
-    assert torf.Torrent().piece_size is None
+def test_piece_size_of_empty_torrent_is_zero():
+    assert torf.Torrent().piece_size == 0
 
 def test_piece_size_is_set_automatically(create_torrent, multifile_content):
     torrent = create_torrent(path=multifile_content.path)
-    assert torrent.piece_size is not None
+    assert torrent.piece_size != 0
     assert 'piece length' in torrent.metainfo['info']
 
     torrent = torf.Torrent()
-    assert torrent.piece_size is None
+    assert torrent.piece_size == 0
     assert 'piece length' not in torrent.metainfo['info']
 
     torrent.path = multifile_content.path
-    assert torrent.piece_size is not None
+    assert torrent.piece_size != 0
     assert 'piece length' in torrent.metainfo['info']
 
 def test_piece_size_is_set_manually(create_torrent, multifile_content):
@@ -724,8 +724,8 @@ def test_piece_size_defaults_to_return_value_of_calculate_piece_size(create_torr
 
 def test_piece_size_when_torrent_size_is_zero(create_torrent, multifile_content):
     torrent = torf.Torrent(path=multifile_content.path, exclude_globs=('*',))
-    assert torrent.size == None
-    assert torrent.piece_size is None
+    assert torrent.size == 0
+    assert torrent.piece_size == 0
     assert 'piece length' not in torrent.metainfo['info']
 
 def test_piece_size_is_set_to_wrong_type(create_torrent):
@@ -789,16 +789,16 @@ def test_calculate_piece_size(monkeypatch):
 
 def test_hashes(create_torrent, multifile_content):
     torrent = create_torrent()
-    assert torrent.hashes is None
+    assert torrent.hashes == ()
     torrent.path = multifile_content.path
     torrent.piece_size = multifile_content.exp_metainfo['info']['piece length']
-    assert torrent.hashes is None
+    assert torrent.hashes == ()
     torrent.generate()
     hashes_string = multifile_content.exp_metainfo['info']['pieces']
     assert torrent.hashes == tuple(hashes_string[pos:pos+20]
                                    for pos in range(0, len(hashes_string), 20))
     torrent.path = None
-    assert torrent.hashes is None
+    assert torrent.hashes == ()
 
 
 def test_trackers__correct_type(create_torrent):
