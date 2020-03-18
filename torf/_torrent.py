@@ -955,7 +955,7 @@ class Torrent():
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
         elif sum(utils.real_size(fp) for fp in self.filepaths) < 1:
-            raise error.PathError(self.path, msg='Empty or all files filtered')
+            raise error.PathError(self.path, msg='Empty or all files excluded')
 
         if callback is not None:
             maybe_cancel = generate.CancelCallback(callback, interval)

@@ -25,7 +25,7 @@ def test_with_empty_file(create_file):
     content_path.write_text('')
     with pytest.raises(torf.PathError) as e:
         t.generate()
-    assert str(e.value) == f'{t.path}: Empty or all files filtered'
+    assert str(e.value) == f'{t.path}: Empty or all files excluded'
 
 
 def test_with_empty_directory(create_dir):
@@ -56,7 +56,7 @@ def test_with_all_files_excluded(create_dir):
     t = torf.Torrent(content_path, exclude_globs=['*.jpg'])
     with pytest.raises(torf.PathError) as e:
         t.generate()
-    assert str(e.value) == f'{t.path}: Empty or all files filtered'
+    assert str(e.value) == f'{t.path}: Empty or all files excluded'
 
 
 def test_unreadable_basedir_in_multifile_torrent(create_dir):
