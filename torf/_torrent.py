@@ -26,6 +26,7 @@ import pathlib
 import fnmatch
 import re
 import itertools
+import multiprocessing
 
 from . import _utils as utils
 from . import _errors as error
@@ -33,7 +34,7 @@ from . import _generate as generate
 
 from . import __version__
 _PACKAGE_NAME = __name__.split('.')[0]
-NCORES = len(os.sched_getaffinity(0))
+NCORES = multiprocessing.cpu_count()
 
 class Torrent():
     """
