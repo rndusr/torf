@@ -246,8 +246,7 @@ class MonitoredList(collections.abc.MutableSequence):
             raise ValueError(f'Not an iterable: {urls!r}')
         self._items.clear()
         with self._callback_disabled():
-            for value in items:
-                self.append(value)
+            self.extend(items)
         if self._callback is not None:
             self._callback(self)
 
