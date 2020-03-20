@@ -365,14 +365,21 @@ class Files(MonitoredList):
 
 class Filepath(type(pathlib.Path())):
     """path-like that makes relative paths equal to their absolute versions"""
-    def __eq__(self, other):
-        if isinstance(other, os.PathLike):
-            return pathlib.Path(self.resolve()) == pathlib.Path(other.resolve())
+    @classmethod
+    def _realpath(cls, path):
+        if os.path.islink(path):
+            return os.path.realpath(str(path))
+        elif os.path.isabs(path):
+            return str(path)
         else:
-            return pathlib.Path(self.resolve()) == pathlib.Path(other).resolve()
+            return os.path.join(os.getcwd(), str(path))
+
+    def __eq__(self, other):
+        return self._realpath(self) == self._realpath(other)
 
     def __hash__(self):
-        return hash(pathlib.Path(self.resolve()))
+        return hash(self._realpath(self))
+
 
 class Filepaths(MonitoredList):
     """Deduplicated list of :class:`Filepath` objects with change callback"""
