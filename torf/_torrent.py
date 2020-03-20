@@ -196,8 +196,8 @@ class Torrent():
             files = (utils.File(info['name'], size=self.size),)
         elif self.mode == 'multifile':
             basedir = self.name
-            files = (utils.File(pathlib.Path(basedir, *fileinfo['path']),
-                                size=self.partial_size((basedir,) + tuple(fileinfo['path'])))
+            files = (utils.File(os.path.join(basedir, *fileinfo['path']),
+                                size=fileinfo['length'])
                      for fileinfo in info['files'])
         else:
             files = ()
