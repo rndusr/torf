@@ -353,7 +353,7 @@ class Files(MonitoredList):
         if isinstance(files, str):
             files = (files,)
         else:
-            files = list(flatten(files))
+            files = flatten(files)
         super().__init__(files, callback=callback, type=File)
 
     def _coerce(self, value):
