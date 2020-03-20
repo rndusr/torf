@@ -309,6 +309,60 @@ def test_encoding():
     assert utils.encode_dict(decoded) == encoded
 
 
+def test_Filepath_is_equal_to_absolute_path():
+    assert utils.Filepath('/some/path/to/a/file') == utils.Filepath('/some/path/to/a/file')
+    assert utils.Filepath('/some/path/to/a/file') == '/some/path/to/a/file'
+    assert '/some/path/to/a/file' == utils.Filepath('/some/path/to/a/file')
+
+def test_Filepath_is_equal_to_relative_path(tmp_path):
+    orig_cwd = os.getcwd()
+    os.chdir(tmp_path.parent)
+    abspath = str(tmp_path / 'foo')
+    relpath = f'{tmp_path.parts[-1]}/foo'
+    Path(abspath).write_text('bar')
+    try:
+        assert utils.Filepath(abspath) == utils.Filepath(relpath)
+        assert utils.Filepath(abspath) == relpath
+        assert relpath == utils.Filepath(abspath)
+        assert utils.Filepath(relpath) == utils.Filepath(abspath)
+        assert utils.Filepath(relpath) == abspath
+        assert abspath == utils.Filepath(relpath)
+        assert relpath == utils.Filepath(relpath)
+        assert utils.Filepath(relpath) == relpath
+    finally:
+        os.chdir(orig_cwd)
+    assert utils.Filepath(abspath) != utils.Filepath(relpath)
+    assert utils.Filepath(abspath) != relpath
+    assert relpath != utils.Filepath(abspath)
+    assert utils.Filepath(relpath) != utils.Filepath(abspath)
+    assert utils.Filepath(relpath) != abspath
+    assert abspath != utils.Filepath(relpath)
+    assert utils.Filepath(relpath) == relpath
+    assert relpath == utils.Filepath(relpath)
+
+def test_Filepath_is_equal_to_symlink(tmp_path):
+    path = tmp_path / 'foo'
+    Path(path).write_text('bar')
+    abspath = str(tmp_path / 'foo.link')
+    relpath = './foo.link'
+    Path(abspath).symlink_to('foo')
+
+    assert utils.Filepath(abspath) == utils.Filepath(path)
+    assert utils.Filepath(abspath) == path
+    assert path == utils.Filepath(abspath)
+    assert utils.Filepath(path) == abspath
+
+    orig_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert utils.Filepath(relpath) == utils.Filepath(path)
+        assert utils.Filepath(relpath) == path
+        assert path == utils.Filepath(relpath)
+        assert utils.Filepath(path) == relpath
+    finally:
+        os.chdir(orig_cwd)
+
+
 def test_Filepaths_accepts_string_or_iterable():
     assert utils.Filepaths('path/to/foo.jpg') == [Path('path/to/foo.jpg')]
     assert utils.Filepaths(('path/to/foo.jpg',)) == [Path('path/to/foo.jpg')]
