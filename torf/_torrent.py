@@ -947,10 +947,11 @@ class Torrent():
             otherwise
         """
         self.metainfo['info']['pieces'] = bytes()
+        filepaths = self.filepaths
 
         if self.path is None:
             raise RuntimeError('generate() called with no path specified')
-        elif sum(utils.real_size(fp) for fp in self.filepaths) < 1:
+        elif sum(utils.real_size(fp) for fp in filepaths) < 1:
             raise error.PathError(self.path, msg='Empty or all files excluded')
 
         if callback is not None:
@@ -960,7 +961,7 @@ class Torrent():
         threads = threads or NCORES
 
         # Read piece_size'd chunks from disk and push them to queue for hashing
-        reader = generate.Reader(filepaths=self.filepaths,
+        reader = generate.Reader(filepaths=filepaths,
                                  piece_size=self.piece_size,
                                  queue_size=threads*3)
 
