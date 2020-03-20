@@ -378,7 +378,11 @@ class Filepath(type(pathlib.Path())):
         return self._realpath(self) == self._realpath(other)
 
     def __hash__(self):
-        return hash(self._realpath(self))
+        try:
+            return self.__hash
+        except AttributeError:
+            self.__hash = hash(self._realpath(self))
+            return self.__hash
 
 
 class Filepaths(MonitoredList):
