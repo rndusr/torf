@@ -96,7 +96,7 @@ class Torrent():
                  exclude_globs=(), exclude_regexs=(),
                  trackers=None, webseeds=None, httpseeds=None,
                  private=None, comment=None, source=None, creation_date=None,
-                 created_by='%s/%s' % (_PACKAGE_NAME, __version__),
+                 created_by='%s %s' % (_PACKAGE_NAME, __version__),
                  piece_size=None, randomize_infohash=False):
         self._path = None
         self._metainfo = {}
