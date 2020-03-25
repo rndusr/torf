@@ -1346,7 +1346,7 @@ class Torrent():
                                                   f" and file system ({filesize}): {filepath}")
 
         else:
-            raise error.MetainfoError("Missing 'length' or 'files' in metainfo")
+            raise error.MetainfoError("Missing 'length' or 'files' in 'info'")
 
     def convert(self):
         """
