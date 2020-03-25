@@ -26,12 +26,28 @@ def test_unreadable_stream():
     assert excinfo.match(f'^Unable to read$')
 
 
-def test_validate_after_read(valid_singlefile_metainfo):
+def test_validate_when_reading_stream(valid_singlefile_metainfo):
     del valid_singlefile_metainfo[b'info']
     fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
+
     with pytest.raises(torf.MetainfoError) as excinfo:
-        torf.Torrent.read_stream(fo)
+        torf.Torrent.read_stream(fo, validate=True)
     assert excinfo.match(f"^Invalid metainfo: Missing 'info'$")
+    fo.seek(0)
+    t = torf.Torrent.read_stream(fo, validate=False)
+    assert isinstance(t, torf.Torrent)
+
+def test_validate_when_reading_file(tmp_path, valid_singlefile_metainfo):
+    del valid_singlefile_metainfo[b'info'][b'length']
+    torrent_file = tmp_path / 'invalid.torrent'
+    with open(torrent_file, 'wb') as f:
+        f.write(bencode.encode(valid_singlefile_metainfo))
+
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        torf.Torrent.read(torrent_file, validate=True)
+    assert excinfo.match(f"^Invalid metainfo: Missing 'length' or 'files' in 'info'$")
+    t = torf.Torrent.read(torrent_file, validate=False)
+    assert isinstance(t, torf.Torrent)
 
 
 def test_successful_read(valid_singlefile_metainfo):

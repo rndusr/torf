@@ -1547,7 +1547,7 @@ class Torrent():
         """
         try:
             with open(filepath, 'rb') as f:
-                return cls.read_stream(f)
+                return cls.read_stream(f, validate=validate)
         except (OSError, error.ReadError) as e:
             raise error.ReadError(e.errno, filepath)
         except error.BdecodeError:

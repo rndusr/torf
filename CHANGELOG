@@ -3,6 +3,7 @@
   - Bug fixed: Setting the "private" property to False removed the flag from the
     metainfo which could potentially change the info hash if a torrent file had
     the flag explicitly disabled.
+  - Bug fixed: Torrent.read() validated if the "validate" argument was False
   - Hashing pieces uses multiple threads for better performance.
   - Support for the "md5sum" field was dropped.  Calculating MD5 hashes besides
     the SHA1 hashes is no longer easily possible due to multithreading and it's
