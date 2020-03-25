@@ -168,3 +168,19 @@ def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmp_path):
     assert t.created_by == str(valid_multifile_metainfo[b'created by'], encoding='utf-8')
     assert t.private is bool(exp_info[b'private'])
     assert t.piece_size == exp_info[b'piece length']
+
+
+def test_reading_torrent_without_private_flag(tmp_path, valid_singlefile_metainfo):
+    del valid_singlefile_metainfo[b'info'][b'private']
+    fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
+    torrent = torf.Torrent.read_stream(fo, validate=True)
+    assert 'private' not in torrent.metainfo['info']
+    assert torrent.private is False
+
+
+def test_reading_torrent_without_creation_date(tmp_path, valid_singlefile_metainfo):
+    del valid_singlefile_metainfo[b'creation date']
+    fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
+    torrent = torf.Torrent.read_stream(fo, validate=True)
+    assert 'creation date' not in torrent.metainfo['info']
+    assert torrent.creation_date is None

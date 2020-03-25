@@ -1513,10 +1513,12 @@ class Torrent():
             torrent = cls()
             torrent._metainfo = metainfo
 
-            # Convert some values from official types to something nicer
-            # (e.g. int -> datetime)
-            for attr in ('creation_date', 'private'):
-                setattr(torrent, attr, getattr(torrent, attr))
+            # Convert "creation date" to datetime.datetime and "private" to
+            # bool, but only if they exist
+            if 'creation date' in torrent.metainfo:
+                torrent.creation_date = metainfo_enc[b'creation date']
+            if 'private' in torrent.metainfo:
+                torrent.private = metainfo_enc[b'private']
 
             if validate:
                 torrent.validate()
