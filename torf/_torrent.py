@@ -860,7 +860,11 @@ class Torrent():
 
     @property
     def infohash(self):
-        """SHA1 info hash"""
+        """
+        SHA1 info hash
+
+        :raises MetainfoError: if :attr:`metainfo` is lacking fields
+        """
         try:
             # Try to calculate infohash
             self.validate()
