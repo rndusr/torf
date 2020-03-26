@@ -1516,10 +1516,10 @@ class Torrent():
 
             # Convert "creation date" to datetime.datetime and "private" to
             # bool, but only if they exist
-            if 'creation date' in torrent.metainfo:
+            if b'creation date' in metainfo_enc:
                 torrent.creation_date = metainfo_enc[b'creation date']
-            if 'private' in torrent.metainfo:
-                torrent.private = metainfo_enc[b'private']
+            if b'private' in metainfo_enc.get(b'info', {}):
+                torrent.private = metainfo_enc[b'info'][b'private']
 
             if validate:
                 torrent.validate()
