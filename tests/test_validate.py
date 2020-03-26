@@ -200,8 +200,8 @@ def test_no_announce_and_no_announce_list_when_torrent_is_private(generated_sing
         del t.metainfo['announce-list']
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
-    assert str(excinfo.value) == ("Invalid metainfo: ['info']['private'] is True "
-                                  "but no announce URLs are specified")
+    assert str(excinfo.value) == ('Invalid metainfo: Torrent is private '
+                                  'but no announce URLs are specified')
 
     t.metainfo['announce'] = 'http://foo.bar'
     t.validate()

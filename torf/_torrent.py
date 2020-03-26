@@ -1284,7 +1284,7 @@ class Torrent():
             raise error.MetainfoError("length of ['info']['pieces'] is not divisible by 20")
 
         elif info.get('private') and not md.get('announce') and not md.get('announce-list'):
-            raise error.MetainfoError("['info']['private'] is True but no announce URLs are specified")
+            raise error.MetainfoError('Torrent is private but no announce URLs are specified')
 
         elif 'length' in info and 'files' in info:
             raise error.MetainfoError("['info'] includes both 'length' and 'files'")
