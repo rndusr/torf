@@ -28,6 +28,13 @@ def test_wrong_piece_length_type(generated_singlefile_torrent):
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['piece length'] "
                                   "must be int, not list: [700]")
 
+def test_piece_length_not_power_of_two(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    t.metainfo['info']['piece length'] = 1023
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == "Invalid metainfo: ['info']['piece length'] is invalid: 1023"
+
 def test_wrong_pieces_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
     t.metainfo['info']['pieces'] = 'many'
