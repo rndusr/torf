@@ -1494,6 +1494,9 @@ class Torrent():
                 metainfo_enc = bencode.decode(content)
             except bencode.DecodingError:
                 raise error.BdecodeError()
+            else:
+                if not isinstance(metainfo_enc, abc.Mapping):
+                    raise error.BdecodeError()
 
             if validate:
                 if b'info' not in metainfo_enc:
