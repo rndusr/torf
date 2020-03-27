@@ -41,6 +41,8 @@ except AttributeError:
     import multiprocessing
     NCORES = multiprocessing.cpu_count()
 
+DEFAULT_TORRENT_NAME = 'UNNAMED TORRENT'
+
 class Torrent():
     """
     Torrent metainfo representation
@@ -187,15 +189,12 @@ class Torrent():
         :raises CommonPathError: if not all files share a common parent
             directory
         :raises ValueError: if any file is not a :class:`File` object
-        :raises RuntimeError: if :attr:`name` is ``None``
         """
         info = self.metainfo['info']
-        if self.mode is not None and info.get('name') is None:
-            raise RuntimeError('Torrent has no name')
         if self.mode == 'singlefile':
-            files = (utils.File(info['name'], size=self.size),)
+            files = (utils.File(info.get('name', DEFAULT_TORRENT_NAME), size=self.size),)
         elif self.mode == 'multifile':
-            basedir = self.name
+            basedir = info.get('name', DEFAULT_TORRENT_NAME)
             files = (utils.File(os.path.join(basedir, *fileinfo['path']),
                                 size=fileinfo['length'])
                      for fileinfo in info['files'])

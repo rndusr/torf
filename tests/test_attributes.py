@@ -177,9 +177,8 @@ def test_files_with_no_name(create_torrent, singlefile_content, multifile_conten
     for content in (singlefile_content, multifile_content):
         torrent = create_torrent(path=content.path)
         del torrent.metainfo['info']['name']
-        with pytest.raises(RuntimeError) as e:
-            torrent.files
-        assert str(e.value) == 'Torrent has no name'
+        assert all(f.parts[0] == 'UNNAMED TORRENT'
+                   for f in torrent.files)
 
 def test_files_only_accepts_Iterables(create_torrent, tmp_path):
     (tmp_path / 'foo').write_text('asdf')

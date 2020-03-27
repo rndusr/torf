@@ -22,9 +22,9 @@ def test_exclude_when_path_is_None(create_torrent):
                                          {'length': 6, 'path': ['file2.jpg']},
                                          {'length': 6, 'path': ['file3.txt']}]
     torrent.path = None
-    with pytest.raises(RuntimeError) as excinfo:
-        torrent.exclude_globs.append('*.jpg')
-    assert str(excinfo.value) == 'Torrent has no name'
+    torrent.exclude_globs.append('*.jpg')
+    torrent.metainfo['info']['files'] = [{'length': 6, 'path': ['file1.txt']},
+                                         {'length': 6, 'path': ['file3.txt']}]
 
 def test_exclude_with_singlefile_torrent_and_existing_path(create_torrent, content):
     torrent = create_torrent(path=content / 'file1.txt')
