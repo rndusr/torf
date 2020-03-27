@@ -863,7 +863,8 @@ class Torrent():
         """
         SHA1 info hash
 
-        :raises MetainfoError: if :attr:`metainfo` is lacking fields
+        :raises MetainfoError: if :attr:`validate` fails or :attr:`metainfo` is
+            not bencodable
         """
         try:
             # Try to calculate infohash
