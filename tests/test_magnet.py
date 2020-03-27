@@ -252,10 +252,50 @@ def test_from_torrent_without_size(singlefile_content, multifile_content):
                                              f'&dn={quote_plus(t.name)}'
                                              f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
 
-def test_from_torrent_without_trackers(singlefile_content, multifile_content):
+def test_from_torrent_with_single_tracker(singlefile_content, multifile_content):
+    for content in singlefile_content, multifile_content:
+        t = torf.Torrent(content.path, trackers=['http://foo'])
+        t.generate()
+        assert str(t.magnet()) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                   f'&dn={quote_plus(t.name)}'
+                                   f'&xl={t.size}'
+                                   f'&tr=http%3A%2F%2Ffoo')
+        assert str(t.magnet(tracker=True, trackers=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                               f'&dn={quote_plus(t.name)}'
+                                                               f'&xl={t.size}'
+                                                               f'&tr=http%3A%2F%2Ffoo')
+        assert str(t.magnet(tracker=False, trackers=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                                f'&dn={quote_plus(t.name)}'
+                                                                f'&xl={t.size}')
+        assert str(t.magnet(tracker=True, trackers=True)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                              f'&dn={quote_plus(t.name)}'
+                                                              f'&xl={t.size}'
+                                                              f'&tr=http%3A%2F%2Ffoo')
+        assert str(t.magnet(tracker=False, trackers=True)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                               f'&dn={quote_plus(t.name)}'
+                                                               f'&xl={t.size}'
+                                                               f'&tr=http%3A%2F%2Ffoo')
+
+def test_from_torrent_with_multiple_tracker(singlefile_content, multifile_content):
     for content in singlefile_content, multifile_content:
         t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
         t.generate()
-        assert str(t.magnet(trackers=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
-                                                 f'&dn={quote_plus(t.name)}'
-                                                 f'&xl={t.size}')
+        assert str(t.magnet()) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                   f'&dn={quote_plus(t.name)}'
+                                   f'&xl={t.size}'
+                                   f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
+        assert str(t.magnet(tracker=True, trackers=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                               f'&dn={quote_plus(t.name)}'
+                                                               f'&xl={t.size}'
+                                                               f'&tr=http%3A%2F%2Ffoo')
+        assert str(t.magnet(tracker=False, trackers=False)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                                f'&dn={quote_plus(t.name)}'
+                                                                f'&xl={t.size}')
+        assert str(t.magnet(tracker=True, trackers=True)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                              f'&dn={quote_plus(t.name)}'
+                                                              f'&xl={t.size}'
+                                                              f'&tr=http%3A%2F%2Ffoo')
+        assert str(t.magnet(tracker=False, trackers=True)) == (f'magnet:?xt=urn:btih:{t.infohash}'
+                                                               f'&dn={quote_plus(t.name)}'
+                                                               f'&xl={t.size}'
+                                                               f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
