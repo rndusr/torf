@@ -364,7 +364,7 @@ class Torrent():
     @property
     def exclude_globs(self):
         """
-        List of wildcard patterns to exclude
+        List of case-insensitive wildcard patterns to exclude
 
         Patterns are matched against paths in :attr:`files`.
 

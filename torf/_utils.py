@@ -160,7 +160,7 @@ def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True)
                     globs=tuple(x for x in exclude if isinstance(x, str))):
         if any(r.search(str(path)) for r in regexs):
             return True
-        elif any(fnmatch.fnmatch(str(path), g) for g in globs):
+        elif any(fnmatch.fnmatch(str(path).casefold(), g.casefold()) for g in globs):
             return True
         return False
 

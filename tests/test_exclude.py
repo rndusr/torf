@@ -121,6 +121,10 @@ def test_more_exclude_globs_tests(create_torrent, tmp_path):
     torrent.exclude_globs = ('*/file[23]',)
     assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'baz', 'file4']},
                                                  {'length': 4, 'path': ['foo', 'file_bar']}]
+    torrent.exclude_globs = ('*Z*',)
+    assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'file3']},
+                                                 {'length': 4, 'path': ['foo', 'bar', 'file2']},
+                                                 {'length': 4, 'path': ['foo', 'file_bar']}]
 
 def test_more_exclude_regexs_tests(create_torrent, tmp_path):
     (tmp_path / 'content' / 'foo' / 'bar').mkdir(parents=True)
