@@ -101,7 +101,15 @@ class Magnet():
 
     @property
     def xt(self):
-        """eXact Topic: URN containing the info hash as base 16 or base 32"""
+        """
+        eXact Topic: URN containing the info hash as base 16 or base 32
+
+        Example:
+
+            urn:btih:3bb9561e35b06175bb6d2c2330578dc83846cc5d
+
+        :raises MagnetError: if set to an invalid value
+        """
         return f'urn:btih:{self._infohash}'
     @xt.setter
     def xt(self, value):
@@ -114,7 +122,11 @@ class Magnet():
 
     @property
     def infohash(self):
-        """Info hash as base 16 or base 32"""
+        """
+        Info hash as base 16 or base 32
+
+        :raises MagnetError: if set to an invalid value
+        """
         return self._infohash
     @infohash.setter
     def infohash(self, value):
@@ -127,7 +139,11 @@ class Magnet():
 
     @property
     def xl(self):
-        """eXact Length: Size in bytes or ``None``"""
+        """
+        eXact Length: Size in bytes or ``None``
+
+        :raises MagnetError: if set to an invalid value
+        """
         return self._xl
     @xl.setter
     def xl(self, value):
@@ -146,7 +162,11 @@ class Magnet():
 
     @property
     def tr(self):
-        """TRackers: List of Tracker URLs or ``None``"""
+        """
+        TRackers: List of Tracker URLs or ``None``
+
+        :raises URLError: if any of the URLs is invalid
+        """
         return self._tr
     @tr.setter
     def tr(self, value):
@@ -154,7 +174,11 @@ class Magnet():
 
     @property
     def xs(self):
-        """eXact Source: Torrent file URL or ``None``"""
+        """
+        eXact Source: Torrent file URL or ``None``
+
+        :raises URLError: if the URL is invalid
+        """
         return self._xs
     @xs.setter
     def xs(self, value):
@@ -166,6 +190,8 @@ class Magnet():
         Acceptable Source: Fallback torrent file URL or ``None``
 
         (The trailing underscore is needed because "as" is a keyword in Python.)
+
+        :raises URLError: if the URL is invalid
         """
         return self._as
     @as_.setter
@@ -174,7 +200,11 @@ class Magnet():
 
     @property
     def ws(self):
-        """WebSeeds: List of webseed URLs (see BEP19) or ``None``"""
+        """
+        WebSeeds: List of webseed URLs (see BEP19) or ``None``
+
+        :raises URLError: if any of the URLs is invalid
+        """
         return self._ws
     @ws.setter
     def ws(self, value):
@@ -223,7 +253,11 @@ class Magnet():
     _KNOWN_PARAMETERS = ('xt', 'dn', 'xl', 'tr', 'xs', 'as', 'ws', 'kt')
     @classmethod
     def from_string(cls, uri):
-        """Create :class:`Magnet` URI from string"""
+        """
+        Create :class:`Magnet` URI from string
+
+        :raises MagnetError: if :attr:`uri` is not a valid magnet URI
+        """
         info = urllib.parse.urlparse(uri, scheme='magnet', allow_fragments=False)
         if not info.scheme == 'magnet':
             raise error.MagnetError(uri, 'Not a magnet URI')
