@@ -138,7 +138,7 @@ class Magnet():
                 raise error.MagnetError(value, 'Invalid exact length')
             else:
                 if value < 1:
-                    raise ValueError(f'Must be 1 or larger: {value}')
+                    raise error.MagnetError(value, 'Must be 1 or larger')
                 else:
                     self._xl = value
         else:

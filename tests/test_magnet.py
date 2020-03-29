@@ -76,9 +76,9 @@ def test_xl(xt):
     with pytest.raises(torf.MagnetError) as excinfo:
         m.xl = 'foo'
     assert str(excinfo.value) == 'foo: Invalid exact length'
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(torf.MagnetError) as excinfo:
         m.xl = -123
-    assert str(excinfo.value) == 'Must be 1 or larger: -123'
+    assert str(excinfo.value) == '-123: Must be 1 or larger'
 
 def test_tr(xt):
     m = torf.Magnet(xt, tr=('http://foo.bar/baz',))
