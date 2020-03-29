@@ -208,7 +208,7 @@ class Magnet():
         return self._ws
     @ws.setter
     def ws(self, value):
-        self._ws = [str(url) for url in value] if value is not None else None
+        self._ws = [utils.URL(url) for url in value] if value is not None else None
 
     @property
     def kt(self):
