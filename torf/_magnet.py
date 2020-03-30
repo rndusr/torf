@@ -27,7 +27,7 @@ class Magnet():
     :param str xt: eXact Topic: Info hash (Base 16 or 32)
     :param str dn: Display Name: Filename to display to the user
     :param int xl: eXact Length: Size in bytes
-    :param list tr: TRacker: Iterable of Tracker URLs
+    :param list tr: TRacker: Iterable of tracker URLs
     :param str xs: eXact Source: Torrent file URL
     :param str as\_: Acceptable Source: Fallback torrent file URL
     :param list ws: WebSeeds: Iterable of webseed URLs (see BEP19)
@@ -48,6 +48,7 @@ class Magnet():
     _XT_REGEX = re.compile(r'^urn:btih:([0-9a-f]{40}|[a-z2-7]{32})$', flags=re.IGNORECASE)
 
     def __init__(self, xt, *, dn=None, xl=None, tr=None, xs=None, as_=None, ws=None, kt=None, **kwargs):
+        self._tr = utils.MonitoredList(type=utils.URL)
         self.xt = xt
         self.dn = dn
         self.xl = xl
@@ -163,14 +164,19 @@ class Magnet():
     @property
     def tr(self):
         """
-        TRackers: List of Tracker URLs or ``None``
+        TRackers: List of tracker URLs, single tracker URL or ``None``
 
         :raises URLError: if any of the URLs is invalid
         """
         return self._tr
     @tr.setter
     def tr(self, value):
-        self._tr = [utils.URL(url) for url in value] if value is not None else None
+        if value is None:
+            self._tr.clear()
+        elif isinstance(value, str):
+            self._tr.replace((value,))
+        else:
+            self._tr.replace(value)
 
     @property
     def xs(self):

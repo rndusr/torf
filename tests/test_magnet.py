@@ -87,8 +87,17 @@ def test_tr(xt):
     m.tr.append('http://blim/blam')
     assert m.tr == ['http://foo.bar/baz', 'http://blim/blam']
     assert str(m) == f'magnet:?xt={xt}&tr=http%3A%2F%2Ffoo.bar%2Fbaz&tr=http%3A%2F%2Fblim%2Fblam'
+
     with pytest.raises(torf.URLError) as excinfo:
         m.tr = 'foo'
+    assert m.tr == ['http://foo.bar/baz', 'http://blim/blam']
+
+    with pytest.raises(torf.URLError) as excinfo:
+        m.tr.append('foo')
+    assert m.tr == ['http://foo.bar/baz', 'http://blim/blam']
+
+    m.tr = None
+    assert m.tr == []
 
 def test_xs(xt):
     m = torf.Magnet(xt, xs='http://foo.bar/baz.torrent')
