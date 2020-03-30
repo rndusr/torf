@@ -482,18 +482,27 @@ def test_URLs_validates_appended_urls():
     with pytest.raises(errors.URLError) as e:
         urls.append('http://bar:456:789')
     assert str(e.value) == 'http://bar:456:789: Invalid URL'
+    assert urls == ('http://foo:123',)
 
 def test_URLs_validates_changed_urls():
     urls = utils.URLs('http://foo:123')
     with pytest.raises(errors.URLError) as e:
         urls[0] = 'http://bar:456:789'
     assert str(e.value) == 'http://bar:456:789: Invalid URL'
+    assert urls == ('http://foo:123',)
 
 def test_URLs_validates_inserted_urls():
     urls = utils.URLs(('http://foo:123', 'http://bar:456'))
     with pytest.raises(errors.URLError) as e:
         urls.insert(1, 'http://baz:789:abc')
     assert str(e.value) == 'http://baz:789:abc: Invalid URL'
+    assert urls == ('http://foo:123', 'http://bar:456')
+
+def test_URLs_does_not_empty_when_replacing_with_invalid_URLs():
+    urls = utils.URLs(('http://foo:123', 'http://bar:456'))
+    with pytest.raises(errors.URLError) as e:
+        urls.replace(('http://baz:789:abc',))
+    assert urls == ('http://foo:123', 'http://bar:456')
 
 def test_URLs_is_equal_to_URLs_instances():
     t1 = utils.URLs(('http://foo:123', 'http://bar:456'))

@@ -244,6 +244,8 @@ class MonitoredList(collections.abc.MutableSequence):
     def replace(self, items):
         if not isinstance(items, Iterable):
             raise ValueError(f'Not an iterable: {items!r}')
+        # Don't clear list before we know all new values are valid
+        items = tuple(map(self._coerce, items))
         self._items.clear()
         with self._callback_disabled():
             self.extend(items)
