@@ -243,7 +243,7 @@ class MonitoredList(collections.abc.MutableSequence):
 
     def replace(self, items):
         if not isinstance(items, Iterable):
-            raise ValueError(f'Not an iterable: {urls!r}')
+            raise ValueError(f'Not an iterable: {items!r}')
         self._items.clear()
         with self._callback_disabled():
             self.extend(items)
