@@ -309,3 +309,17 @@ class Magnet():
                 setattr(self, param, query[param])
 
         return self
+
+    def __repr__(self):
+        clsname = type(self).__name__
+        kwargs = {}
+        for param in self._KNOWN_PARAMETERS:
+            if param == 'as':
+                param = 'as_'
+            value = getattr(self, param)
+            if value:
+                kwargs[param] = value
+        for k,v in self.x.items():
+            kwargs[f'x_{k}'] = v
+        kwargs_str = ', '.join(f'{k}={repr(v)}' for k,v in kwargs.items())
+        return f'{clsname}({kwargs_str})'

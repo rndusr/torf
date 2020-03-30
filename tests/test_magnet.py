@@ -315,3 +315,18 @@ def test_from_torrent_with_multiple_tracker(singlefile_content, multifile_conten
                                                                f'&dn={quote_plus(t.name)}'
                                                                f'&xl={t.size}'
                                                                f'&tr=http%3A%2F%2Ffoo&tr=http%3A%2F%2Fbar')
+
+def test_repr(xt):
+    m = torf.Magnet(xt, dn='Foo', xl=123, tr=('http://tracker:123',),
+                    xs='http://primary.source/url.torrent',
+                    as_='http://alt.source/url.torrent',
+                    ws=('http://webseed/url/file.content',),
+                    kt=('keyword1', 'keyword2'),
+                    x_foo='some', x_bar='junk')
+    assert repr(m) == ("Magnet(xt='urn:btih:8867c88b56e0bfb82cffaf15a66bc8d107d6754a', "
+                       "dn='Foo', xl=123, tr=['http://tracker:123'], "
+                       "xs='http://primary.source/url.torrent', "
+                       "as_='http://alt.source/url.torrent', "
+                       "ws=['http://webseed/url/file.content'], "
+                       "kt=['keyword1', 'keyword2'], "
+                       "x_foo='some', x_bar='junk')")
