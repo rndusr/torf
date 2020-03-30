@@ -49,6 +49,7 @@ class Magnet():
 
     def __init__(self, xt, *, dn=None, xl=None, tr=None, xs=None, as_=None, ws=None, kt=None, **kwargs):
         self._tr = utils.MonitoredList(type=utils.URL)
+        self._ws = utils.MonitoredList(type=utils.URL)
         self.xt = xt
         self.dn = dn
         self.xl = xl
@@ -207,14 +208,21 @@ class Magnet():
     @property
     def ws(self):
         """
-        WebSeeds: List of webseed URLs (see BEP19) or ``None``
+        WebSeeds: List of webseed URLs, single webseed URL or ``None``
+
+        See BEP19.
 
         :raises URLError: if any of the URLs is invalid
         """
         return self._ws
     @ws.setter
     def ws(self, value):
-        self._ws = [utils.URL(url) for url in value] if value is not None else None
+        if value is None:
+            self._ws.clear()
+        elif isinstance(value, str):
+            self._ws.replace((value,))
+        else:
+            self._ws.replace(value)
 
     @property
     def kt(self):

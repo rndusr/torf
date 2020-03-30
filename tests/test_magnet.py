@@ -124,9 +124,16 @@ def test_ws(xt):
                             'http://bar.foo/baz.jpg'])
     assert m.ws == ['http://foo.bar/baz.jpg',
                     'http://bar.foo/baz.jpg']
+    with pytest.raises(torf.URLError) as excinfo:
+        m.ws = ['foo']
     assert str(m) == f'magnet:?xt={xt}&ws=http%3A%2F%2Ffoo.bar%2Fbaz.jpg&ws=http%3A%2F%2Fbar.foo%2Fbaz.jpg'
     m.ws.remove('http://foo.bar/baz.jpg')
     assert str(m) == f'magnet:?xt={xt}&ws=http%3A%2F%2Fbar.foo%2Fbaz.jpg'
+    m.ws = 'http://some/other/url/to/baz.jpg'
+    assert m.ws == ['http://some/other/url/to/baz.jpg']
+    with pytest.raises(torf.URLError) as excinfo:
+        m.ws.replace(('adf',))
+    assert m.ws == ['http://some/other/url/to/baz.jpg']
 
 def test_kt(xt):
     m = torf.Magnet(xt, kt=('that', 'thing'))
