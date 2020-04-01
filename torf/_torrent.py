@@ -378,8 +378,6 @@ class Torrent():
         [seq]    matches any character in seq
         [!seq]   matches any char not in seq
         ======== ============================
-
-        :raises RuntimeError: if set or manipulated while :attr:`path` is None
         """
         return self._exclude['globs']
     @exclude_globs.setter
@@ -396,7 +394,6 @@ class Torrent():
         Patterns are matched against paths in :attr:`files`.
 
         :raises re.error: if any regular expression is invalid
-        :raises RuntimeError: if set or manipulated while :attr:`path` is None
         """
         return self._exclude['regexs']
     @exclude_regexs.setter
