@@ -420,8 +420,6 @@ class Torrent():
         Parent nodes are dictionaries and leaf nodes are :class:`File` objects.
         The top node is always a dictionary with the single key :attr:`name`.
 
-        If :attr:`path` is ``None``, this is an empty ``dict``.
-
         Example:
 
         .. code:: python
