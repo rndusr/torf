@@ -453,7 +453,7 @@ class Torrent():
         ``None``.
 
         If this property is set to ``None`` and :attr:`path` is not ``None``, it
-        is set to the default name, i.e. the last item in :attr:`path`.
+        is set to the default.
 
         Setting this property sets or removes ``name`` in
         :attr:`metainfo`\ ``['info']``.
@@ -474,7 +474,7 @@ class Torrent():
         """
         ``singlefile`` if this torrent contains one file that is not in a directory,
         ``multifile`` if it contains one or more files in a directory, or
-        ``None`` if no content is specified (i.e. :attr:`path` is None).
+        ``None`` if no content is specified (i.e. :attr:`files` is empty).
         """
         if 'length' in self.metainfo['info']:
             return 'singlefile'
@@ -500,7 +500,7 @@ class Torrent():
                      may point to file or directory
         :type path: str, path-like or iterable
 
-        :raises PathError: if path is not specified in :attr:`metainfo`
+        :raises PathError: if `path` is not known
         """
         if isinstance(path, str):
             path = tuple(path.split(os.sep))
@@ -573,9 +573,8 @@ class Torrent():
         the piece size is :attr:`piece_size_max` with as many pieces as
         necessary.
 
-        You may override this method if you need a different algorithm.
+        It is safe to override this method to implement a custom algorithm.
 
-        :raises RuntimeError: if :attr:`size` returns ``None``
         :return: calculated piece size
         """
         if size <= 2**30:          #  1 GiB / 1024 pieces = 1 MiB max
@@ -647,9 +646,9 @@ class Torrent():
         validation and deduplication.  You can set this property to a URL, an
         iterable of URLs or an iterable of iterables of URLs (i.e. "tiers").
 
-        This property also automatically sets :attr:`metainfo`\ ``['announce']``
-        and :attr:`metainfo`\ ``['announce-list']`` when it is manipulated or
-        set according to these rules:
+        This property automatically sets :attr:`metainfo`\ ``['announce']`` and
+        :attr:`metainfo`\ ``['announce-list']`` when it is manipulated or set
+        according to these rules:
 
         - If it contains a single URL, :attr:`metainfo`\ ``['announce']`` is set
           and :attr:`metainfo`\ ``['announce-list']`` is removed if it exists.
@@ -664,7 +663,7 @@ class Torrent():
           of tiers, one tier for each iterable of URLs.
 
         :raises URLError: if any of the announce URLs is invalid
-        :raises ValueError: if set to anything that isn't an Iterable and not a
+        :raises ValueError: if set to anything that isn't an iterable or a
             string
         """
         tiers = list(self.metainfo.get('announce-list', ()))
@@ -707,11 +706,13 @@ class Torrent():
 
         http://bittorrent.org/beps/bep_0019.html
 
-        This property automatically synchronizes with
-        :attr:`metainfo`\ ``['url-list']``.
+        The list returned by this property automatically updates
+        :attr:`metainfo`\ ``['url-list']`` when manipulated.  Setting this
+        property sets :attr:`metainfo`\ ``['url-list']``.
 
         :raises URLError: if any URL is invalid
-        :raises ValueError: if set to any non-iterable
+        :raises ValueError: if set to anything that isn't an iterable or a
+            string
         """
         return utils.URLs(self.metainfo.get('url-list', ()),
                           callback=self._webseeds_changed)
@@ -741,11 +742,13 @@ class Torrent():
 
         http://bittorrent.org/beps/bep_0017.html
 
-        This property automatically synchronizes with
-        :attr:`metainfo`\ ``['httpseeds']``.
+        The list returned by this property automatically updates
+        :attr:`metainfo`\ ``['httpseeds']`` when manipulated.  Setting this
+        property sets :attr:`metainfo`\ ``['httpseeds']``.
 
         :raises URLError: if any URL is invalid
-        :raises ValueError: if set to any non-iterable
+        :raises ValueError: if set to anything that isn't an iterable or a
+            string
         """
         return utils.URLs(self.metainfo.get('httpseeds', ()),
                           callback=self._httpseeds_changed)
@@ -774,8 +777,9 @@ class Torrent():
         Whether torrent should use trackers exclusively for peer discovery
 
         Setting this property to ``None`` removes ``private`` from
-        :attr:`metainfo`\ ``['info']``.  Otherwise, :attr:`metainfo`\
-        ``['info']``\ ``['private']`` is set to a :class:`bool`.
+        :attr:`metainfo`\ ``['info']``.  Otherwise,
+        :attr:`metainfo`\ ``['info']``\ ``['private']`` is set to a
+        :class:`bool`.
         """
         return bool(self.metainfo['info'].get('private', False))
     @private.setter
@@ -790,7 +794,7 @@ class Torrent():
         """
         Comment string or ``None`` for no comment
 
-        Setting this property sets or removes ``comment`` in :attr:`metainfo`.
+        Setting this property sets or removes :attr:`metainfo`\ ``['comment']``.
         """
         return self.metainfo.get('comment', None)
     @comment.setter
@@ -808,8 +812,8 @@ class Torrent():
         :class:`int` and :class:`float` are also allowed and converted with
         :meth:`datetime.datetime.fromtimestamp`.
 
-        Setting this property sets or removes ``creation date`` in
-        :attr:`metainfo`.
+        Setting this property sets or removes
+        :attr:`metainfo`\ ``['creation date']``.
         """
         return self.metainfo.get('creation date', None)
     @creation_date.setter
@@ -828,8 +832,8 @@ class Torrent():
         """
         Application name or ``None`` for no creator
 
-        Setting this property sets or removes ``created by`` in
-        :attr:`metainfo`.
+        Setting this property sets or removes
+        :attr:`metainfo`\ ``['created by']``.
         """
         return self.metainfo.get('created by', None)
     @created_by.setter
@@ -844,7 +848,8 @@ class Torrent():
         """
         Source string or ``None`` for no source
 
-        Setting this property sets or removes ``source`` in :attr:`metainfo`\ ``['info']``.
+        Setting this property sets or removes
+        :attr:`metainfo`\ ``['info']``\ ``['created by']``.
         """
         return self.metainfo['info'].get('source', None)
     @source.setter
@@ -887,13 +892,13 @@ class Torrent():
     @property
     def randomize_infohash(self):
         """
-        Whether to ensure that :attr:`infohash` is always different
+        Whether to ensure that :attr:`infohash` is always unique
 
-        This allows cross-seeding without changing :attr:`piece_size` manually.
+        This allows for cross-seeding without changing :attr:`piece_size`.
 
-        Setting this property to ``True`` sets ``entropy`` in
-        :attr:`metainfo`\ ``['info']`` to a random integer. Setting it to
-        ``False`` removes that value.
+        Setting this property to ``True`` sets
+        :attr:`metainfo`\ ``['info']``\ ``['entropy']`` to a random integer.
+        Setting it to ``False`` removes that field.
         """
         return bool(self.metainfo['info'].get('entropy', False))
     @randomize_infohash.setter
@@ -920,8 +925,8 @@ class Torrent():
         """
         Hash pieces and report progress to `callback`
 
-        This method sets ``pieces`` in :attr:`metainfo`\ ``['info']`` if all
-        pieces are hashed successfully.
+        This method sets :attr:`metainfo`\ ``['info']``\ ``['pieces']`` after
+        all pieces are hashed successfully.
 
         :param int threads: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
@@ -1033,8 +1038,9 @@ class Torrent():
         """
         Check if `path` looks like it should contain all the data of this torrent
 
-        Walk through :attr:`files` and check if each file exists in `path`, is
-        readable and has the correct size.  Excess files in `path` are ignored.
+        Walk through :attr:`files` and check if each file exists relative to
+        `path`, is readable and has the correct size.  Excess files in `path`
+        are ignored.
 
         This is fast and should find most manipulations, but :meth:`verify` is
         necessary to detect corruptions (e.g. due to bit rot).
