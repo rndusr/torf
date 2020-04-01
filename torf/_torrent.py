@@ -524,7 +524,7 @@ class Torrent():
                     file_sizes.append(info['length'])
             if file_sizes:
                 return sum(file_sizes)
-        raise error.PathError(os.path.join(*path), msg='Not specified in metainfo')
+        raise error.PathError(os.path.join(*path), msg='Unknown path')
 
     @property
     def piece_size(self):
