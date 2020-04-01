@@ -23,8 +23,11 @@ def test_exclude_when_path_is_None(create_torrent):
                                          {'length': 6, 'path': ['file3.txt']}]
     torrent.path = None
     torrent.exclude_globs.append('*.jpg')
-    torrent.metainfo['info']['files'] = [{'length': 6, 'path': ['file1.txt']},
-                                         {'length': 6, 'path': ['file3.txt']}]
+    assert torrent.metainfo['info']['files'] == [{'length': 6, 'path': ['file1.txt']},
+                                                 {'length': 6, 'path': ['file3.txt']}]
+    torrent.exclude_regexs.append('file3')
+    assert torrent.metainfo['info']['files'] == [{'length': 6, 'path': ['file1.txt']}]
+    assert torrent.path is None
 
 def test_exclude_with_singlefile_torrent_and_existing_path(create_torrent, content):
     torrent = create_torrent(path=content / 'file1.txt')
