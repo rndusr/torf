@@ -365,7 +365,7 @@ class Files(MonitoredList):
 
 
 class Filepath(type(pathlib.Path())):
-    """path-like that makes relative paths equal to their absolute versions"""
+    """Path-like that makes relative paths equal to their absolute versions"""
     @classmethod
     def _realpath(cls, path):
         if os.path.islink(path):

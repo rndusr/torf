@@ -176,7 +176,7 @@ class Torrent():
         """
         List of relative paths in this torrent
 
-        Paths are :class:`File` objects and the list is automatically
+        Paths are :class:`File` objects and items are automatically
         deduplicated.  Every path starts with :attr:`name`.
 
         Setting or manipulating this property updates
@@ -236,7 +236,7 @@ class Torrent():
         """
         List of paths of existing files in :attr:`path` included in the torrent
 
-        Paths are :class:`Filepath` objects and the list is automatically
+        Paths are :class:`Filepath` objects and items are automatically
         deduplicated.  Directories are resolved into a list of files.
 
         Setting or manipulating this property updates
@@ -375,8 +375,8 @@ class Torrent():
         ======== ============================
         \*       matches everything
         ?        matches any single character
-        [seq]    matches any character in seq
-        [!seq]   matches any char not in seq
+        [SEQ]    matches any character in SEQ
+        [!SEQ]   matches any char not in SEQ
         ======== ============================
         """
         return self._exclude['globs']
