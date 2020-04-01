@@ -551,7 +551,7 @@ class Torrent():
         try:
             piece_length = int(value)
         except (TypeError, ValueError):
-            raise ValueError(f'piece_size must be int, not {value!r}')
+            raise ValueError(f'piece_size must be int, not {type(value).__name__}: {value!r}')
         else:
             if not utils.is_power_of_2(piece_length):
                 raise error.PieceSizeError(piece_length)

@@ -731,7 +731,7 @@ def test_piece_size_is_set_to_wrong_type(create_torrent):
     torrent = create_torrent()
     with pytest.raises(ValueError) as excinfo:
         torrent.piece_size = 'hello'
-    assert str(excinfo.value) == "piece_size must be int, not 'hello'"
+    assert str(excinfo.value) == "piece_size must be int, not str: 'hello'"
 
 def test_piece_size_is_set_manually_to_not_power_of_two(create_torrent):
     torrent = create_torrent()
