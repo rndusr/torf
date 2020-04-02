@@ -873,7 +873,7 @@ class Torrent():
             try:
                 info = utils.encode_dict(self.metainfo['info'])
             except ValueError as e:
-                raise error.MetainfoError(str(e))
+                raise error.MetainfoError(e)
             else:
                 return hashlib.sha1(bencode.encode(info)).hexdigest()
         except error.MetainfoError as e:
@@ -1365,7 +1365,7 @@ class Torrent():
         try:
             return utils.encode_dict(self.metainfo)
         except ValueError as e:
-            raise error.MetainfoError(str(e))
+            raise error.MetainfoError(e)
 
     def dump(self, validate=True):
         """
