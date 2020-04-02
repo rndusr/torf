@@ -1430,7 +1430,7 @@ class Torrent():
         except OSError as e:
             raise error.WriteError(e.errno, filepath)
 
-    def magnet(self, name=True, size=True, trackers=True, tracker=False, validate=True):
+    def magnet(self, name=True, size=True, trackers=True, tracker=False):
         """
         BTIH magnet URI
 
@@ -1439,14 +1439,9 @@ class Torrent():
         :param bool trackers: Whether to include all trackers
         :param bool tracker: Whether to include only the first tracker of the
             first tier (overrides `trackers`)
-        :param bool validate: Whether to run :meth:`validate` first
 
-        :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
-            contains invalid data
+        :raises MetainfoError: if :attr:`metainfo` is invalid
         """
-        if validate:
-            self.validate()
-
         kwargs = {'xt': 'urn:btih:' + self.infohash}
         if name:
             kwargs['dn'] = self.name
