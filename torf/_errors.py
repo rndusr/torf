@@ -132,7 +132,7 @@ class CommonPathError(TorfError):
 
 
 class VerifyNotDirectoryError(TorfError):
-    """Expected file/link/etc, but found directory"""
+    """Expected file but found directory"""
     def __init__(self, path):
         self._path = path
         super().__init__(f'{path}: Is a directory', path)
