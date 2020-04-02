@@ -78,14 +78,14 @@ class _TestCaseBase():
             if hasattr(self, attr):
                 delattr(self, attr)
 
-    def run(self, *_, with_callback, exp_return_value=None, skip_file_on_first_error=False):
+    def run(self, *_, with_callback, exp_return_value=None, skip_on_error=False):
         debug(f'Original stream: {self.stream_original.hex()}')
         debug(f' Corrupt stream: {self.stream_corrupt.hex()}')
         debug(f'Corruption positions: {self.corruption_positions}')
         debug(f'Corrupt piece indexes: {set(corrpos // self.piece_size for corrpos in self.corruption_positions)}')
 
-        self.skip_file_on_first_error = skip_file_on_first_error
-        kwargs = {'skip_file_on_first_error': skip_file_on_first_error,
+        self.skip_on_error = skip_on_error
+        kwargs = {'skip_on_error': skip_on_error,
                   'exp_return_value': exp_return_value}
         if not with_callback:
             exp_exceptions = self.exp_exceptions
@@ -152,7 +152,7 @@ class _TestCaseBase():
         if not hasattr(self, '_exp_good_pieces'):
             self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.files_missing,
                                                      self.corruption_positions, self.files_missized)
-            if self.skip_file_on_first_error:
+            if self.skip_on_error:
                 self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces, self.filespecs, self.piece_size,
                                                          self.corruption_positions)
             debug(f'Expected good pieces: {self._exp_good_pieces}')
@@ -162,7 +162,7 @@ class _TestCaseBase():
     def exp_exc_corruptions(self):
         if not hasattr(self, '_exp_exc_corruptions'):
             self._exp_exc_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
-            if self.skip_file_on_first_error:
+            if self.skip_on_error:
                 self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,
                                                              self.piece_size, self.corruption_positions,
                                                              self.files_missing, self.files_missized)
@@ -480,7 +480,7 @@ def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_s
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
     cb = tc.run(with_callback=callback['enabled'],
-                skip_file_on_first_error=True,
+                skip_on_error=True,
                 exp_return_value=False)
 
 def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
@@ -497,7 +497,7 @@ def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, 
     for index in filespec_indexes:
         tc.delete_file(index)
     cb = tc.run(with_callback=callback['enabled'],
-                skip_file_on_first_error=True,
+                skip_on_error=True,
                 exp_return_value=False)
 
 def test_verify_content_with_changed_file_size_and_no_skipping(mktestcase, piece_size, callback, filespecs):
@@ -512,7 +512,7 @@ def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_si
     tc = mktestcase(filespecs, piece_size)
     tc.change_file_size()
     cb = tc.run(with_callback=callback['enabled'],
-                skip_file_on_first_error=True,
+                skip_on_error=True,
                 exp_return_value=False)
 
 def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callback, filespecs):
@@ -524,5 +524,5 @@ def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callba
         errorizer = errorizers.pop(random.choice(range(len(errorizers))))
         errorizer()
     cb = tc.run(with_callback=callback['enabled'],
-                skip_file_on_first_error=random.choice((True, False)),
+                skip_on_error=random.choice((True, False)),
                 exp_return_value=False)

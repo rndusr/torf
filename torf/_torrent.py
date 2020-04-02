@@ -1126,8 +1126,7 @@ class Torrent():
         else:
             return True
 
-    def verify(self, path, skip_file_on_first_error=True, threads=None,
-               callback=None, interval=0):
+    def verify(self, path, skip_on_error=True, threads=None, callback=None, interval=0):
         """
         Check if `path` contains all the data specified in this torrent
 
@@ -1135,8 +1134,8 @@ class Torrent():
         the ones stored in :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
 
         :param str path: Directory or file to check
-        :param bool skip_file_on_first_error: Whether to stop hashing pieces
-            from file if a piece from it is corrupt
+        :param bool skip_on_error: Whether to stop hashing pieces from file if a
+            piece from it is corrupt
         :param int threads: How many threads to use for hashing pieces or
             ``None`` to use one thread per available CPU core
         :param callable callback: Callable to report progress and/or abort
@@ -1188,7 +1187,7 @@ class Torrent():
                                                  for fs_path,t_path in filepaths},
                                      piece_size=self.piece_size,
                                      queue_size=threads*3,
-                                     skip_file_on_first_error=skip_file_on_first_error)
+                                     skip_on_error=skip_on_error)
 
             # Pool of workers that pull from reader_thread's piece queue, calculate
             # the hashes, and quickly offload the results to a hash queue
@@ -1210,7 +1209,7 @@ class Torrent():
                                  force_call=True)
                 elif piece_hash is not None and piece_hash != exp_hashes[piece_index]:
                     # Piece hash doesn't match
-                    if skip_file_on_first_error:
+                    if skip_on_error:
                         reader.skip_file(filepath, piece_index)
                     file_sizes = tuple((fs_path, self.partial_size(t_path))
                                        for fs_path,t_path in filepaths)

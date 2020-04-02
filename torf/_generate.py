@@ -114,7 +114,7 @@ class Worker():
 class Reader():
     def __init__(self, filepaths, piece_size, queue_size,
                  file_sizes=defaultdict(lambda: None),
-                 skip_file_on_first_error=False):
+                 skip_on_error=False):
         self._filepaths = tuple(filepaths)
         assert self._filepaths, 'No file paths given'
         self._file_sizes = file_sizes
@@ -122,7 +122,7 @@ class Reader():
         self._piece_queue = ExhaustableQueue(name='pieces', maxsize=queue_size)
         self._bytes_chunked = 0  # Number of bytes sent off as piece_size'd chunks
         self._fake = _FileFaker(self, self._filepaths, file_sizes, piece_size)
-        self._skip_file_on_first_error = skip_file_on_first_error
+        self._skip_on_error = skip_on_error
         self._skipped_files = set()
         self._noskip_piece_indexes = set()
         self._forced_error_piece_indexes = set()
@@ -243,14 +243,14 @@ class Reader():
         return bytes_chunked, trailing_bytes
 
     def file_was_skipped(self, filepath):
-        if self._skip_file_on_first_error and filepath in self._skipped_files:
+        if self._skip_on_error and filepath in self._skipped_files:
             file_beg,_ = self._calc_file_range(filepath)
             if self._calc_piece_index(absolute_pos=file_beg) not in self._noskip_piece_indexes:
                 return True
         return False
 
     def skip_file(self, filepath, piece_index, force=False):
-        if (self._skip_file_on_first_error or force) and filepath not in self._skipped_files:
+        if (self._skip_on_error or force) and filepath not in self._skipped_files:
             if piece_index not in self._noskip_piece_indexes:
                 _debug(f'reader: Marking {os.path.basename(filepath)} for skipping because of piece_index {piece_index} '
                        f'after chunking {int(self._bytes_chunked / self._piece_size)} chunks')
@@ -261,11 +261,11 @@ class Reader():
 
     # When we fake-read a file, the first piece of the file after the faked file
     # will produce an error because it (likely) contains padding bytes from the
-    # previous/faked file.  If skip_file_on_first_error is True, that means the
-    # next file is skipped even if it is completely fine and we just couldn't
-    # confirm that.
+    # previous/faked file.  If skip_on_error is True, that means the next file
+    # is skipped even if it is completely fine and we just couldn't confirm
+    # that.
     def _dont_skip_piece(self, piece_index):
-        if self._skip_file_on_first_error:
+        if self._skip_on_error:
             _debug(f'reader: Never skipping file at piece_index {piece_index}')
             self._noskip_piece_indexes.add(piece_index)
 
