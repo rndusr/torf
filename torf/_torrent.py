@@ -47,7 +47,7 @@ class Torrent():
     """
     Torrent metainfo representation
 
-    Create a new Torrent object:
+    Create a new Torrent instance:
 
     >>> from torf import Torrent
     >>> torrent = Torrent('path/to/My Torrent',
@@ -1129,11 +1129,10 @@ class Torrent():
     def verify(self, path, skip_file_on_first_error=True, threads=None,
                callback=None, interval=0):
         """
-        Check if `path` contains all the data of this torrent
+        Check if `path` contains all the data specified in this torrent
 
-        Generate hashes from the contents of :attr:`files` and compare each
-        generated hash to the ones stored in
-        :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
+        Generate hashes from the contents of :attr:`files` and compare them to
+        the ones stored in :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
 
         :param str path: Directory or file to check
         :param bool skip_file_on_first_error: Whether to stop hashing pieces
@@ -1360,7 +1359,7 @@ class Torrent():
         values encoded to :class:`bytes`, :class:`int`, :class:`list` or
         :class:`OrderedDict`
 
-        :raises MetainfoError: on values that cannot be converted properly
+        :raises MetainfoError: if a value cannot be converted properly
         """
         try:
             return utils.encode_dict(self.metainfo)
@@ -1383,14 +1382,11 @@ class Torrent():
         """
         Write :attr:`metainfo` to a file-like object
 
-        Before any data is written, `stream` is truncated if possible.
-
         :param stream: Writable file-like object (e.g. :class:`io.BytesIO`)
         :param bool validate: Whether to run :meth:`validate` first
 
         :raises WriteError: if writing to `stream` fails
-        :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
-            contains invalid data
+        :raises MetainfoError: if :attr:`metainfo` is invalid
         """
         content = self.dump(validate=validate)
         try:
@@ -1410,11 +1406,10 @@ class Torrent():
         :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` first
         :param bool overwrite: Whether to silently overwrite `filepath` (only
-            if all pieces were hashed successfully)
+            after all pieces were hashed successfully)
 
         :raises WriteError: if writing to `filepath` fails
-        :raises MetainfoError: if `validate` is `True` and :attr:`metainfo`
-            contains invalid data
+        :raises MetainfoError: if :attr:`metainfo` is invalid
         """
         if not overwrite and os.path.exists(filepath):
             raise error.WriteError(errno.EEXIST, filepath)
@@ -1432,7 +1427,7 @@ class Torrent():
 
     def magnet(self, name=True, size=True, trackers=True, tracker=False):
         """
-        BTIH magnet URI
+        :class:`Magnet` instance
 
         :param bool name: Whether to include the name
         :param bool size: Whether to include the size
@@ -1473,7 +1468,7 @@ class Torrent():
 
         :param stream: Readable file-like object (e.g. :class:`io.BytesIO`)
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
-            object
+            instance
 
         :raises ReadError: if reading from `stream` fails
         :raises BdecodeError: if `stream` does not produce a valid bencoded byte
@@ -1481,7 +1476,7 @@ class Torrent():
         :raises MetainfoError: if `validate` is `True` and the read metainfo is
             invalid
 
-        :return: New Torrent object
+        :return: New :class:`Torrent` instance
         """
         try:
             content = stream.read(cls.MAX_TORRENT_FILE_SIZE)
@@ -1533,14 +1528,9 @@ class Torrent():
         """
         Read torrent metainfo from file
 
-        This method is essentially equivalent to:
-
-        >>> with open('my.torrent', 'rb') as f:
-        ...     torrent = Torrent.read_stream(f)
-
         :param filepath: Path of the torrent file
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
-            object
+            instance
 
         :raises ReadError: if reading from `filepath` fails
         :raises BdecodeError: if `filepath` does not contain a valid bencoded byte
@@ -1548,7 +1538,7 @@ class Torrent():
         :raises MetainfoError: if `validate` is `True` and the read metainfo is
             invalid
 
-        :return: New Torrent object
+        :return: New :class:`Torrent` instance
         """
         try:
             with open(filepath, 'rb') as f:
@@ -1559,7 +1549,7 @@ class Torrent():
             raise error.BdecodeError(filepath)
 
     def copy(self):
-        """Return a new object with the same metainfo"""
+        """Create a new :class:`Torrent` instance with the same metainfo"""
         from copy import deepcopy
         cp = type(self)()
         cp._metainfo = deepcopy(self._metainfo)
