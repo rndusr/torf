@@ -22,10 +22,10 @@ from . import _errors as error
 
 class Magnet():
     """
-    Magnet URI
+    BTIH Magnet URI
 
     :param str xt: eXact Topic: Info hash (Base 16 or 32)
-    :param str dn: Display Name: Filename to display to the user
+    :param str dn: Display Name: Name of the torrent
     :param int xl: eXact Length: Size in bytes
     :param list tr: TRacker: Iterable of tracker URLs
     :param str xs: eXact Source: Torrent file URL
@@ -70,7 +70,7 @@ class Magnet():
 
     @property
     def dn(self):
-        """Display Name: Filename to display to the user or ``None``"""
+        """Display Name: Name of the torrent or ``None``"""
         return self._dn
     @dn.setter
     def dn(self, value):
@@ -219,9 +219,7 @@ class Magnet():
 
     @property
     def as_torrent(self):
-        """
-        :class:`Torrent` instance
-        """
+        """:class:`Torrent` instance"""
         # Prevent circular import issues
         from ._torrent import Torrent
         torrent = Torrent()

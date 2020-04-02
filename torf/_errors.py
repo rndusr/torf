@@ -86,7 +86,7 @@ class BdecodeError(TorfError):
 
 
 class MagnetError(TorfError):
-    """Failed to parse magnet URI"""
+    """Invalid magnet URI or value"""
     def __init__(self, uri, reason=None):
         self._uri = uri
         self._reason = reason
