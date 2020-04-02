@@ -1,4 +1,4 @@
-2019-??-?? 3.0.0
+2020-04-02 3.0.0
   - Depend on flatbencode instead of bencoder.pyx
   - Bug fixed: Setting the "private" property to False removed the flag from the
     metainfo which could potentially change the info hash if a torrent file had
@@ -15,16 +15,16 @@
     changed.
   - Torrent.path is a path-like object.
   - Torrent.files, Torrent.filepaths, Torrent.trackers, Torrent.webseeds and
-    Torrent.httpseeds are mutable lists of path-like objects that automatically
-    synchronize with Torrent.metainfo.
-  - Torrent.filetree uses File objects as leaf nodes.  File is a path-like that
-    also stores the file size.
+    Torrent.httpseeds are mutable lists of path-like objects or URLs that
+    automatically synchronize with Torrent.metainfo when changed.
+  - Torrent.filetree uses File objects as leaf nodes.  File is a path-like
+    object that also stores the file size.
   - The new class attributes Torrent.piece_size_min and Torrent.piece_size_max
     can be used to quickly specify piece size limits.  Setting the piece_size
     property to an out-of-bounds piece size or returning one with
     Torrent.calculate_piece_size() raises PieceSizeError.
   - Torrent.validate() is better at finding invalid stuff in the metainfo.
-  - Exceptions added and removed.  If you don't catch TorfError, make sure
+  - Exceptions were added and removed.  If you don't catch TorfError, make sure
     you're expecting the correct exceptions.
   - Except for ReadError and WriteError, exceptions no longer have an "errno"
     property.
