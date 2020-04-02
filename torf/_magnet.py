@@ -68,31 +68,6 @@ class Magnet():
             key, value = next(iter(kwargs.items()))
             raise TypeError(f'Unrecognized argument: {key}={value!r}')
 
-    def __str__(self):
-        uri = [f'magnet:?xt={self.xt}']
-
-        for key in ('dn', 'xl', 'xs', 'as_'):
-            value = getattr(self, f'{key}')
-            if value is not None:
-                if isinstance(value, str):
-                    uri.append(f'{key}={utils.urlquote(value)}')
-                else:
-                    uri.append(f'{key}={value}')
-
-        if self.kt is not None:
-            uri.append(f'kt={",".join(utils.urlquote(k) for k in self.kt)}')
-
-        for key in ('tr', 'ws'):
-            seq = getattr(self, f'{key}')
-            if seq is not None:
-                for item in seq:
-                    uri.append(f'{key}={utils.urlquote(item)}')
-
-        for key,value in self._x.items():
-            uri.append(f'x.{key}={utils.urlquote(value)}')
-
-        return '&'.join(uri)
-
     @property
     def dn(self):
         """Display Name: Filename to display to the user or ``None``"""
@@ -309,6 +284,31 @@ class Magnet():
                 setattr(self, param, query[param])
 
         return self
+
+    def __str__(self):
+        uri = [f'magnet:?xt={self.xt}']
+
+        for key in ('dn', 'xl', 'xs', 'as_'):
+            value = getattr(self, f'{key}')
+            if value is not None:
+                if isinstance(value, str):
+                    uri.append(f'{key}={utils.urlquote(value)}')
+                else:
+                    uri.append(f'{key}={value}')
+
+        if self.kt is not None:
+            uri.append(f'kt={",".join(utils.urlquote(k) for k in self.kt)}')
+
+        for key in ('tr', 'ws'):
+            seq = getattr(self, f'{key}')
+            if seq is not None:
+                for item in seq:
+                    uri.append(f'{key}={utils.urlquote(item)}')
+
+        for key,value in self._x.items():
+            uri.append(f'x.{key}={utils.urlquote(value)}')
+
+        return '&'.join(uri)
 
     def __repr__(self):
         clsname = type(self).__name__
