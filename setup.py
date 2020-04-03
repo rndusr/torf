@@ -16,6 +16,7 @@ except OSError:
 setup(
     name               = 'torf',
     version            = __version__,
+    license            = 'GPLv3+',
     packages           = find_packages(),
     python_requires    = '>=3.6, ==3.*',
     install_requires   = ['flatbencode==0.2.*'],
