@@ -85,16 +85,22 @@ class Magnet():
 
             urn:btih:3bb9561e35b06175bb6d2c2330578dc83846cc5d
 
+        For convenience, this property may be set to the info hash with the
+        ``urn:btih`` part.
+
         :raises MagnetError: if set to an invalid value
         """
         return f'urn:btih:{self._infohash}'
     @xt.setter
     def xt(self, value):
         value = str(value)
-        match = self._XT_REGEX.match(value)
-        if match:
-            self._infohash = match.group(1)
+        if self._INFOHASH_REGEX.match(value):
+            self._infohash = value
         else:
+            match = self._XT_REGEX.match(value)
+            if match:
+                self._infohash = match.group(1)
+        if not hasattr(self, '_infohash'):
             raise error.MagnetError(value, 'Invalid exact topic ("xt")')
 
     @property
