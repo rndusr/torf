@@ -170,6 +170,7 @@ def test_as_torrent(hash16, hash32):
     assert t.infohash == hash16(b'some string')
     m = torf.Magnet(xt='urn:btih:' + hash32(b'some string'))
     assert m.as_torrent.infohash == hash16(b'some string')
+    assert 'length' not in m.as_torrent.metainfo['info']
 
 def test_from_string(hash32):
     m = torf.Magnet.from_string(f'magnet:?xt=urn:btih:{hash32(b"asdf")}'
