@@ -316,7 +316,7 @@ class File(os.PathLike):
         return str(self._path)
 
     def __eq__(self, other):
-        if isinstance(other, type(self)):
+        if type(other) is type(self):
             return self._path == other._path and self._size == other._size
         elif isinstance(other, os.PathLike):
             return self._path == other
