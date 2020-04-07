@@ -25,6 +25,7 @@ from datetime import datetime
 import itertools
 import contextlib
 import pathlib
+import typing
 
 from . import _errors as error
 
@@ -156,7 +157,7 @@ def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True)
         return False
 
     def is_excluded(path,
-                    regexs=tuple(x for x in exclude if isinstance(x, re.Pattern)),
+                    regexs=tuple(x for x in exclude if isinstance(x, typing.Pattern)),
                     globs=tuple(x for x in exclude if isinstance(x, str))):
         if any(r.search(str(path)) for r in regexs):
             return True
