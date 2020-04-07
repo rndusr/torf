@@ -34,4 +34,4 @@ test:
 	PATH=$$PATH:"$(PYTHON36_PREFIX)"/bin tox
 
 release:
-	pyrelease CHANGELOG ./torf/_version.py
+	pyrelease CHANGELOG ./torf/__init__.py
