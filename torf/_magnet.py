@@ -85,7 +85,7 @@ class Magnet():
 
             urn:btih:3bb9561e35b06175bb6d2c2330578dc83846cc5d
 
-        For convenience, this property may be set to the info hash with the
+        For convenience, this property may be set to the info hash without the
         ``urn:btih`` part.
 
         :raises MagnetError: if set to an invalid value
