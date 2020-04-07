@@ -30,9 +30,8 @@ python36:
 	  cd Python-"$(PYTHON36_VERSION)" ; \
 	  ./configure --prefix="$(PYTHON36_PREFIX)" ; make build_all -j8 ; make altinstall
 
-test: venv
-	. "$(VENV_PATH)"/bin/activate ; \
-	"$(VENV_PATH)"/bin/pytest
+test:
+	PATH=$$PATH:"$(PYTHON36_PREFIX)"/bin tox
 
 release:
 	pyrelease CHANGELOG ./torf/_version.py
