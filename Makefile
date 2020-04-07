@@ -18,10 +18,12 @@ venv:
 	"$(VENV_PATH)"/bin/pip install --editable .
 	"$(VENV_PATH)"/bin/pip install --editable ../torf-cli
 
-python36:
+python36-deps:
 	sudo apt-get install -y wget xz-utils build-essential llvm \
 	  libssl-dev zlib1g-dev libbz2-dev liblzma-dev \
 	  libreadline-dev libncurses5-dev libncursesw5-dev libffi-dev
+
+python36:
 	mkdir -p "$(PYTHON36_BUILD)" ; cd "$(PYTHON36_BUILD)" ; \
 	  wget -c https://www.python.org/ftp/python/"$(PYTHON36_VERSION)"/Python-"$(PYTHON36_VERSION)".tar.xz ; \
 	  [ -e Python-"$(PYTHON36_VERSION)" ] || tar xvf Python-"$(PYTHON36_VERSION)".tar.xz ; \
