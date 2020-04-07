@@ -223,8 +223,7 @@ class Magnet():
         """
         return self._x
 
-    @property
-    def as_torrent(self):
+    def torrent(self):
         """:class:`Torrent` instance"""
         # Prevent circular import issues
         from ._torrent import Torrent

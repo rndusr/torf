@@ -157,20 +157,20 @@ def test_x(xt):
     assert m.x['foo'] == '1234'
     assert m.x['baz'] == None
 
-def test_as_torrent(hash16, hash32):
+def test_torrent(hash16, hash32):
     m = torf.Magnet(xt='urn:btih:' + hash16(b'some string'),
                     dn='foo', xl=1e6,
                     tr=('http://foo.bar/baz', 'http://asdf'),
                     ws=('http://x/y', 'http://z'))
-    t = m.as_torrent
+    t = m.torrent()
     assert t.name == 'foo'
     assert t.size == 1e6
     assert t.trackers == [['http://foo.bar/baz'], ['http://asdf']]
     assert t.webseeds == ['http://x/y', 'http://z']
     assert t.infohash == hash16(b'some string')
     m = torf.Magnet(xt='urn:btih:' + hash32(b'some string'))
-    assert m.as_torrent.infohash == hash16(b'some string')
-    assert 'length' not in m.as_torrent.metainfo['info']
+    assert m.torrent().infohash == hash16(b'some string')
+    assert 'length' not in m.torrent().metainfo['info']
 
 def test_from_string(hash32):
     m = torf.Magnet.from_string(f'magnet:?xt=urn:btih:{hash32(b"asdf")}'
