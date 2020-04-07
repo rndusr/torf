@@ -234,7 +234,8 @@ class Magnet():
             torrent.trackers = self.tr
         if self.ws:
             torrent.webseeds = self.ws
-        torrent._metainfo['info']['length'] = self.xl
+        if self.xl:
+            torrent._metainfo['info']['length'] = self.xl
         if len(self.infohash) == 40:
             torrent._infohash = self.infohash
         else:
