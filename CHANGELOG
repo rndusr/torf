@@ -1,3 +1,8 @@
+2020-04-07 3.0.1
+  - Make things work with Python 3.6.
+  - Magnet.as_torrent is now a method called Magnet.torrent().
+
+
 2020-04-02 3.0.0
   - Depend on flatbencode instead of bencoder.pyx
   - Bug fixed: Setting the "private" property to False removed the flag from the
