@@ -19,8 +19,7 @@ Features
 - Optional metainfo validation with helpful error messages after reading and
   before creating torrents
 - Generate a ``.torrent`` file from a `BTIH magnet link
-  <https://en.wikipedia.org/wiki/Magnet_link#BitTorrent_info_hash_(BTIH)>`_ and
-  vice versa
+  <https://en.wikipedia.org/wiki/Magnet_link#BitTorrent_info_hash_(BTIH)>`_
 - Check if a file system path contains everything an existing ``.torrent`` file
   needs
 - Use multiple CPU cores to compute piece hashes
