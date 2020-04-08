@@ -299,7 +299,7 @@ def test_from_torrent_with_single_tracker(singlefile_content, multifile_content)
                                                                f'&xl={t.size}'
                                                                f'&tr=http%3A%2F%2Ffoo')
 
-def test_from_torrent_with_multiple_tracker(singlefile_content, multifile_content):
+def test_from_torrent_with_multiple_trackers(singlefile_content, multifile_content):
     for content in singlefile_content, multifile_content:
         t = torf.Torrent(content.path, trackers=['http://foo', 'http://bar'])
         t.generate()
