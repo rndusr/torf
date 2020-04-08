@@ -16,6 +16,8 @@ import base64
 import re
 import urllib
 from collections import defaultdict
+import time
+import io
 
 from . import _utils as utils
 from . import _errors as error
@@ -235,13 +237,74 @@ class Magnet():
             torrent.webseeds = self.ws
         if self.xl:
             torrent._metainfo['info']['length'] = self.xl
-        if len(self.infohash) == 40:
+        if hasattr(self, '_info'):
+            torrent.metainfo['info'] = self._info
+        elif len(self.infohash) == 40:
             torrent._infohash = self.infohash
         else:
             # Convert base 32 to base 16 (SHA1)
             torrent._infohash = base64.b16encode(
                 base64.b32decode(self.infohash)).decode('utf-8').lower()
         return torrent
+
+    def get_info(self, validate=True, timeout=60, callback=None):
+        """
+        Download the torrent's "info" section
+
+        Try the following sources in this order: :attr:`xs`, :attr:`as`,
+        :attr:`tr`
+
+        :meth:`torrent` can only return a complete torrent if this method is
+        called first.
+
+        :param validate: Whether to ensure the downloaded "info" section is
+            valid
+        :param timeout: Give up after this many seconds
+        :type timeout: int, float
+        :param callback callable: Callable that is called with a
+            :class:`TorfError` instance if a source is specified but fails
+
+        :return: ``True`` if the "info" section was successfully downloaded,
+            ``False`` otherwise
+        """
+        start = time.monotonic()
+        success = lambda: hasattr(self, '_info')
+
+        if self.xs:
+            xs_timeout = timeout - (time.monotonic() - start)
+            try:
+                torrent = utils.download(self.xs, timeout=xs_timeout)
+            except error.ConnectionError as e:
+                if callback:
+                    callback(e)
+            else:
+                self._set_info_from_torrent(torrent, validate, callback)
+
+        if not success() and self.as_:
+            as_timeout = timeout - (time.monotonic() - start)
+            try:
+                torrent = utils.download(self.as_, timeout=as_timeout)
+            except error.ConnectionError as e:
+                if callback:
+                    callback(e)
+            else:
+                self._set_info_from_torrent(torrent, validate, callback)
+
+        return success()
+
+    def _set_info_from_torrent(self, torrent_data, validate, callback):
+        """Extract "info" section from `torrent_data` for :meth:`torrent`"""
+        # Prevent circular import issues
+        from ._torrent import Torrent
+        stream = io.BytesIO(torrent_data)
+        try:
+            torrent = Torrent.read_stream(stream, validate=validate)
+        except error.TorfError as e:
+            if callback:
+                callback(e)
+        else:
+            if torrent.metainfo['info']:
+                self._info = torrent.metainfo['info']
 
     _KNOWN_PARAMETERS = ('xt', 'dn', 'xl', 'tr', 'xs', 'as', 'ws', 'kt')
     @classmethod

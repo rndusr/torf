@@ -1,10 +1,13 @@
 import torf
 
 import pytest
+from unittest import mock
 import base64
 import hashlib
 from urllib.parse import quote_plus
+import time
 
+from . import ComparableException
 
 @pytest.fixture
 def hash16():
@@ -337,3 +340,142 @@ def test_repr(xt):
                        "ws=['http://webseed/url/file.content'], "
                        "kt=['keyword1', 'keyword2'], "
                        "x_foo='some', x_bar='junk')")
+
+def test_getting_info__xs_fails__as_fails(generated_singlefile_torrent):
+    torrent = generated_singlefile_torrent
+    magnet = torf.Magnet(torrent.infohash,
+                         xs='http://xs.foo:123/torrent', as_='http://as.foo:123/torrent',
+                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is False
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Name or service not known'))),
+                 mock.call(ComparableException(torf.ConnectionError('http://as.foo:123/torrent', 'Name or service not known')))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == {}
+    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
+
+def test_getting_info__xs_succeeds__as_fails(generated_singlefile_torrent, httpserver):
+    torrent = generated_singlefile_torrent
+    magnet = torf.Magnet(torrent.infohash,
+                         xs=httpserver.url_for('/torrent'), as_='http://as.foo:123/torrent',
+                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+    httpserver.expect_request('/torrent').respond_with_data(torrent.dump())
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is True
+    assert cb.call_args_list == []
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == torrent.metainfo['info']
+    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
+
+def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver):
+    torrent = generated_singlefile_torrent
+    magnet = torf.Magnet(torrent.infohash,
+                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'),
+                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+    httpserver.expect_request('/torrent').respond_with_data(torrent.dump())
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is True
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Name or service not known')))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == torrent.metainfo['info']
+    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
+
+def test_getting_info__xs_returns_invalid_bytes(generated_singlefile_torrent, httpserver):
+    torrent = generated_singlefile_torrent
+    magnet = torf.Magnet(torrent.infohash,
+                         xs=httpserver.url_for('/torrent'), as_='http://as.foo:123/torrent',
+                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+    httpserver.expect_request('/torrent').respond_with_data(b'not bencoded bytes')
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is False
+    exp_calls = [mock.call(ComparableException(torf.BdecodeError())),
+                 mock.call(ComparableException(torf.ConnectionError('http://as.foo:123/torrent', 'Name or service not known')))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == {}
+    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
+
+def test_getting_info__as_returns_invalid_bytes(generated_singlefile_torrent, httpserver):
+    torrent = generated_singlefile_torrent
+    magnet = torf.Magnet(torrent.infohash,
+                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'),
+                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+    httpserver.expect_request('/torrent').respond_with_data(b'not bencoded bytes')
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is False
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Name or service not known'))),
+                 mock.call(ComparableException(torf.BdecodeError()))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == {}
+    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
+
+def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver, monkeypatch):
+    torrent = generated_singlefile_torrent
+    total_timeout = 100
+    now = 0.0
+    mock_time_monotonic = mock.MagicMock(return_value=now)
+    monkeypatch.setattr(time, 'monotonic', mock_time_monotonic)
+
+    def timed_out_download(url, *args, **kwargs):
+        # First download() call (xs) took almost all our available time
+        mock_time_monotonic.return_value = now + total_timeout - 1
+        # Remove mock for second download() call (as)
+        download_patch.stop()
+        raise torf.ConnectionError(url, 'Nope')
+    download_patch = mock.patch('torf._utils.download', timed_out_download)
+    download_patch.start()
+
+    httpserver.expect_request('/as.torrent').respond_with_data(torrent.dump())
+    magnet = torf.Magnet(torrent.infohash,
+                         xs='http://xs.foo:123/torrent',
+                         as_=httpserver.url_for('/as.torrent'))
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb, timeout=total_timeout) is True
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Nope')))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == torrent.metainfo['info']
+
+def test_getting_info__xs_times_out(generated_singlefile_torrent, monkeypatch):
+    torrent = generated_singlefile_torrent
+    total_timeout = 100
+    now = 0.0
+    mock_time_monotonic = mock.MagicMock(return_value=now)
+    monkeypatch.setattr(time, 'monotonic', mock_time_monotonic)
+
+    def timed_out_download(url, *args, **kwargs):
+        # First download() call (xs) took almost all our available time
+        mock_time_monotonic.return_value = now + total_timeout
+        # Remove mock for second download() call (as)
+        download_patch.stop()
+        raise torf.ConnectionError(url, 'Timed out (mocked)')
+    download_patch = mock.patch('torf._utils.download', timed_out_download)
+    download_patch.start()
+
+    magnet = torf.Magnet(torrent.infohash,
+                         xs='http://xs.foo:123/torrent',
+                         as_='http://as.foo:123/torrent')
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb, timeout=total_timeout) is False
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Timed out (mocked)'))),
+                 mock.call(ComparableException(torf.ConnectionError('http://as.foo:123/torrent', 'Timed out')))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == {}
