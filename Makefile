@@ -14,7 +14,7 @@ clean:
 
 venv:
 	"$(PYTHON)" -m venv "$(VENV_PATH)"
-	"$(VENV_PATH)"/bin/pip install --upgrade pytest pytest-xdist pytest-httpserver
+	"$(VENV_PATH)"/bin/pip install --upgrade wheel pytest pytest-xdist pytest-httpserver
 	"$(VENV_PATH)"/bin/pip install --editable .
 	"$(VENV_PATH)"/bin/pip install --editable ../torf-cli
 
