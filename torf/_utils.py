@@ -15,7 +15,11 @@
 import os
 import math
 import fnmatch
-from urllib.parse import urlparse
+import urllib.parse
+import urllib.request
+import urllib.error
+import http.client
+import socket
 from urllib.parse import quote_plus as urlquote
 import collections
 import abc
@@ -435,7 +439,7 @@ class Filepaths(MonitoredList):
 def is_url(url):
     """Return whether `url` is a valid URL"""
     try:
-        u = urlparse(url)
+        u = urllib.parse.urlparse(url)
         u.port  # Trigger 'invalid port' exception
     except Exception:
         return False
@@ -575,6 +579,28 @@ class Trackers(collections.abc.MutableSequence):
 
     def __repr__(self):
         return repr(self._tiers)
+
+
+def download(url, timeout=60):
+    """Read from URL and return the resulting data"""
+    if timeout <= 0:
+        raise error.ConnectionError(url, 'Timed out')
+    try:
+        response = urllib.request.urlopen(URL(url), timeout=timeout).read()
+    except urllib.error.URLError as e:
+        try:
+            msg = e.args[0].strerror
+        except (AttributeError, IndexError):
+            msg = e.strerror or 'Failed'
+        raise error.ConnectionError(url, msg)
+    except socket.timeout as e:
+        raise error.ConnectionError(url, 'Timed out')
+    except http.client.HTTPException:
+        raise error.ConnectionError(url, 'No HTTP response')
+    except (OSError, IOError):
+        raise error.ConnectionError(url, 'Unknown error')
+    else:
+        return response
 
 
 class Iterable(abc.ABC):

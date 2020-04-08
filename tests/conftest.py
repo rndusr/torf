@@ -404,3 +404,13 @@ def forced_piece_size(pytestconfig):
             yield piece_size
         torf.Torrent.piece_size_min = orig_piece_size_min
     return _forced_piece_size
+
+
+# https://stackoverflow.com/a/45690594
+import socket
+@pytest.fixture
+def free_port():
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]

@@ -716,3 +716,26 @@ def test_Trackers_replace():
     tiers.replace(('http://asdf', ('http://qux', 'http://quux'), 'http://qaax'))
     assert tiers == (['http://asdf'], ['http://qux', 'http://quux'], ['http://qaax'])
     assert cb.call_args_list == [mock.call(tiers)]
+
+
+def test_download_from_invalid_url():
+    with pytest.raises(torf.URLError) as excinfo:
+        utils.download('http://foo:bar')
+    assert str(excinfo.value) == 'http://foo:bar: Invalid URL'
+
+def test_download_from_unconnectable_url(free_port):
+    with pytest.raises(torf.ConnectionError) as excinfo:
+        utils.download(f'http://localhost:{free_port}')
+    assert str(excinfo.value) == f'http://localhost:{free_port}: Connection refused'
+
+def test_download_from_connectable_url(httpserver):
+    httpserver.expect_request('/foo').respond_with_data(b'bar')
+    assert utils.download(httpserver.url_for('/foo')) == b'bar'
+
+def test_download_with_zero_timeout(httpserver):
+    with pytest.raises(torf.ConnectionError) as excinfo:
+        utils.download('some/url', timeout=0)
+    assert str(excinfo.value) == 'some/url: Timed out'
+    with pytest.raises(torf.ConnectionError) as excinfo:
+        utils.download('some/url', timeout=-1)
+    assert str(excinfo.value) == 'some/url: Timed out'

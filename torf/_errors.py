@@ -291,3 +291,15 @@ class WriteError(TorfError):
         """POSIX error number from errno.h"""
         return self._errno
 
+
+class ConnectionError(TorfError):
+    """Unwritable file or stream"""
+    def __init__(self, url, msg='Failed'):
+        self._url = url
+        self._msg = str(msg)
+        super().__init__(f'{url}: {msg}', url, msg)
+
+    @property
+    def url(self):
+        """URL that caused the exception"""
+        return self._url
