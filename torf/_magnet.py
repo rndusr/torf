@@ -269,27 +269,21 @@ class Magnet():
         """
         start = time.monotonic()
         success = lambda: hasattr(self, '_info')
-
-        if self.xs:
-            xs_timeout = timeout - (time.monotonic() - start)
+        torrent_urls = []
+        if self.xs: torrent_urls.append(self.xs)
+        if self.as_: torrent_urls.append(self.as_)
+        torrent_urls.extend((url.rstrip('/') + '.torrent' for url in self.ws))
+        for url in torrent_urls:
+            to = timeout - (time.monotonic() - start)
             try:
-                torrent = utils.download(self.xs, timeout=xs_timeout)
+                torrent = utils.download(url, timeout=to)
             except error.ConnectionError as e:
                 if callback:
                     callback(e)
             else:
                 self._set_info_from_torrent(torrent, validate, callback)
-
-        if not success() and self.as_:
-            as_timeout = timeout - (time.monotonic() - start)
-            try:
-                torrent = utils.download(self.as_, timeout=as_timeout)
-            except error.ConnectionError as e:
-                if callback:
-                    callback(e)
-            else:
-                self._set_info_from_torrent(torrent, validate, callback)
-
+            if success() or to <= 0:
+                break
         return success()
 
     def _set_info_from_torrent(self, torrent_data, validate=True, callback=False):
