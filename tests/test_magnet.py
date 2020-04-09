@@ -6,6 +6,8 @@ import base64
 import hashlib
 from urllib.parse import quote_plus
 import time
+import urllib
+import binascii
 
 from . import ComparableException
 
@@ -367,8 +369,7 @@ def test_getting_info__unsupported_protocol(generated_singlefile_torrent):
 def test_getting_info__xs_fails__as_fails(generated_singlefile_torrent):
     torrent = generated_singlefile_torrent
     magnet = torf.Magnet(torrent.infohash,
-                         xs='http://xs.foo:123/torrent', as_='http://as.foo:123/torrent',
-                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+                         xs='http://xs.foo:123/torrent', as_='http://as.foo:123/torrent')
 
     cb = mock.MagicMock()
     assert magnet.get_info(callback=cb) is False
@@ -378,13 +379,11 @@ def test_getting_info__xs_fails__as_fails(generated_singlefile_torrent):
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
-    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
 
 def test_getting_info__xs_succeeds__as_fails(generated_singlefile_torrent, httpserver):
     torrent = generated_singlefile_torrent
     magnet = torf.Magnet(torrent.infohash,
-                         xs=httpserver.url_for('/torrent'), as_='http://as.foo:123/torrent',
-                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+                         xs=httpserver.url_for('/torrent'), as_='http://as.foo:123/torrent')
     httpserver.expect_request('/torrent').respond_with_data(torrent.dump())
 
     cb = mock.MagicMock()
@@ -393,13 +392,11 @@ def test_getting_info__xs_succeeds__as_fails(generated_singlefile_torrent, https
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == torrent.metainfo['info']
-    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
 
 def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver):
     torrent = generated_singlefile_torrent
     magnet = torf.Magnet(torrent.infohash,
-                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'),
-                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'))
     httpserver.expect_request('/torrent').respond_with_data(torrent.dump())
 
     cb = mock.MagicMock()
@@ -409,13 +406,11 @@ def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, https
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == torrent.metainfo['info']
-    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
 
 def test_getting_info__xs_returns_invalid_bytes(generated_singlefile_torrent, httpserver):
     torrent = generated_singlefile_torrent
     magnet = torf.Magnet(torrent.infohash,
-                         xs=httpserver.url_for('/torrent'), as_='http://as.foo:123/torrent',
-                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+                         xs=httpserver.url_for('/torrent'), as_='http://as.foo:123/torrent')
     httpserver.expect_request('/torrent').respond_with_data(b'not bencoded bytes')
 
     cb = mock.MagicMock()
@@ -426,13 +421,11 @@ def test_getting_info__xs_returns_invalid_bytes(generated_singlefile_torrent, ht
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
-    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
 
 def test_getting_info__as_returns_invalid_bytes(generated_singlefile_torrent, httpserver):
     torrent = generated_singlefile_torrent
     magnet = torf.Magnet(torrent.infohash,
-                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'),
-                         tr=['http://tr1/torrent', 'http://tr2/torrent'])
+                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'))
     httpserver.expect_request('/torrent').respond_with_data(b'not bencoded bytes')
 
     cb = mock.MagicMock()
@@ -443,7 +436,6 @@ def test_getting_info__as_returns_invalid_bytes(generated_singlefile_torrent, ht
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
-    assert torrent_.trackers == [['http://tr1/torrent'], ['http://tr2/torrent']]
 
 def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver, monkeypatch):
     torrent = generated_singlefile_torrent
@@ -503,11 +495,24 @@ def test_getting_info__xs_times_out(generated_singlefile_torrent, monkeypatch):
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
 
-def test_getting_info__ws(generated_multifile_torrent, httpserver):
+def test_getting_info_from_ws(generated_multifile_torrent, httpserver):
     torrent = generated_multifile_torrent
     magnet = torf.Magnet(torrent.infohash, ws=[httpserver.url_for('/bar//')])
 
     httpserver.expect_request('/bar.torrent').respond_with_data(torrent.dump())
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is True
+    assert cb.call_args_list == []
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == torrent.metainfo['info']
+
+def test_getting_info_from_tr(generated_multifile_torrent, httpserver):
+    torrent = generated_multifile_torrent
+    magnet = torf.Magnet(torrent.infohash, tr=[httpserver.url_for('/announce')])
+
+    infohash_enc = urllib.parse.quote_from_bytes(binascii.unhexlify(torrent.infohash))
+    httpserver.expect_request(f'/file', query_string=f'info_hash={infohash_enc}').respond_with_data(torrent.dump())
     cb = mock.MagicMock()
     assert magnet.get_info(callback=cb) is True
     assert cb.call_args_list == []

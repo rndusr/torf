@@ -18,6 +18,7 @@ import urllib
 from collections import defaultdict
 import time
 import io
+import binascii
 
 from . import _utils as utils
 from . import _errors as error
@@ -273,6 +274,14 @@ class Magnet():
         if self.xs: torrent_urls.append(self.xs)
         if self.as_: torrent_urls.append(self.as_)
         torrent_urls.extend((url.rstrip('/') + '.torrent' for url in self.ws))
+        # I couldn't find any documentation for the "/file?info_hash=..." GET request, but
+        # it seems to work for HTTP trackers.
+        # https://stackoverflow.com/a/1019588
+        for url in self.tr:
+            if url.scheme in ('http', 'https'):
+                infohash_enc = urllib.parse.quote_from_bytes(binascii.unhexlify(self.infohash))
+                torrent_urls.append(f'{url.scheme}://{url.netloc}/file?info_hash={infohash_enc}')
+
         for url in torrent_urls:
             to = timeout - (time.monotonic() - start)
             try:
@@ -284,6 +293,7 @@ class Magnet():
                 self._set_info_from_torrent(torrent, validate, callback)
             if success() or to <= 0:
                 break
+
         return success()
 
     def _set_info_from_torrent(self, torrent_data, validate=True, callback=False):
