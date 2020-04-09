@@ -453,6 +453,25 @@ class URL(str):
         url = str(url)
         if not is_url(url):
             raise error.URLError(url)
+        else:
+            self._parsed = urllib.parse.urlparse(url)
+
+    @property
+    def scheme(self): return self._parsed.scheme
+    @property
+    def netloc(self): return self._parsed.netloc
+    @property
+    def hostname(self): return self._parsed.hostname
+    @property
+    def port(self): return self._parsed.port
+    @property
+    def path(self): return self._parsed.path
+    @property
+    def params(self): return self._parsed.params
+    @property
+    def query(self): return self._parsed.query
+    @property
+    def fragment(self): return self._parsed.fragment
 
 class URLs(MonitoredList):
     """Auto-flattening list of `:class:URL` objects with change callback"""
