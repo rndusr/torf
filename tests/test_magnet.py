@@ -341,6 +341,29 @@ def test_repr(xt):
                        "kt=['keyword1', 'keyword2'], "
                        "x_foo='some', x_bar='junk')")
 
+def test_setting_info_with_wrong_infohash(generated_singlefile_torrent, generated_multifile_torrent):
+    magnet = torf.Magnet(generated_singlefile_torrent.infohash)
+
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        magnet._set_info_from_torrent(generated_multifile_torrent.dump(), validate=True)
+    assert str(excinfo.value) == ('Invalid metainfo: Mismatching info hashes: '
+                                  f'{generated_singlefile_torrent.infohash} != {generated_multifile_torrent.infohash}')
+
+    magnet._set_info_from_torrent(generated_multifile_torrent.dump(), validate=False)
+    assert magnet._info == generated_multifile_torrent.metainfo['info']
+
+def test_getting_info__unsupported_protocol(generated_singlefile_torrent):
+    torrent = generated_singlefile_torrent
+    magnet = torf.Magnet(torrent.infohash, xs='asdf://xs.foo:123/torrent')
+
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is False
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('asdf://xs.foo:123/torrent', 'Unsupported protocol')))]
+    assert cb.call_args_list == exp_calls
+
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == {}
+
 def test_getting_info__xs_fails__as_fails(generated_singlefile_torrent):
     torrent = generated_singlefile_torrent
     magnet = torf.Magnet(torrent.infohash,
@@ -480,13 +503,14 @@ def test_getting_info__xs_times_out(generated_singlefile_torrent, monkeypatch):
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
 
-def test_setting_info_with_wrong_infohash(generated_singlefile_torrent, generated_multifile_torrent):
-    magnet = torf.Magnet(generated_singlefile_torrent.infohash)
+def test_getting_info__ws(generated_multifile_torrent, httpserver):
+    torrent = generated_multifile_torrent
+    magnet = torf.Magnet(torrent.infohash, ws=[httpserver.url_for('/bar//')])
 
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        magnet._set_info_from_torrent(generated_multifile_torrent.dump(), validate=True)
-    assert str(excinfo.value) == ('Invalid metainfo: Mismatching info hashes: '
-                                  f'{generated_singlefile_torrent.infohash} != {generated_multifile_torrent.infohash}')
+    httpserver.expect_request('/bar.torrent').respond_with_data(torrent.dump())
+    cb = mock.MagicMock()
+    assert magnet.get_info(callback=cb) is True
+    assert cb.call_args_list == []
 
-    magnet._set_info_from_torrent(generated_multifile_torrent.dump(), validate=False)
-    assert magnet._info == generated_multifile_torrent.metainfo['info']
+    torrent_ = magnet.torrent()
+    assert torrent_.metainfo['info'] == torrent.metainfo['info']
