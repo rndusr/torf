@@ -479,3 +479,14 @@ def test_getting_info__xs_times_out(generated_singlefile_torrent, monkeypatch):
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
+
+def test_setting_info_with_wrong_infohash(generated_singlefile_torrent, generated_multifile_torrent):
+    magnet = torf.Magnet(generated_singlefile_torrent.infohash)
+
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        magnet._set_info_from_torrent(generated_multifile_torrent.dump(), validate=True)
+    assert str(excinfo.value) == ('Invalid metainfo: Mismatching info hashes: '
+                                  f'{generated_singlefile_torrent.infohash} != {generated_multifile_torrent.infohash}')
+
+    magnet._set_info_from_torrent(generated_multifile_torrent.dump(), validate=False)
+    assert magnet._info == generated_multifile_torrent.metainfo['info']

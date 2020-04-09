@@ -292,7 +292,7 @@ class Magnet():
 
         return success()
 
-    def _set_info_from_torrent(self, torrent_data, validate, callback):
+    def _set_info_from_torrent(self, torrent_data, validate=True, callback=False):
         """Extract "info" section from `torrent_data` for :meth:`torrent`"""
         # Prevent circular import issues
         from ._torrent import Torrent
@@ -303,7 +303,9 @@ class Magnet():
             if callback:
                 callback(e)
         else:
-            if torrent.metainfo['info']:
+            if validate and self.infohash != torrent.infohash:
+                raise error.MetainfoError(f'Mismatching info hashes: {self.infohash} != {torrent.infohash}')
+            elif torrent.metainfo['info']:
                 self._info = torrent.metainfo['info']
 
     _KNOWN_PARAMETERS = ('xt', 'dn', 'xl', 'tr', 'xs', 'as', 'ws', 'kt')
