@@ -582,9 +582,21 @@ class Trackers(collections.abc.MutableSequence):
 
 
 def download(url, timeout=60):
-    """Read from URL and return the resulting data"""
+    """
+    Download data from URL
+
+    :raises ConnectionError: if the download fails
+
+    :return: the downloaded data or ``None`` if the protocol is not supported
+    """
     if timeout <= 0:
         raise error.ConnectionError(url, 'Timed out')
+    elif url.startswith('http'):
+        return download_http(url, timeout=timeout)
+    else:
+        raise error.ConnectionError(url, 'Unsupported protocol')
+
+def download_http(url, timeout=60):
     try:
         response = urllib.request.urlopen(URL(url), timeout=timeout).read()
     except urllib.error.URLError as e:

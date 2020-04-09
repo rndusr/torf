@@ -723,6 +723,11 @@ def test_download_from_invalid_url():
         utils.download('http://foo:bar')
     assert str(excinfo.value) == 'http://foo:bar: Invalid URL'
 
+def test_download_from_url_with_unsupported_protocol():
+    with pytest.raises(torf.ConnectionError) as excinfo:
+        utils.download('asdf://foo:bar')
+    assert str(excinfo.value) == 'asdf://foo:bar: Unsupported protocol'
+
 def test_download_from_unconnectable_url(free_port):
     with pytest.raises(torf.ConnectionError) as excinfo:
         utils.download(f'http://localhost:{free_port}')
