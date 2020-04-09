@@ -591,7 +591,7 @@ def download(url, timeout=60):
     """
     if timeout <= 0:
         raise error.ConnectionError(url, 'Timed out')
-    elif url.startswith('http'):
+    elif url.startswith('http://') or url.startswith('https://'):
         return download_http(url, timeout=timeout)
     else:
         raise error.ConnectionError(url, 'Unsupported protocol')
