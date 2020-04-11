@@ -776,12 +776,14 @@ class Torrent():
         """
         Whether torrent should use trackers exclusively for peer discovery
 
-        Setting this property to ``None`` removes ``private`` from
-        :attr:`metainfo`\ ``['info']``.  Otherwise,
-        :attr:`metainfo`\ ``['info']``\ ``['private']`` is set to a
-        :class:`bool`.
+        ``True`` or ``False`` if
+        :attr:`metainfo`\ ``['info']``\ ``['private']`` exists, ``None``
+        otherwise.
         """
-        return bool(self.metainfo['info'].get('private', False))
+        if 'private' in self.metainfo['info']:
+            return bool(self.metainfo['info']['private'])
+        else:
+            return None
     @private.setter
     def private(self, value):
         if value is None:

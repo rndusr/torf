@@ -1019,7 +1019,7 @@ def test_httpseeds__addition(create_torrent):
 
 def test_leaving_private_unset_does_not_include_it_in_metainfo(create_torrent):
     torrent = create_torrent()
-    assert torrent.private is False
+    assert torrent.private is None
     assert 'private' not in torrent.metainfo['info']
 
 def test_setting_private_always_includes_it_in_metainfo(create_torrent):
@@ -1035,7 +1035,7 @@ def test_setting_private_to_None_removes_it_from_metainfo(create_torrent):
         torrent = create_torrent(private=private)
         assert torrent.private is private
         torrent.private = None
-        assert torrent.private is False
+        assert torrent.private is None
         assert 'private' not in torrent.metainfo['info']
 
 def test_setting_private_enforces_boolean_values(create_torrent):
