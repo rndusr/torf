@@ -1,3 +1,9 @@
+2020-??-?? 3.?.?
+  - Bugfix: Magnet.from_string() raised ValueError instead of MagnetError if the
+    "xl" parameter wasn't a number.
+  - Bugfix: Magnet.kt used commas to separate keywords. (I don't know why.)
+
+
 2020-04-07 3.0.1
   - Make things work with Python 3.6.
   - Magnet.as_torrent is now a method called Magnet.torrent().
