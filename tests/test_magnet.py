@@ -149,10 +149,13 @@ def test_ws(xt):
 def test_kt(xt):
     m = torf.Magnet(xt, kt=('that', 'thing'))
     assert m.kt == ['that', 'thing']
-    assert str(m) == f'magnet:?xt={xt}&kt=that,thing'
+    assert str(m) == f'magnet:?xt={xt}&kt=that+thing'
     m.kt = ('that', 'other', 'thing')
     assert m.kt == ['that', 'other', 'thing']
-    assert str(m) == f'magnet:?xt={xt}&kt=that,other,thing'
+    assert str(m) == f'magnet:?xt={xt}&kt=that+other+thing'
+    with pytest.raises(torf.MagnetError) as excinfo:
+        m.kt = 17
+    assert str(excinfo.value) == '17: Invalid keyword topic ("kt")'
 
 def test_x(xt):
     m = torf.Magnet(xt, x_foo='asdf', x_bar=(1, 2, 3))
@@ -185,7 +188,7 @@ def test_from_string(hash32):
                                 '&xs=http://source.example.com/'
                                 '&as=http://asource.example.com/'
                                 '&ws=http://webseed1.example.com/&ws=http://webseed2.example.com/'
-                                '&kt=one,two,three')
+                                '&kt=one+two+three')
     assert m.xt == f'urn:btih:{hash32(b"asdf")}'
     assert m.dn == 'Some Name'
     assert m.xl == 123456
@@ -246,8 +249,8 @@ def test_from_string_with_multiple_as_parameters(xt, hash16, hash32):
 
 def test_from_string_with_multiple_kt_parameters(xt, hash16, hash32):
     uri = (f'magnet:?xt={xt}'
-           '&kt=a,b,c'
-           '&kt=1,2,5')
+           '&kt=a+b+c'
+           '&kt=1+2+5')
     with pytest.raises(torf.MagnetError) as excinfo:
         torf.Magnet.from_string(uri)
     assert str(excinfo.value) == f'{uri}: Multiple keyword topics ("kt")'

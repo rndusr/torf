@@ -15,7 +15,7 @@
 import base64
 import re
 import urllib
-from collections import defaultdict
+from collections import defaultdict, abc
 import time
 import io
 import binascii
@@ -214,7 +214,14 @@ class Magnet():
         return self._kt
     @kt.setter
     def kt(self, value):
-        self._kt = [str(v) for v in value] if value is not None else None
+        if value is None:
+            self._kt = []
+        elif isinstance(value, str):
+            self._kt = [value]
+        elif isinstance(value, abc.Iterable):
+            self._kt = [str(v) for v in value] if value is not None else None
+        else:
+            raise error.MagnetError(value, 'Invalid keyword topic ("kt")')
 
     @property
     def x(self):
@@ -340,16 +347,16 @@ class Magnet():
             self = cls(xt=query['xt'][0])
 
         # Parameters that accept only one value
-        for param,attr,name in (('dn', 'dn', 'display name'),
-                                ('xl', 'xl', 'exact length'),
-                                ('xs', 'xs', 'exact source'),
-                                ('as', 'as_', 'acceptable source'),
-                                ('kt', 'kt', 'keyword topic')):
+        for param,attr,name,parse in (('dn', 'dn', 'display name', lambda v: v),
+                                      ('xl', 'xl', 'exact length', lambda v: v),
+                                      ('xs', 'xs', 'exact source', lambda v: v),
+                                      ('as', 'as_', 'acceptable source', lambda v: v),
+                                      ('kt', 'kt', 'keyword topic', lambda v: v.split())):
             if param in query:
                 if len(query[param]) > 1:
                     raise error.MagnetError(uri, f'Multiple {name}s ("{param}")')
                 else:
-                    setattr(self, attr, query[param][0])
+                    setattr(self, attr, parse(query[param][0]))
 
         # Parameters that accept multiple values
         for param,name in (('tr', 'tracker'),
@@ -370,8 +377,8 @@ class Magnet():
                 else:
                     uri.append(f'{key}={value}')
 
-        if self.kt is not None:
-            uri.append(f'kt={",".join(utils.urlquote(k) for k in self.kt)}')
+        if self.kt:
+            uri.append(f'kt={"+".join(utils.urlquote(k) for k in self.kt)}')
 
         for key in ('tr', 'ws'):
             seq = getattr(self, f'{key}')
