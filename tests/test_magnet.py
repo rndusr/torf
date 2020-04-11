@@ -255,6 +255,44 @@ def test_from_string_with_multiple_kt_parameters(xt, hash16, hash32):
         torf.Magnet.from_string(uri)
     assert str(excinfo.value) == f'{uri}: Multiple keyword topics ("kt")'
 
+
+def test_from_string_with_invalid_xt_parameter():
+    uri = 'magnet:?xt=foo'
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'foo: Invalid exact topic ("xt")'
+
+def test_from_string_with_invalid_xl_parameter(xt):
+    uri = f'magnet:?xt={xt}&xl=nan'
+    with pytest.raises(torf.MagnetError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'nan: Invalid exact length ("xl")'
+
+def test_from_string_with_invalid_tr_parameter(xt):
+    uri = f'magnet:?xt={xt}&tr=not+a+URL'
+    with pytest.raises(torf.URLError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'not a URL: Invalid URL'
+
+def test_from_string_with_invalid_xs_parameter(xt):
+    uri = f'magnet:?xt={xt}&xs=not+a+URL'
+    with pytest.raises(torf.URLError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'not a URL: Invalid URL'
+
+def test_from_string_with_invalid_as_parameter(xt):
+    uri = f'magnet:?xt={xt}&as=not+a+URL'
+    with pytest.raises(torf.URLError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'not a URL: Invalid URL'
+
+def test_from_string_with_invalid_ws_parameter(xt):
+    uri = f'magnet:?xt={xt}&ws=not+a+URL'
+    with pytest.raises(torf.URLError) as excinfo:
+        torf.Magnet.from_string(uri)
+    assert str(excinfo.value) == f'not a URL: Invalid URL'
+
+
 def test_from_torrent(singlefile_content, multifile_content):
     for content in singlefile_content, multifile_content:
         t = torf.Torrent(content.path,
