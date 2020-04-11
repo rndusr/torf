@@ -318,7 +318,8 @@ class Magnet():
         """
         Create :class:`Magnet` URI from string
 
-        :raises MagnetError: if :attr:`uri` is not a valid magnet URI
+        :raises URLError: if `uri` contains an invalid URL (e.g. :attr:`tr`)
+        :raises MagnetError: if `uri` is not a valid magnet URI
         """
         info = urllib.parse.urlparse(uri, scheme='magnet', allow_fragments=False)
         if not info.scheme == 'magnet':
@@ -339,16 +340,16 @@ class Magnet():
             self = cls(xt=query['xt'][0])
 
         # Parameters that accept only one value
-        for param,attr,name,typ in (('dn', 'dn', 'display name', str),
-                                    ('xl', 'xl', 'exact length', int),
-                                    ('xs', 'xs', 'exact source', utils.URL),
-                                    ('as', 'as_', 'acceptable source', utils.URL),
-                                    ('kt', 'kt', 'keyword topic', lambda s: s.split(','))):
+        for param,attr,name in (('dn', 'dn', 'display name'),
+                                ('xl', 'xl', 'exact length'),
+                                ('xs', 'xs', 'exact source'),
+                                ('as', 'as_', 'acceptable source'),
+                                ('kt', 'kt', 'keyword topic')):
             if param in query:
                 if len(query[param]) > 1:
                     raise error.MagnetError(uri, f'Multiple {name}s ("{param}")')
                 else:
-                    setattr(self, attr, typ(query[param][0]))
+                    setattr(self, attr, query[param][0])
 
         # Parameters that accept multiple values
         for param,name in (('tr', 'tracker'),
