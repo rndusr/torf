@@ -45,6 +45,7 @@ class Magnet():
         | https://en.wikipedia.org/wiki/Magnet_URL
         | http://magnet-uri.sourceforge.net/magnet-draft-overview.txt
         | https://wiki.theory.org/index.php/BitTorrent_Magnet-URI_Webseeding
+        | http://shareaza.sourceforge.net/mediawiki/index.php/Magnet_URI_scheme
     """
 
     _INFOHASH_REGEX = re.compile(r'^[0-9a-f]{40}|[a-z2-7]{32}$', flags=re.IGNORECASE)
