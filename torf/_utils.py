@@ -622,7 +622,9 @@ def download_http(url, timeout=60):
         try:
             msg = e.args[0].strerror
         except (AttributeError, IndexError):
-            msg = e.strerror or 'Failed'
+            msg = (getattr(e, 'msg', None) or
+                   getattr(e, 'strerror', None) or
+                   'Failed')
         raise error.ConnectionError(url, msg)
     except socket.timeout as e:
         raise error.ConnectionError(url, 'Timed out')
