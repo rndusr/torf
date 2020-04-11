@@ -137,7 +137,7 @@ class Magnet():
             try:
                 value = int(value)
             except ValueError:
-                raise error.MagnetError(value, 'Invalid exact length')
+                raise error.MagnetError(value, 'Invalid exact length ("xl")')
             else:
                 if value < 1:
                     raise error.MagnetError(value, 'Must be 1 or larger')

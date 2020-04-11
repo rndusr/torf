@@ -86,7 +86,7 @@ def test_xl(xt):
     assert str(m) == f'magnet:?xt={xt}&xl=456'
     with pytest.raises(torf.MagnetError) as excinfo:
         m.xl = 'foo'
-    assert str(excinfo.value) == 'foo: Invalid exact length'
+    assert str(excinfo.value) == 'foo: Invalid exact length ("xl")'
     with pytest.raises(torf.MagnetError) as excinfo:
         m.xl = -123
     assert str(excinfo.value) == '-123: Must be 1 or larger'
