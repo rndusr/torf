@@ -449,8 +449,10 @@ def is_url(url):
         return True
 
 class URL(str):
+    def __new__(cls, s):
+        return super().__new__(cls, str(s).replace(' ', '+'))
+
     def __init__(self, url):
-        url = str(url)
         if not is_url(url):
             raise error.URLError(url)
         else:
