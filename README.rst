@@ -16,14 +16,15 @@ Features
   reading an existing ``.torrent`` file
 - High-level access to standard metainfo fields via properties
 - Low-level access to arbitrary metainfo fields via ``metainfo`` property
-- Optional metainfo validation with helpful error messages after reading and
-  before creating torrents
-- Generate a ``.torrent`` file from a `BTIH magnet link
-  <https://en.wikipedia.org/wiki/Magnet_link#BitTorrent_info_hash_(BTIH)>`_
+- Optional metainfo validation with helpful error messages
+- Generate a `BTIH magnet URI
+  <https://en.wikipedia.org/wiki/Magnet_URI_scheme>`_ from a ``.torrent`` file
+  (the reverse is also possible but the resulting torrent is incomplete due to
+  the lack of information in magnet URIs)
 - Check if a file system path contains everything an existing ``.torrent`` file
   needs
 - Use multiple CPU cores to compute piece hashes
-- Randomize the metainfo hash to help with cross-seeding
+- Randomize the info hash to help with cross-seeding
 
 Example
 -------
