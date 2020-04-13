@@ -329,7 +329,7 @@ class Magnet():
         :raises URLError: if `uri` contains an invalid URL (e.g. :attr:`tr`)
         :raises MagnetError: if `uri` is not a valid magnet URI
         """
-        info = urllib.parse.urlparse(uri, scheme='magnet', allow_fragments=False)
+        info = urllib.parse.urlparse(uri.strip(), scheme='magnet', allow_fragments=False)
         if not info.scheme == 'magnet':
             raise error.MagnetError(uri, 'Not a magnet URI')
         else:

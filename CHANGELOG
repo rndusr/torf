@@ -1,6 +1,8 @@
 2020-??-?? 3.?.?
   - Bugfix: Magnet.from_string() raised ValueError instead of MagnetError if the
     "xl" parameter wasn't a number.
+  - Bugfix: Magnet.from_string() strips whitespace from the beginning and end
+    before parsing the URI.
   - Bugfix: Magnet.kt used commas to separate keywords. (I don't know why.)
   - Torrent.private is now None instead of False if there is no "private" field
     in the "info" section of the metainfo.
