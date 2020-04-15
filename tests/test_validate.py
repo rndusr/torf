@@ -4,6 +4,15 @@ import pytest
 import os
 
 
+def test_wrong_info_type(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    for typ in (bytearray, list, tuple):
+        t.metainfo['info'] = typ()
+        with pytest.raises(torf.MetainfoError) as excinfo:
+            t.validate()
+        assert str(excinfo.value) == (f"Invalid metainfo: ['info'] "
+                                      f"must be dict, not {typ.__qualname__}: {t.metainfo['info']}")
+
 def test_length_and_files_in_info(generated_multifile_torrent):
     t = generated_multifile_torrent
     t.metainfo['info']['length'] = 123

@@ -1269,6 +1269,7 @@ class Torrent():
         info = md['info']
 
         # Check values shared by singlefile and multifile torrents
+        utils.assert_type(md, ('info',), (dict,), must_exist=True)
         utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True,
                           check=utils.is_power_of_2)
