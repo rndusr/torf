@@ -712,8 +712,8 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
         else:
             exp_types_str = ' or '.join(t.__name__ for t in exp_types)
         type_str = type(obj[key]).__name__
-        raise error.MetainfoError(f"{keychain_str}[{key!r}] must be {exp_types_str}, "
-                                  f"not {type_str}: {obj[key]!r}")
+        raise error.MetainfoError(f'{keychain_str}[{key!r}] must be {exp_types_str}, '
+                                  f'not {type_str}: {obj[key]!r}')
 
     elif check is not None and not check(obj[key]):
         raise error.MetainfoError(f"{keychain_str}[{key!r}] is invalid: {obj[key]!r}")
