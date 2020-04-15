@@ -1258,9 +1258,9 @@ class Torrent():
         Check if all mandatory keys exist in :attr:`metainfo` and all standard keys
         have correct types
 
-        The necessary values are documented here:
-        http://bittorrent.org/beps/bep_0003.html
-        https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
+        References:
+          | http://bittorrent.org/beps/bep_0003.html
+          | https://wiki.theory.org/index.php/BitTorrentSpecification#Metainfo_File_Structure
 
         :raises MetainfoError: if :attr:`metainfo` would not generate a valid
             torrent file or magnet link
