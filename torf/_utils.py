@@ -677,8 +677,8 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
     :param keys: Sequence of keys so that ``obj[key[0]][key[1]]...`` resolves to
         a value
     :type obj: sequence
-    :param exp_types: Sequence of types that the value specified by `keys` must
-        be an instance of
+    :param exp_types: Sequence of allowed types that the value specified by
+        `keys` must be an instance of
     :type obj: sequence
     :param bool must_exist: Whether to raise MetainfoError if `keys` does not
          resolve to a value
