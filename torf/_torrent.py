@@ -1472,6 +1472,10 @@ class Torrent():
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
             instance
 
+            NOTE: If the "info" field is not a dictionary,
+                  :class:`MetainfoError` is raised even if `validate` is set to
+                  False
+
         :raises ReadError: if reading from `stream` fails
         :raises BdecodeError: if `stream` does not produce a valid bencoded byte
             sequence
@@ -1493,22 +1497,21 @@ class Torrent():
                 if not isinstance(metainfo_enc, abc.Mapping):
                     raise error.BdecodeError()
 
-            if validate:
-                if b'info' not in metainfo_enc:
-                    raise error.MetainfoError("Missing 'info'")
-                elif not isinstance(metainfo_enc[b'info'], abc.Mapping):
-                    raise error.MetainfoError("'info' is not a dictionary")
-                elif b'pieces' not in metainfo_enc[b'info']:
-                    raise error.MetainfoError("Missing 'pieces' in ['info']")
-
-            # Extract 'pieces' from metainfo because it's the only byte sequence
-            # that isn't supposed to be decoded to unicode.
-            if b'info' in metainfo_enc and b'pieces' in metainfo_enc[b'info']:
+            # Extract 'pieces' from metainfo before decoding because it's the
+            # only byte sequence that isn't supposed to be decoded to a string.
+            if (b'info' in metainfo_enc and
+                isinstance(metainfo_enc[b'info'], dict) and
+                b'pieces' in metainfo_enc[b'info']):
                 pieces = metainfo_enc[b'info'].pop(b'pieces')
                 metainfo = utils.decode_dict(metainfo_enc)
                 metainfo['info']['pieces'] = pieces
             else:
                 metainfo = utils.decode_dict(metainfo_enc)
+
+            # "info" must be a dictionary.  If validation is not wanted, it's OK
+            # if it doesn't exist because the "metainfo" property will add
+            # automatically.
+            utils.assert_type(metainfo, ('info',), (dict,), must_exist=validate)
 
             torrent = cls()
             torrent._metainfo = metainfo

@@ -1,6 +1,6 @@
 2020-??-?? 3.?.?
-  - Bugfix: Torrent.validate() raises the proper exception if the "info" field
-    is not a dictionary.
+  - Bugfix: Torrent.validate() and Torrent.read_stream() raise MetainfoError if
+    the "info" field is not a dictionary.
   - Bugfix: Magnet.from_string() raised ValueError instead of MagnetError if the
     "xl" parameter wasn't a number.
   - Bugfix: Magnet.from_string() strips whitespace from the beginning and end

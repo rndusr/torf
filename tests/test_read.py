@@ -27,12 +27,12 @@ def test_unreadable_stream():
 
 
 def test_validate_when_reading_stream(valid_singlefile_metainfo):
-    del valid_singlefile_metainfo[b'info']
+    del valid_singlefile_metainfo[b'info'][b'name']
     fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
 
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
-    assert excinfo.match(f"^Invalid metainfo: Missing 'info'$")
+    assert excinfo.match(rf"^Invalid metainfo: Missing 'name' in \['info'\]$")
     fo.seek(0)
     t = torf.Torrent.read_stream(fo, validate=False)
     assert isinstance(t, torf.Torrent)
@@ -83,26 +83,39 @@ def test_multiple_trackers(valid_singlefile_metainfo):
                           in valid_singlefile_metainfo[b'announce-list']]
 
 
-def test_validate_missing_info():
-    data = OrderedDict([
-        (b'foo', b'bar'),
-    ])
-    fo = io.BytesIO(bencode.encode(data))
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        torf.Torrent.read_stream(fo, validate=True)
-    assert excinfo.match("^Invalid metainfo: Missing 'info'$")
+def test_validate_nondict():
+    data = b'3:foo'
+    with pytest.raises(torf.BdecodeError) as excinfo:
+        torf.Torrent.read_stream(io.BytesIO(data), validate=True)
+    assert excinfo.match("^Invalid metainfo format$")
 
+    with pytest.raises(torf.BdecodeError) as excinfo:
+        torf.Torrent.read_stream(io.BytesIO(data), validate=False)
+    assert excinfo.match("^Invalid metainfo format$")
+
+def test_validate_missing_info():
+    data = OrderedDict([(b'foo', b'bar')])
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        torf.Torrent.read_stream(io.BytesIO(bencode.encode(data)), validate=True)
+    assert excinfo.match(r"^Invalid metainfo: Missing 'info'$")
+
+    t = torf.Torrent.read_stream(io.BytesIO(bencode.encode(data)), validate=False)
+    assert t.metainfo == {'foo': 'bar', 'info': {}}
 
 def test_validate_info_not_a_dictionary():
     data = OrderedDict([(b'info', 1)])
-    fo = io.BytesIO(bencode.encode(data))
-    with pytest.raises(torf.MetainfoError) as excinfo:
-        torf.Torrent.read_stream(fo, validate=True)
-    assert excinfo.match("^Invalid metainfo: 'info' is not a dictionary$")
 
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        torf.Torrent.read_stream(io.BytesIO(bencode.encode(data)), validate=True)
+    assert excinfo.match(r"^Invalid metainfo: \['info'\] must be dict, not int: 1$")
+
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t = torf.Torrent.read_stream(io.BytesIO(bencode.encode(data)), validate=False)
+    assert excinfo.match(r"^Invalid metainfo: \['info'\] must be dict, not int: 1$")
 
 def test_validate_missing_pieces():
-    data = OrderedDict([(b'info', {})])
+    data = OrderedDict([(b'info', {b'name': b'Foo',
+                                   b'piece length': 1024})])
     fo = io.BytesIO(bencode.encode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
@@ -125,7 +138,7 @@ def test_read_nonstandard_data_without_validation():
     assert t.metainfo['number'] == 17
     assert t.metainfo['list'] == [1, 'two']
     assert t.metainfo['dict'] == {'yes': 1, 'no': 0}
-
+    assert t.metainfo['info'] == {}
 
 def test_read_from_unreadable_file(valid_singlefile_metainfo, tmp_path):
     f = (tmp_path / 'a.torrent')
@@ -135,7 +148,6 @@ def test_read_from_unreadable_file(valid_singlefile_metainfo, tmp_path):
         torf.Torrent.read(str(f))
     assert excinfo.match(f'^{f}: Permission denied$')
 
-
 def test_read_from_invalid_file(tmp_path):
     f = tmp_path / 'a.torrent'
     f.write_bytes(b'this is not metainfo')
@@ -143,13 +155,11 @@ def test_read_from_invalid_file(tmp_path):
         torf.Torrent.read(f)
     assert excinfo.match(f'^{f}: Invalid torrent file format$')
 
-
 def test_read_from_nonexisting_file(tmp_path):
     f = tmp_path / 'a.torrent'
     with pytest.raises(torf.ReadError) as excinfo:
         torf.Torrent.read(f)
     assert excinfo.match(f'^{f}: No such file or directory$')
-
 
 def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmp_path):
     f = tmp_path / 'a.torrent'
@@ -181,7 +191,6 @@ def test_reading_converts_private_flag_to_bool(tmp_path, valid_singlefile_metain
     torrent = torf.Torrent.read_stream(fo)
     assert torrent.metainfo['info']['private'] is False
 
-
 def test_reading_torrent_without_private_flag(tmp_path, valid_singlefile_metainfo):
     valid_singlefile_metainfo[b'info'][b'private'] = 1
     fo = io.BytesIO(bencode.encode(valid_singlefile_metainfo))
@@ -194,7 +203,6 @@ def test_reading_torrent_without_private_flag(tmp_path, valid_singlefile_metainf
     torrent = torf.Torrent.read_stream(fo)
     assert 'private' not in torrent.metainfo['info']
     assert torrent.private is None
-
 
 def test_reading_torrent_without_creation_date(tmp_path, valid_singlefile_metainfo):
     del valid_singlefile_metainfo[b'creation date']
