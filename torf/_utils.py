@@ -700,7 +700,10 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
 
     if not key_exists_in_list_or_dict(key, obj):
         if must_exist:
-            raise error.MetainfoError(f"Missing {key!r} in {keychain_str}")
+            if keychain_str:
+                raise error.MetainfoError(f'Missing {key!r} in {keychain_str}')
+            else:
+                raise error.MetainfoError(f'Missing {key!r}')
 
     elif not isinstance(obj[key], exp_types):
         if len(exp_types) > 2:
