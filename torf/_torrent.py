@@ -515,7 +515,7 @@ class Torrent():
         elif self.mode == 'multifile':
             file_sizes = []
             for info in self.metainfo['info']['files']:
-                this_path = (self.name,) + tuple(info['path'])
+                this_path = (self.name,) + tuple(c for c in info['path'] if c)
                 if this_path == path:
                     # path points to file
                     return info['length']
