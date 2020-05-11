@@ -19,9 +19,8 @@ Create and parse torrent files and magnet URIs
 __version__ = '3.0.1'
 
 from ._errors import *
-from ._torrent import Torrent
 from ._magnet import Magnet
-
+from ._torrent import Torrent
 # Export File class so users can add items to Torrent.files and Filepath so it
 # is documented by readthedocs.
 from ._utils import File, Filepath

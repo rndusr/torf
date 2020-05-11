@@ -12,24 +12,24 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
-import math
+import abc
+import collections
+import contextlib
+import errno
 import fnmatch
+import http.client
+import itertools
+import math
+import os
+import pathlib
+import re
+import socket
+import typing
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
-import http.client
-import socket
-from urllib.parse import quote_plus as urlquote
-import collections
-import abc
-import re
-import errno
 from datetime import datetime
-import itertools
-import contextlib
-import pathlib
-import typing
+from urllib.parse import quote_plus as urlquote
 
 from . import _errors as error
 

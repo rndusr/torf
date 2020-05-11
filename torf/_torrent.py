@@ -12,26 +12,27 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
-import flatbencode as bencode
 import base64
-import hashlib
-from datetime import datetime
-import os
-import math
-from collections import abc, namedtuple
 import errno
+import fnmatch
+import hashlib
 import inspect
 import io
-import pathlib
-import fnmatch
-import re
 import itertools
+import math
+import os
+import pathlib
+import re
+from collections import abc, namedtuple
+from datetime import datetime
 
-from . import _utils as utils
-from . import _errors as error
-from . import _generate as generate
+import flatbencode as bencode
 
 from . import __version__
+from . import _errors as error
+from . import _generate as generate
+from . import _utils as utils
+
 _PACKAGE_NAME = __name__.split('.')[0]
 
 # os.sched_getaffinity() is only available on some Unix platforms.

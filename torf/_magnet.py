@@ -13,15 +13,16 @@
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
 import base64
-import re
-import urllib
-from collections import defaultdict, abc
-import time
-import io
 import binascii
+import io
+import re
+import time
+import urllib
+from collections import abc, defaultdict
 
-from . import _utils as utils
 from . import _errors as error
+from . import _utils as utils
+
 
 class Magnet():
     """

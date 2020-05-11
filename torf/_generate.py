@@ -12,17 +12,17 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
+import os
+import queue
+import threading
+from collections import defaultdict
+from hashlib import sha1
+from time import monotonic as time_monotonic
+
+from . import _errors as error
 from . import _utils as utils
 
-from hashlib import sha1
-import threading
-import queue
-import os
-from time import monotonic as time_monotonic
-from collections import defaultdict
-from . import _errors as error
-
-import logging
 _debug = logging.getLogger('torf').debug
 
 def _pretty_bytes(b):
