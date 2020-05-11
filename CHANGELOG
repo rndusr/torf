@@ -1,11 +1,13 @@
 2020-??-?? 3.?.?
-  - Bugfix: Torrent.validate() and Torrent.read_stream() raise MetainfoError if
-    the "info" field is not a dictionary.
+  - Bugfix: Torrent.validate() and Torrent.read_stream() now raise MetainfoError
+    if the "info" field is not a dictionary.
   - Bugfix: Magnet.from_string() raised ValueError instead of MagnetError if the
     "xl" parameter wasn't a number.
   - Bugfix: Magnet.from_string() strips whitespace from the beginning and end
     before parsing the URI.
   - Bugfix: Magnet.kt used commas to separate keywords. (I don't know why.)
+  - Bugfix: Gracefully handle empty path components in torrent file
+    (e.g. "foo//bar")
   - Torrent.private is now None instead of False if there is no "private" field
     in the "info" section of the metainfo.
 
