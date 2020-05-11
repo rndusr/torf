@@ -210,3 +210,12 @@ def test_reading_torrent_without_creation_date(tmp_path, valid_singlefile_metain
     torrent = torf.Torrent.read_stream(fo)
     assert 'creation date' not in torrent.metainfo['info']
     assert torrent.creation_date is None
+
+
+def test_read_from_torrent_file_with_empty_path_components(valid_multifile_metainfo, tmp_path):
+    valid_multifile_metainfo[b'info'][b'files'][0][b'path'] = [b'', b'foo', b'', b'', b'bar', b'']
+    f = (tmp_path / 'foo.torrent')
+    f.write_bytes(bencode.encode(valid_multifile_metainfo))
+    t = torf.Torrent.read(str(f))
+    exp_path = f'{valid_multifile_metainfo[b"info"][b"name"].decode()}/foo/bar'
+    assert exp_path in tuple(str(f) for f in t.files)
