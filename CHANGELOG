@@ -1,4 +1,4 @@
-2020-??-?? 3.?.?
+2020-06-20 3.0.2
   - Bugfix: Torrent.validate() and Torrent.read_stream() now raise MetainfoError
     if the "info" field is not a dictionary.
   - Bugfix: Magnet.from_string() raised ValueError instead of MagnetError if the
