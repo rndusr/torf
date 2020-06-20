@@ -1,10 +1,11 @@
-import torf
-import random
-import os
 import collections
 import itertools
-
 import logging
+import os
+import random
+
+import torf
+
 debug = logging.getLogger('test').debug
 
 def display_filespecs(filespecs, piece_size):
