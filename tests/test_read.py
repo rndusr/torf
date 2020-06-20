@@ -1,12 +1,13 @@
-import torf
-
-import pytest
 import io
-import flatbencode as bencode
+from collections import OrderedDict
 from datetime import datetime
 from hashlib import sha1
-from collections import OrderedDict
 from pathlib import Path
+
+import flatbencode as bencode
+import pytest
+
+import torf
 
 
 def test_non_bencoded_data():

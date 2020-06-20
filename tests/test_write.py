@@ -1,9 +1,10 @@
-import torf
-
-import pytest
-import flatbencode as bencode
-import time
 import os
+import time
+
+import flatbencode as bencode
+import pytest
+
+import torf
 
 
 def test_successful_write(generated_singlefile_torrent, tmp_path):

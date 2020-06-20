@@ -1,14 +1,14 @@
-import torf
-from torf import _utils as utils
-from torf import _errors as errors
-
-import pytest
 import os
+import re
 from collections import OrderedDict
 from pathlib import Path
 from unittest import mock
-import re
 
+import pytest
+
+import torf
+from torf import _errors as errors
+from torf import _utils as utils
 
 ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
 

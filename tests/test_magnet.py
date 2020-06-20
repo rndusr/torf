@@ -1,15 +1,17 @@
-import torf
-
-import pytest
-from unittest import mock
 import base64
+import binascii
 import hashlib
-from urllib.parse import quote_plus
 import time
 import urllib
-import binascii
+from unittest import mock
+from urllib.parse import quote_plus
+
+import pytest
+
+import torf
 
 from . import ComparableException
+
 
 @pytest.fixture
 def hash16():

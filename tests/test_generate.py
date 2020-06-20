@@ -1,12 +1,13 @@
-import torf
-
-import pytest
-from unittest import mock
+import base64
 import math
 import os
-import base64
 from collections import defaultdict
 from pathlib import Path
+from unittest import mock
+
+import pytest
+
+import torf
 
 from . import *  # noqa: F403
 

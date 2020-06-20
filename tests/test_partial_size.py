@@ -1,6 +1,6 @@
-import torf
-
 import pytest
+
+import torf
 
 
 def test_partial_size__singlefile__providing_correct_name(tmp_path):

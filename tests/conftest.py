@@ -1,19 +1,19 @@
-import torf
-
-import pytest
+import argparse
+import contextlib
+import functools
+import itertools
+import math
 import os
 import random
 import string
-from types import SimpleNamespace
 import time
 from collections import OrderedDict
-import contextlib
-import functools
-import math
+from types import SimpleNamespace
 from unittest import mock
-import argparse
-import itertools
 
+import pytest
+
+import torf
 
 # Make piece size and the number of pieces to use for testing torrents
 # configurable

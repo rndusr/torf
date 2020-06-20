@@ -1,10 +1,11 @@
-import torf
-
-import pytest
-from unittest import mock
 import os
 import shutil
 from pathlib import Path
+from unittest import mock
+
+import pytest
+
+import torf
 
 
 def test_validate_is_called_first(monkeypatch):

@@ -1,7 +1,8 @@
-import torf
+import os
 
 import pytest
-import os
+
+import torf
 
 
 def test_wrong_info_type(generated_singlefile_torrent):

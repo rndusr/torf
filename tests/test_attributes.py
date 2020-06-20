@@ -1,12 +1,13 @@
-import torf
-from torf import _utils as utils
-from torf import _errors as errors
-
-import pytest
-from unittest.mock import patch
+import glob
 import os
 from pathlib import Path
-import glob
+from unittest.mock import patch
+
+import pytest
+
+import torf
+from torf import _errors as errors
+from torf import _utils as utils
 
 
 def test_path_doesnt_exist(create_torrent):

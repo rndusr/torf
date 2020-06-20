@@ -1,8 +1,9 @@
-import torf
-
-import pytest
 from collections import OrderedDict
 from datetime import datetime
+
+import pytest
+
+import torf
 
 
 def test_valid_metainfo():

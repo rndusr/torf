@@ -1,4 +1,4 @@
-from . import fuzzylist, fuzzydict
+from . import fuzzydict, fuzzylist
 
 
 def test_fuzzylist():

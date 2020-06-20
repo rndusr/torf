@@ -1,16 +1,17 @@
-import torf
-
-import pytest
-from unittest import mock
+import collections
+import errno
+import itertools
 import os
 import random
-import collections
-import itertools
-import errno
+from unittest import mock
+
+import pytest
+
+import torf
 
 from . import *  # noqa: F403
 
-import logging
+import logging  # isort:skip
 debug = logging.getLogger('test').debug
 
 class CollectingCallback():
