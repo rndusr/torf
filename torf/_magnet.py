@@ -333,6 +333,7 @@ class Magnet():
                 self._info = torrent.metainfo['info']
 
     _KNOWN_PARAMETERS = ('xt', 'dn', 'xl', 'tr', 'xs', 'as', 'ws', 'kt')
+
     @classmethod
     def from_string(cls, uri):
         """
