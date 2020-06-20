@@ -9,12 +9,12 @@ debug = logging.getLogger('test').debug
 
 def display_filespecs(filespecs, piece_size):
     filecount = len(filespecs)
-    header = ['.' + ' ' * (((4*filecount) + (2*filecount-1)) + 2 - 1)]
+    header = ['.' + ' ' * (((4 * filecount) + (2 * filecount - 1)) + 2 - 1)]
     for i in range(8):
-        header.append(str(i) + ' '*(piece_size-1))
+        header.append(str(i) + ' ' * (piece_size - 1))
     line = (', '.join(f'{fn}:{fs:2d}' for fn,fs in filespecs),
             ' - ',
-            ''.join(fn*fs for fn,fs in filespecs))
+            ''.join(fn * fs for fn,fs in filespecs))
     debug(f'\n{"".join(header)}\n{"".join(line)}')
 
 class fuzzylist(list):
@@ -137,9 +137,11 @@ def ComparableException(exc):
     # returned Comparable* class.
     class ComparableExceptionMeta(type):
         _cls = type(exc)
+
         @classmethod
         def __subclasscheck__(mcls, cls):
             return issubclass(cls, mcls._cls) or issubclass(cls, mcls)
+
         @classmethod
         def __instancecheck__(mcls, inst):
             return isinstance(cls, mcls._cls) or isinstance(cls, mcls)
@@ -147,12 +149,15 @@ def ComparableException(exc):
     # Make subclass of the same name with "Comparable" prepended
     clsname = 'Comparable' + type(exc).__name__
     bases = (type(exc),)
-    attrs = {}
+
     def __eq__(self, other, _real_cls=type(exc)):
         return isinstance(other, (type(self), _real_cls)) and str(self) == str(other)
-    attrs['__eq__'] = __eq__
+
     def __hash__(self):
         return hash(str(self))
+
+    attrs = {}
+    attrs['__eq__'] = __eq__
     attrs['__hash__'] = __hash__
     cls = ComparableExceptionMeta(clsname, bases, attrs)
     if isinstance(exc, torf.TorfError):
@@ -167,19 +172,19 @@ def random_positions(stream):
 
 def change_file_size(filepath, original_size):
     """Randomly change size of `filepath` on disk and return new contents"""
-    diff_range = list(range(-original_size, original_size+1))
+    diff_range = list(range(-original_size, original_size + 1))
     diff_range.remove(0)
     diff = random.choice(diff_range)
     data = bytearray(open(filepath, 'rb').read())
     debug(f'  Original data ({len(data)} bytes): {data}')
     if diff > 0:
         # Make add `diff` bytes at `pos`
-        pos = random.choice(range(original_size+1))
+        pos = random.choice(range(original_size + 1))
         data[pos:pos] = b'\xA0' * diff
     elif diff < 0:
         # Remove `abs(diff)` bytes at `pos`
         pos = random.choice(range(original_size - abs(diff) + 1))
-        data[pos:pos+abs(diff)] = ()
+        data[pos : pos + abs(diff)] = ()
     with open(filepath, 'wb') as f:
         f.write(data)
         f.truncate()
@@ -236,7 +241,7 @@ def pos2files(pos, filespecs, piece_size, include_file_at_pos=True):
         first_piece_index = filepos_beg // piece_size
         last_piece_index = filepos_end // piece_size
         first_piece_index_pos_beg = first_piece_index * piece_size
-        last_piece_index_pos_end = (last_piece_index+1) * piece_size - 1
+        last_piece_index_pos_end = (last_piece_index + 1) * piece_size - 1
         if first_piece_index_pos_beg <= pos <= last_piece_index_pos_end:
             filenames.append(filename)
         p += filesize
@@ -267,7 +272,7 @@ def calc_piece_indexes(filespecs, piece_size, files_missing=(), files_missized=(
     for i,(filename,filesize) in enumerate(filespecs):
         first_pi = pos // piece_size
         # Last piece needs special treatment
-        if i < len(filespecs)-1:
+        if i < len(filespecs) - 1:
             pos_end = pos + filesize
         else:
             pos_end = round_up_to_multiple(pos + filesize, piece_size)
@@ -297,7 +302,7 @@ def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions,
     missing or missized files
     """
     corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
-    debug(f'Calculating good pieces')
+    debug('Calculating good pieces')
     debug(f'corrupt piece_indexes: {corr_pis}')
     debug(f'missing files: {files_missing}')
     debug(f'missized files: {files_missized}')
@@ -312,7 +317,7 @@ def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions,
         affected_files_end = pos2files(file_end, filespecs, piece_size)
         debug(f'affected_files_beg: {affected_files_beg}')
         debug(f'affected_files_end: {affected_files_end}')
-        missing_pis.update(range(first_missing_pi, last_missing_pi+1))
+        missing_pis.update(range(first_missing_pi, last_missing_pi + 1))
 
     all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing, files_missized)
     debug(f'all piece_indexes: {all_piece_indexes}')
@@ -351,7 +356,7 @@ def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
             else:
                 # Skip all pieces after the first corrupted piece in `file`
                 debug(f'  first corruption in {file} is at {first_corr_index_in_file} in file {file}')
-                skipped_pis.update(file_pis[first_corr_index_in_file+1:])
+                skipped_pis.update(file_pis[first_corr_index_in_file + 1:])
             debug(f'updated skipped_pis: {skipped_pis}')
 
     # Make skipped piece_indexes optional while unskipped piece_indexes stay
@@ -425,7 +430,7 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
     return corruptions
 
 def calc_pieces_done(filespecs_abspath, piece_size, files_missing=(), files_missized=()):
-    debug(f'Calculating pieces_done')
+    debug('Calculating pieces_done')
     # The callback gets the number of verified pieces (pieces_done).  This
     # function calculates the expected values for that argument.
     #

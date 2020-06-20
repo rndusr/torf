@@ -8,7 +8,7 @@ import base64
 from collections import defaultdict
 from pathlib import Path
 
-from . import *
+from . import *  # noqa: F403
 
 
 def test_no_path():
@@ -124,7 +124,7 @@ def test_metainfo_with_multifile_torrent(create_dir, random_seed):
     _check_metainfo(content_path, 2**15, exp_infohash, exp_pieces)
 
 def _check_metainfo(content_path, piece_size, exp_infohash, exp_pieces):
-    exp_hashes = tuple(exp_pieces[i:i+20]
+    exp_hashes = tuple(exp_pieces[i : i + 20]
                        for i in range(0, len(exp_pieces), 20))
     t = torf.Torrent(content_path)
     t.piece_size = piece_size
@@ -138,7 +138,7 @@ def _check_metainfo(content_path, piece_size, exp_infohash, exp_pieces):
 
 
 def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create_file, create_dir, forced_piece_size):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     if len(filespecs) == 1:
         content_path = create_file(filespecs[0][0], filespecs[0][1])
     else:
@@ -146,6 +146,7 @@ def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create
 
     exp_pieces_done = 1
     seen_filepaths = defaultdict(lambda: 0)
+
     def assert_cb_args(torrent, filepath, pieces_done, pieces_total):
         nonlocal exp_pieces_done
         assert torrent is t
@@ -166,7 +167,7 @@ def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create
 
     exp_filepaths = defaultdict(lambda: 0)
     for pos in range(0, t.size, piece_size):
-        files = pos2files(pos, filespecs, piece_size)
+        files = pos2files(pos, filespecs, piece_size)  # noqa: F405
         exp_filepaths[files[-1]] += 1
 
     assert seen_filepaths == exp_filepaths
@@ -174,7 +175,7 @@ def test_callback_is_called_with_correct_arguments(filespecs, piece_size, create
 
 def test_callback_is_called_at_interval(filespecs, piece_size, create_file, create_dir,
                                         forced_piece_size, monkeypatch):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     if len(filespecs) == 1:
         content_path = create_file(filespecs[0][0], filespecs[0][1])
     else:

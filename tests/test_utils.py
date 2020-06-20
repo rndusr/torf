@@ -88,8 +88,8 @@ def test_URL__min_port_number():
 
 
 def test_real_size_of_directory(tmp_path):
-    dir = tmp_path / 'dir' ; dir.mkdir()
-    subdir = dir / 'subdir' ; subdir.mkdir()
+    dir = tmp_path / 'dir' ; dir.mkdir()  # noqa: E702
+    subdir = dir / 'subdir' ; subdir.mkdir()  # noqa: E702
     (dir / 'file1').write_bytes(b'\x00' * 100)
     (dir / 'file2').write_bytes(b'\x00' * 200)
     (subdir / 'file3').write_bytes(b'\x00' * 300)
@@ -97,8 +97,8 @@ def test_real_size_of_directory(tmp_path):
     assert utils.real_size(dir) == 1000
 
 def test_real_size_of_directory_with_unreadable_file(tmp_path):
-    dir = tmp_path / 'dir' ; dir.mkdir()
-    subdir = dir / 'subdir' ; subdir.mkdir()
+    dir = tmp_path / 'dir' ; dir.mkdir()  # noqa: E702
+    subdir = dir / 'subdir' ; subdir.mkdir()  # noqa: E702
     (dir / 'file1').write_bytes(b'\x00' * 100)
     (subdir / 'file2').write_bytes(b'\x00' * 200)
     subdir_mode = os.stat(subdir).st_mode
@@ -401,15 +401,15 @@ def test_Filepaths_treats_relative_paths_as_equal_to_their_absolute_versions(tmp
 
 def test_Filepaths_handles_directories(tmp_path):
     # Create directory with 2 files
-    content = tmp_path / 'content' ; content.mkdir()
+    content = tmp_path / 'content' ; content.mkdir()  # noqa: E702
     for f in ('a', 'b'): (content / f).write_text('<data>')
     fps = utils.Filepaths((content,))
     assert fps == (content / 'a', content / 'b')
 
     # Replace one file with multilevel subdirectory
-    subdir = content / 'b' ; subdir.unlink() ; subdir.mkdir()
+    subdir = content / 'b' ; subdir.unlink() ; subdir.mkdir()  # noqa: E702
     for f in ('c', 'd'): (subdir / f).write_text('<subdata>')
-    subsubdir = subdir / 'subsubdir' ; subsubdir.mkdir()
+    subsubdir = subdir / 'subsubdir' ; subsubdir.mkdir()  # noqa: E702
     for f in ('e', 'f'): (subsubdir / f).write_text('<subdata>')
     fps[1] = content / 'b'
     assert fps == (content / 'a', subdir / 'c', subdir / 'd', subsubdir / 'e', subsubdir / 'f')
@@ -500,7 +500,7 @@ def test_URLs_validates_inserted_urls():
 
 def test_URLs_does_not_empty_when_replacing_with_invalid_URLs():
     urls = utils.URLs(('http://foo:123', 'http://bar:456'))
-    with pytest.raises(errors.URLError) as e:
+    with pytest.raises(errors.URLError):
         urls.replace(('http://baz:789:abc',))
     assert urls == ('http://foo:123', 'http://bar:456')
 
@@ -554,7 +554,7 @@ def test_URLs_equality():
     assert urls != ['http://foo:124', 'http://bar:456']
     assert urls != 'http://bar:456'
     assert urls != 5
-    assert urls != None
+    assert urls is not None
 
 def test_URLs_can_be_added():
     urls1 = utils.URLs(('http://foo:123', 'http://bar:456'))
@@ -652,9 +652,10 @@ def test_Trackers_can_be_added():
                                                       ('http://123', 'http://456'))
 
 def test_Trackers_callback():
-    cb = mock.MagicMock()
     def assert_type(arg):
         assert type(arg) is utils.Trackers
+
+    cb = mock.MagicMock()
     cb.side_effect = assert_type
     tiers = utils.Trackers(('http://foo:123', 'http://bar:456'), callback=cb)
     assert cb.call_args_list == []

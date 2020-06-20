@@ -3,7 +3,7 @@ import torf
 import pytest
 
 
-def test_partial_size__singlefile__providing_correct_name(tmp_path ):
+def test_partial_size__singlefile__providing_correct_name(tmp_path):
     (tmp_path / 'content.jpg').write_text('some data')
     t = torf.Torrent(tmp_path / 'content.jpg')
     assert t.partial_size('content.jpg') == 9
@@ -15,7 +15,7 @@ def test_partial_size__singlefile__providing_wrong_name(tmp_path):
     for path in ('foo.jpg', ['foo.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^foo.jpg: Unknown path$')
+        assert excinfo.match('^foo.jpg: Unknown path$')
 
 def test_partial_size__singlefile__providing_path(tmp_path):
     (tmp_path / 'content.jpg').write_text('some data')
@@ -23,7 +23,7 @@ def test_partial_size__singlefile__providing_path(tmp_path):
     for path in ('bar/foo.jpg', ['bar', 'foo.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^bar/foo.jpg: Unknown path$')
+        assert excinfo.match('^bar/foo.jpg: Unknown path$')
 
 
 def test_partial_size__multifile__providing_path_to_file(tmp_path):
@@ -68,12 +68,12 @@ def test_partial_size__multifile__providing_unknown_path(tmp_path):
     for path in ('content/subcontent/file1.jpg', ['content', 'subcontent', 'file1.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^content/subcontent/file1.jpg: Unknown path$')
+        assert excinfo.match('^content/subcontent/file1.jpg: Unknown path$')
     for path in ('content/file3.jpg', ['content', 'file3.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^content/file3.jpg: Unknown path$')
+        assert excinfo.match('^content/file3.jpg: Unknown path$')
     for path in ('file1.jpg', ['file1.jpg']):
         with pytest.raises(torf.PathError) as excinfo:
             t.partial_size(path)
-        assert excinfo.match(f'^file1.jpg: Unknown path$')
+        assert excinfo.match('^file1.jpg: Unknown path$')

@@ -12,6 +12,8 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
+# flake8: noqa
+
 """
 Create and parse torrent files and magnet URIs
 """

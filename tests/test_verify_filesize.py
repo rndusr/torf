@@ -13,7 +13,7 @@ def test_validate_is_called_first(monkeypatch):
     monkeypatch.setattr(torrent, 'validate', mock_validate)
     with pytest.raises(torf.MetainfoError) as excinfo:
         torrent.verify_filesize('some/path')
-    assert excinfo.match(f'^Invalid metainfo: Mock error$')
+    assert excinfo.match('^Invalid metainfo: Mock error$')
     mock_validate.assert_called_once_with()
 
 
@@ -25,10 +25,9 @@ def test_file_in_singlefile_torrent_doesnt_exist(create_file, create_torrent_fil
         # Without callback
         with pytest.raises(torf.ReadError) as excinfo:
             torrent.verify_filesize('/some/nonexisting/path')
-        assert excinfo.match(f'^/some/nonexisting/path: No such file or directory$')
+        assert excinfo.match('^/some/nonexisting/path: No such file or directory$')
 
         # With callback
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert fs_path == Path('/some/nonexisting/path')
@@ -36,8 +35,10 @@ def test_file_in_singlefile_torrent_doesnt_exist(create_file, create_torrent_fil
             assert files_total == 1
             assert str(exc) == '/some/nonexisting/path: No such file or directory'
             return None
+
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
-        assert torrent.verify_filesize('/some/nonexisting/path', callback=cb) == False
+        assert torrent.verify_filesize('/some/nonexisting/path', callback=cb) is False
         assert cb.call_count == 1
 
 
@@ -61,7 +62,6 @@ def test_file_in_multifile_torrent_doesnt_exist(create_dir, create_torrent_file)
         assert excinfo.match(f'^{content_path / "a.jpg"}: No such file or directory$')
 
         # With callback
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert files_done == cb.call_count
@@ -79,8 +79,10 @@ def test_file_in_multifile_torrent_doesnt_exist(create_dir, create_torrent_file)
                 assert t_path == Path(*(content_path / 'c.jpg').parts[-2:])
                 assert str(exc) == f'{fs_path}: No such file or directory'
             return None
+
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
-        assert torrent.verify_filesize(content_path, callback=cb) == False
+        assert torrent.verify_filesize(content_path, callback=cb) is False
         assert cb.call_count == 3
 
 
@@ -98,7 +100,6 @@ def test_file_in_singlefile_torrent_has_wrong_size(create_file, create_torrent_f
         assert excinfo.match(f'^{content_path}: Too big: 22 instead of 12 bytes$')
 
         # With callback
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert fs_path == content_path
@@ -107,8 +108,10 @@ def test_file_in_singlefile_torrent_has_wrong_size(create_file, create_torrent_f
             assert files_total == 1
             assert str(exc) == f'{content_path}: Too big: 22 instead of 12 bytes'
             return None
+
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
-        assert torrent.verify_filesize(content_path, callback=cb) == False
+        assert torrent.verify_filesize(content_path, callback=cb) is False
         assert cb.call_count == 1
 
 
@@ -131,7 +134,6 @@ def test_file_in_multifile_torrent_has_wrong_size(create_dir, create_torrent_fil
         assert excinfo.match(f'^{content_path / "b.jpg"}: Too big: 201 instead of 200 bytes$')
 
         # With callback
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert files_done == cb.call_count
@@ -149,8 +151,10 @@ def test_file_in_multifile_torrent_has_wrong_size(create_dir, create_torrent_fil
                 assert t_path == Path(content_path.name, 'c.jpg')
                 assert str(exc) == f'{fs_path}: Too small: 299 instead of 300 bytes'
             return None
+
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
-        assert torrent.verify_filesize(content_path, callback=cb) == False
+        assert torrent.verify_filesize(content_path, callback=cb) is False
         assert cb.call_count == 3
 
 
@@ -170,7 +174,6 @@ def test_path_is_directory_and_torrent_contains_single_file(create_file, create_
         assert excinfo.match(f'^{content_path}: Is a directory$')
 
         # With callback
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert files_done == 1
@@ -179,8 +182,10 @@ def test_path_is_directory_and_torrent_contains_single_file(create_file, create_
             assert t_path == Path(Path(content_path).name)
             assert str(exc) == f'{content_path}: Is a directory'
             return None
+
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
-        assert torrent.verify_filesize(content_path, callback=cb) == False
+        assert torrent.verify_filesize(content_path, callback=cb) is False
         assert cb.call_count == 1
 
 
@@ -203,7 +208,6 @@ def test_path_is_file_and_torrent_contains_directory(create_file, create_dir, cr
         assert excinfo.match(f'^{content_path / "a.jpg"}: No such file or directory$')
 
         # With callback
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert files_done == cb.call_count
@@ -217,8 +221,10 @@ def test_path_is_file_and_torrent_contains_directory(create_file, create_dir, cr
                 assert t_path == Path(content_path.name, 'b.jpg')
                 assert str(exc) == f'{fs_path}: No such file or directory'
             return None
+
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
-        assert torrent.verify_filesize(content_path, callback=cb) == False
+        assert torrent.verify_filesize(content_path, callback=cb) is False
         assert cb.call_count == 2
 
 
@@ -245,7 +251,6 @@ def test_parent_path_of_multifile_torrent_is_unreadable(create_dir, create_torre
             assert excinfo.match(f'^{content_path / "unreadable1/b/c/a.jpg"}: No such file or directory$')
 
             # With callback
-            cb = mock.MagicMock()
             def assert_call(t, fs_path, t_path, files_done, files_total, exc):
                 assert t == torrent
                 assert files_done == cb.call_count
@@ -263,8 +268,10 @@ def test_parent_path_of_multifile_torrent_is_unreadable(create_dir, create_torre
                     assert t_path == Path(content_path.name, 'unreadable2/b/c/b.jpg')
                     assert str(exc) == f'{fs_path}: No such file or directory'
                 return None
+
+            cb = mock.MagicMock()
             cb.side_effect = assert_call
-            assert torrent.verify_filesize(content_path, callback=cb) == False
+            assert torrent.verify_filesize(content_path, callback=cb) is False
             assert cb.call_count == 3
         finally:
             os.chmod((content_path / 'unreadable1'), mode=unreadable_path1_mode)
@@ -292,7 +299,6 @@ def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torr
             assert excinfo.match(f'^{content_file}: No such file or directory$')
 
             # With callback
-            cb = mock.MagicMock()
             def assert_call(t, fs_path, t_path, files_done, files_total, exc):
                 assert t == torrent
                 assert files_done == 1
@@ -301,8 +307,10 @@ def test_parent_path_of_singlefile_torrent_is_unreadable(create_dir, create_torr
                 assert t_path == Path(Path(content_file).name)
                 assert str(exc) == f'{content_file}: No such file or directory'
                 return None
+
+            cb = mock.MagicMock()
             cb.side_effect = assert_call
-            assert torrent.verify_filesize(content_file, callback=cb) == False
+            assert torrent.verify_filesize(content_file, callback=cb) is False
             assert cb.call_count == 1
         finally:
             os.chmod(parent_path, mode=parent_path_mode)
@@ -314,8 +322,6 @@ def test_verify__callback_raises_exception(create_dir, create_torrent_file):
                               ('b.jpg', b'\x00' * 456),
                               ('c.jpg', b'\x00' * 789))
     with create_torrent_file(path=content_path) as torrent_file:
-        torrent = torf.Torrent.read(torrent_file)
-        cb = mock.MagicMock()
         def assert_call(t, fs_path, t_path, files_done, files_total, exc):
             assert t == torrent
             assert files_done == cb.call_count
@@ -331,9 +337,12 @@ def test_verify__callback_raises_exception(create_dir, create_torrent_file):
                 assert t_path == Path(content_path.name, 'c.jpg')
                 assert exc is None
             return None
+
+        torrent = torf.Torrent.read(torrent_file)
+        cb = mock.MagicMock()
         cb.side_effect = assert_call
 
         with pytest.raises(RuntimeError) as excinfo:
             torrent.verify_filesize(content_path, callback=cb)
-        assert excinfo.match(f"^I'm off$")
+        assert excinfo.match("^I'm off$")
         assert cb.call_count == 2

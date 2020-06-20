@@ -65,10 +65,10 @@ def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
     t.metainfo['info']['piece length'] = 512 * 1024
     for i in range(1, 10):
         t.metainfo['info']['length'] = i * t.metainfo['info']['piece length']
-        t.metainfo['info']['pieces'] = bytes(os.urandom(i*20))
+        t.metainfo['info']['pieces'] = bytes(os.urandom(i * 20))
         t.validate()
 
-        for j in ((i*20)+1, (i*20)-1):
+        for j in ((i * 20) + 1, (i * 20) - 1):
             t.metainfo['info']['pieces'] = bytes(os.urandom(j))
             with pytest.raises(torf.MetainfoError) as excinfo:
                 t.validate()
@@ -78,15 +78,15 @@ def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
 def test_singlefile__unexpected_number_of_bytes_in_pieces(generated_singlefile_torrent):
     t = generated_singlefile_torrent
     t.path = None  # Don't complain about wrong file size
-    t.metainfo['info']['length'] = 1024*1024
-    t.metainfo['info']['piece length'] = int(1024*1024 / 8)
+    t.metainfo['info']['length'] = 1024 * 1024
+    t.metainfo['info']['piece length'] = int(1024 * 1024 / 8)
 
-    t.metainfo['info']['pieces'] = os.urandom(20*9)
+    t.metainfo['info']['pieces'] = os.urandom(20 * 9)
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == 'Invalid metainfo: Expected 8 pieces but there are 9'
 
-    t.metainfo['info']['pieces'] = os.urandom(20*7)
+    t.metainfo['info']['pieces'] = os.urandom(20 * 7)
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == 'Invalid metainfo: Expected 8 pieces but there are 7'
@@ -97,11 +97,11 @@ def test_multifile__unexpected_number_of_bytes_in_pieces(generated_multifile_tor
 
     total_size = 0
     for i,file in enumerate(t.metainfo['info']['files'], start=1):
-        file['length'] = 1024*1024 * i + 123
+        file['length'] = 1024 * 1024 * i + 123
         total_size += file['length']
 
     import math
-    t.metainfo['info']['piece length'] = int(1024*1024 / 8)
+    t.metainfo['info']['piece length'] = int(1024 * 1024 / 8)
     piece_count = math.ceil(total_size / t.metainfo['info']['piece length'])
 
     t.metainfo['info']['pieces'] = os.urandom(20 * (piece_count + 1))

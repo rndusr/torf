@@ -69,16 +69,16 @@ def _parametrize_filespecs(file_counts, piece_sizes, piece_counts,
                     values = (filespec, piece_size)
                     # Generate combinations of file indexes
                     if filespec_indexes:
-                        for number_of_indexes in range(1, file_count+1):
+                        for number_of_indexes in range(1, file_count + 1):
                             for indexes in itertools.combinations(range(0, file_count), number_of_indexes):
                                 argvalues.append(values + (indexes,))
-                                ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                                ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec)
                                            + f'-pc={piece_count}'
                                            + f'-ps={piece_size}'
                                            + f'-fsi={",".join(str(i) for i in indexes)}')
                     else:
                         argvalues.append(values)
-                        ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec) \
+                        ids.append(','.join(f'{fname}={fsize}' for fname,fsize in filespec)
                                    + f'-pc={piece_count}'
                                    + f'-ps={piece_size}')
     return argnames, argvalues, ids
@@ -111,7 +111,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
         # least one more file size than files.
         filesizes = set(filesizes)
         i = 2
-        while len(filesizes) < file_count+1:
+        while len(filesizes) < file_count + 1:
             filesizes.add(max(1, piece_size * piece_count // file_count - i))
             filesizes.add(piece_size * piece_count // file_count + i)
             i += 1
@@ -131,14 +131,14 @@ def _display_filespecs(filespecs, file_count, piece_size):
     for filespec in filespecs:
         line = (', '.join(f'{fn}:{fs:2d}' for fn,fs in filespec),
                 ' - ',
-                ''.join(fn*fs for fn,fs in filespec))
+                ''.join(fn * fs for fn,fs in filespec))
         lines.append(''.join(line))
     print(f'{len(filespecs)} filespecs:')
     for i,line in enumerate(lines):
         if i % 10 == 0:
-            header = [' ' * (((4*file_count) + (2*file_count-1)) + 1)]
+            header = [' ' * (((4 * file_count) + (2 * file_count - 1)) + 1)]
             for i in range(6):
-                header.append(str(i) + ' '*(piece_size-2))
+                header.append(str(i) + ' ' * (piece_size - 2))
             print(' '.join(header))
         print(line)
 
@@ -253,9 +253,9 @@ def multifile_content(tmp_path_factory):
     _generate_random_file(content_path / 'subdir', filename='File in subdir')
     random.seed()  # Re-enable randomness
 
-    exp_files=[{'length': 649406, 'path': ['File 0:JïYR WN93kœ']},
-               {'length': 199019, 'path': ['File 1:aä¤ELYœPTófsdtœe©í']},
-               {'length': 333198, 'path': ['subdir', 'File in subdir:F³bæ¹inRf ¤RTggTSóz']}]
+    exp_files = [{'length': 649406, 'path': ['File 0:JïYR WN93kœ']},
+                 {'length': 199019, 'path': ['File 1:aä¤ELYœPTófsdtœe©í']},
+                 {'length': 333198, 'path': ['subdir', 'File in subdir:F³bæ¹inRf ¤RTggTSóz']}]
 
     exp_pieces = b'BHG\xb7[\xdf\xaa\xf1\xf3<\xd3C\xeb\xab\xecjZ3\x06\x97\x0c*\xb7G3\xc5G\xe3\x0e\xdb\x96\xf1V-D@\xdd\t\xcf\x88GB\xa3\xdf\xdd\x1fxCQd=8\xc7\x81\x96\x0f\xaf(-\xe6FB\x10\xd1\xbf\xad\x88\x1d\x1d\xc3\x03\xb3\x08\xc0\xe0\x0b\x8a\\\x19\xdf\xed\x03\xdb\x7f\x17o3uI\xef(\n\x80\xdbbF\x91\xd90%\xe6\xfay\x16O\x06n-\xad\x1b\x06\x98SJ:\xf3d64=\xf2\xc8\t~\xbf\x08\xdd\x1am\xae\xbe\xed\xf1\x94\x8f\x08X5\x85\x0e\xa2wM\xa3\x14K,\x9dO\xd2n\xb6\x98\x16\xe6s\xa2\t\t0\xa4\x05\xd1\x95*\x02S\xf1y\x14\xf3G\xf8]eUD\x81`_m\xeaW\x0e\xb5\xc1r\n2\xf0Qo\r\xba\x07\xb3!Vr\xacn\x06\xeb\x1a\xce9\x0e\xa1j\xb1\xf9\xc9\xe0J\xda\xa2v\xe4d\'\x8cf5!Z\xd4g[\x9b\xf4fr\xc2\xee\xb3;\xe7\xe3\x9e\xe0\x06}\xe3\xe6\xc9\xa2\xf9t\x0c\xe1\xf5h\xfe\x13\xf5\xe4\xaa\xd6\x01\x91\xe3\xb7\xb2x\xe1\xd7\xb1o\x10\xe7\xd6\xd2b%d\xae\xe4\x8a\x910\x1b\xb6\x1b\xda\x944\xce\t\xd6\xdf%*n\x05\x16\xd9\x8ft\xed\xb7\xeb"\xfd\xb0Q+t\xbdy|\xed\x01<\xb9\xd2"@\xa2\x85\xa6\x8a\x1d|\x89Z\x13w\xdb\xe7\xdd\xe2\xcey\x00R\xa3[k\x8e\xde\x98""\xfd\xc0]{\xc2H\n%8 \xd3\x01\xd2i\x9f\xf0n\x05^\x90\xbc\xcb\xb5\x8a\xde$\xef\xbd\x02\x83\xe2m\x93:K\x10\xfc\xc7\xb6\xf5\xcf\x9a!\xe06as\x8b`\xda\x12\xf3\x13\xc73\xbf\xad\xcc\x86V\x14Tm5\xb4&C\x8c\x89\x17*\x83A\xc9o\x04\x9e\xe8p\x0e\x1fIx\xf2\\\xc9\xca\x8c\xd1\xfb#\x08\xeb\x0eq\xf3\r].\xacfH\xea\xc1q\xcc\x1bw\xe3\xe6-o\xf6Hb\x85\xc7\xefk\xa5\xc7\xea\xd1\xa0\xb4h\xb7\xdd\x9fe/\x98g\xef\xea6\x02f\x1a\xc1\xe5N\xf3\x10\x04\xe0\x004!\xca\x81\xa4\xfc\x12\xceS\x9c\x8e,L82\xbb\x83\x8f\x95#\x93\xe2\x83\xaf\xfd\xe9T|@oy\x07x[rp;\x89\xe0a\xdc\xee\xcekW\xaf/\xe8g\x19 \x1b\xd8\x8e.\xc2B\xaf\x94\xd9\xa5X\x94\x85\xc0\xa8\x047\xa6\xcc\xa0i( \x04\x98\xce>A\x87\x92\x8d_\xe8\x8d\xa4\xf2(\xa6\x88\xc7\xfe \xee\xdbe\xc9\r\x19{\xc8T\xc9JU[\x1d\xd3\xb0\xc6-\xdc\xc0YS\xae\x01\x12t(\xc7`m\xc6\x8c\xa8Xr\xb27\xf2\xec\xa3\x0b\r\xfe\xc4\xc0\xf0At\x00Y\xb5\x1b\xebE\x8c:p\xd4\xc1\x80k\x13\xc8I\xfe$\xday\xd2\xcc/\x00\n\t\x02B\xfa\r\x13o\x0f\x8d\xd9<7\xb5\xd0\xa3/\xee\xac\xae&"\x83\xa4)\x10L\xd0-q\xab \x9c\\\xc0\x92\x07MC\x85D\x17Z\xa49\xe3U\xa9\xc4\xc8z|\x1c\xe2\x03\t\x1d\x03\xe2J\x0fM\xfa5!\x98>5\x19h\xbc;{H\xa1\x14\xe7\xcb.X\x93\x7f\x0c\x15\xad'
 
@@ -296,15 +296,15 @@ def _random_bytes(length):
         # during verification, so we increase the probability of b'\x00' at the
         # beginning and/or end
         if random.choice((0, 1)):
-            beg = b'\x00' * random.randint(0, int(length/2))
+            beg = b'\x00' * random.randint(0, int(length / 2))
         else:
             beg = b''
         if random.choice((0, 1)):
-            end = b'\x00' * random.randint(0, int(length/2))
+            end = b'\x00' * random.randint(0, int(length / 2))
         else:
             end = b''
         b = beg + bytes(random.getrandbits(8)
-                        for _ in range(int(length-len(beg)-len(end)))) + end
+                        for _ in range(int(length - len(beg) - len(end)))) + end
     assert len(b) == length
     return b
 
@@ -397,9 +397,10 @@ def forced_piece_size(pytestconfig):
         orig_piece_size_min = torf.Torrent.piece_size_min
         torf.Torrent.piece_size_min = piece_size
         with mock.patch('torf.Torrent.piece_size', new_callable=mock.PropertyMock) as mock_piece_size:
-            mock_piece_size.return_value = piece_size
             def piece_size_setter(prop, torrent, value):
                 torrent.metainfo['info']['piece length'] = piece_size
+
+            mock_piece_size.return_value = piece_size
             mock_piece_size.__set__ = piece_size_setter
             yield piece_size
         torf.Torrent.piece_size_min = orig_piece_size_min
@@ -407,9 +408,9 @@ def forced_piece_size(pytestconfig):
 
 
 # https://stackoverflow.com/a/45690594
-import socket
 @pytest.fixture
 def free_port():
+    import socket
     with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(('', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

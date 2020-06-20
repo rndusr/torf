@@ -1,16 +1,15 @@
-import torf
-
 import pytest
 import os
 
 
 @pytest.fixture
 def content(tmp_path):
-    content = tmp_path / 'content' ; content.mkdir()
+    content = tmp_path / 'content' ; content.mkdir()  # noqa: E702
     for i in range(1, 5):
         ext = 'jpg' if i % 2 == 0 else 'txt'
         (content / f'file{i}.{ext}').write_text('<data>')
-    subdir = content / 'subdir' ; subdir.mkdir()
+    subdir = content / 'subdir' ; subdir.mkdir()  # noqa: E702
+
     for i in range(1, 4):
         ext = 'jpg' if i % 2 == 0 else 'pdf'
         (subdir / f'file{i}.{ext}').write_text('<data>')
@@ -94,7 +93,7 @@ def test_exclude_regexs_can_be_set(create_torrent, content):
 def test_exclude_globs_and_exclude_regexs_are_combined(create_torrent, content):
     torrent = create_torrent(path=content)
     torrent.exclude_globs = ('*.jpg',)
-    torrent.exclude_regexs = (f'txt$',)
+    torrent.exclude_regexs = ('txt$',)
     assert torrent.metainfo['info']['files'] == [{'length': 6, 'path': ['subdir', 'file1.pdf']},
                                                  {'length': 6, 'path': ['subdir', 'file3.pdf']}]
 

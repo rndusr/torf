@@ -13,7 +13,7 @@ def test_non_bencoded_data():
     fo = io.BytesIO(b'not valid bencoded data')
     with pytest.raises(torf.BdecodeError) as excinfo:
         torf.Torrent.read_stream(fo)
-    assert excinfo.match(f'^Invalid metainfo format$')
+    assert excinfo.match('^Invalid metainfo format$')
 
 
 def test_unreadable_stream():
@@ -23,7 +23,7 @@ def test_unreadable_stream():
     fo = Unreadable(b'foo')
     with pytest.raises(torf.ReadError) as excinfo:
         torf.Torrent.read_stream(fo)
-    assert excinfo.match(f'^Unable to read$')
+    assert excinfo.match('^Unable to read$')
 
 
 def test_validate_when_reading_stream(valid_singlefile_metainfo):
@@ -32,7 +32,7 @@ def test_validate_when_reading_stream(valid_singlefile_metainfo):
 
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)
-    assert excinfo.match(rf"^Invalid metainfo: Missing 'name' in \['info'\]$")
+    assert excinfo.match(r"^Invalid metainfo: Missing 'name' in \['info'\]$")
     fo.seek(0)
     t = torf.Torrent.read_stream(fo, validate=False)
     assert isinstance(t, torf.Torrent)
@@ -45,7 +45,7 @@ def test_validate_when_reading_file(tmp_path, valid_singlefile_metainfo):
 
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read(torrent_file, validate=True)
-    assert excinfo.match(f"^Invalid metainfo: Missing 'length' or 'files' in 'info'$")
+    assert excinfo.match("^Invalid metainfo: Missing 'length' or 'files' in 'info'$")
     t = torf.Torrent.read(torrent_file, validate=False)
     assert isinstance(t, torf.Torrent)
 
@@ -110,7 +110,7 @@ def test_validate_info_not_a_dictionary():
     assert excinfo.match(r"^Invalid metainfo: \['info'\] must be dict, not int: 1$")
 
     with pytest.raises(torf.MetainfoError) as excinfo:
-        t = torf.Torrent.read_stream(io.BytesIO(bencode.encode(data)), validate=False)
+        torf.Torrent.read_stream(io.BytesIO(bencode.encode(data)), validate=False)
     assert excinfo.match(r"^Invalid metainfo: \['info'\] must be dict, not int: 1$")
 
 def test_validate_missing_pieces():

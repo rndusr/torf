@@ -130,7 +130,7 @@ class Reader():
 
     def read(self):
         if self._stop:
-            raise RuntimeError(f'Cannot read from the same instance multiple times.')
+            raise RuntimeError('Cannot read from the same instance multiple times.')
         try:
             trailing_bytes = b''
             for filepath in self._filepaths:
@@ -164,7 +164,7 @@ class Reader():
         finally:
             self._piece_queue.exhausted()
             self._stop = True
-            _debug(f'reader: Bye')
+            _debug('reader: Bye')
 
     def _has_expected_size(self, filepath):
         spec_filesize = self._file_sizes[filepath]
@@ -216,7 +216,7 @@ class Reader():
                         if self.file_was_skipped(filepath):
                             _debug(f'reader: Faking {os.path.basename(filepath)} while chunking it')
                             fake_bytes_chunked, trailing_bytes = self._fake(
-                                filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
+                                filepath, self._bytes_chunked + bytes_chunked, trailing_bytes)
                             bytes_chunked += fake_bytes_chunked
                             break
                     else:
@@ -238,7 +238,7 @@ class Reader():
                 self._push(piece_index, None, filepath, exc)
                 self.skip_file(filepath, piece_index, force=True)
                 bytes_chunked, trailing_bytes = self._fake(
-                    filepath, self._bytes_chunked+bytes_chunked, trailing_bytes)
+                    filepath, self._bytes_chunked + bytes_chunked, trailing_bytes)
 
         return bytes_chunked, trailing_bytes
 
@@ -295,8 +295,8 @@ class Reader():
         if self._stop:
             _debug(f'reader: Found stop signal just before sending piece_index {piece_index}')
             return
-        elif piece_index in self._forced_error_piece_indexes \
-             and exc is None and piece is not None:
+        elif (piece_index in self._forced_error_piece_indexes
+              and exc is None and piece is not None):
             # We know this piece is corrupt, even if padding bytes replicate the
             # missing data.  Exceptions from upstream (e.g. ReadError) take
             # precedence over corruption errors.  Ignore faked pieces (`piece`
@@ -311,7 +311,7 @@ class Reader():
 
     def stop(self):
         if not self._stop:
-            _debug(f'reader: Setting stop flag')
+            _debug('reader: Setting stop flag')
             self._stop = True
             self._fake.stop = True
         return self
@@ -347,10 +347,10 @@ class _FileFaker():
         _debug(f'faker: Remaining bytes to fake: {file_beg} - {bytes_chunked_total} + '
                f'{self._file_sizes[filepath]} = {remaining_bytes}')
         if remaining_bytes <= 0:
-            _debug(f'faker: Nothing left to fake')
+            _debug('faker: Nothing left to fake')
             return 0, b''
 
-        self._faked_pieces.add(self._calc_piece_index(file_beg+1))
+        self._faked_pieces.add(self._calc_piece_index(file_beg + 1))
         _debug(f'faker: Initial faked pieces: {self._faked_pieces}')
 
         new_bytes_chunked_total = 0
@@ -398,7 +398,7 @@ class _FileFaker():
             and (first_piece_is_not_last_piece or last_piece_ends_at_piece_boundary)):
             _debug(f'faker: Faking first piece_index: {piece_index}')
             prev_affected_files = self._files_in_piece(piece_index, exclude=(filepath,))
-            _debug(f'faker: Files affected by first faked piece_index:')
+            _debug('faker: Files affected by first faked piece_index:')
             for fp in prev_affected_files:
                 _debug(f'faker:   {fp}')
 
@@ -530,7 +530,7 @@ class _FileFaker():
         filepaths = []
         for fpath,fsize in self._file_sizes.items():
             file_beg = pos
-            file_end = file_beg + fsize -1
+            file_end = file_beg + fsize - 1
             # File's last/first byte is between piece's first/last byte?
             if piece_beg <= file_beg <= piece_end or piece_beg <= file_end <= piece_end:
                 if fpath not in exclude:
@@ -545,7 +545,7 @@ class _FileFaker():
             pass
         else:
             try:
-                return self._filepaths[index+1]
+                return self._filepaths[index + 1]
             except IndexError:
                 pass
 
@@ -560,7 +560,7 @@ class HasherPool():
             self._file_was_skipped = lambda _: False
         self._stop = False
         self._workers = [Worker(f'hasher{i}', self._worker)
-                         for i in range(1, workers_count+1)]
+                         for i in range(1, workers_count + 1)]
 
     def _worker(self):
         # name = threading.current_thread().name

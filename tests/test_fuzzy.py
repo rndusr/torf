@@ -1,6 +1,5 @@
 from . import fuzzylist, fuzzydict
 
-import itertools
 
 def test_fuzzylist():
     x = fuzzylist('a', 'b', 'c', maybe=('x', 'y', 'z'), max_maybe_items={'x':1})
@@ -26,7 +25,6 @@ def test_fuzzylist():
     assert fuzzylist(0, 1, maybe=[0]) == fuzzylist(0, 0, 1)
 
 def test_fuzzydict():
-    x = fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3)))
     assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) == {'a': 'foo'}
     assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) == {'a': 'foo', 'b': []}
     assert fuzzydict(a='foo', b=fuzzylist(maybe=(1, 2, 3))) != {'a': 'foo', 'b': ['bar']}

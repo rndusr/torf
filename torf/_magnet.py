@@ -77,6 +77,7 @@ class Magnet():
     def dn(self):
         """Display Name: Name of the torrent or ``None``"""
         return self._dn
+
     @dn.setter
     def dn(self, value):
         self._dn = str(value).replace('\n', ' ') if value is not None else None
@@ -96,6 +97,7 @@ class Magnet():
         :raises MagnetError: if set to an invalid value
         """
         return f'urn:btih:{self._infohash}'
+
     @xt.setter
     def xt(self, value):
         value = str(value)
@@ -116,6 +118,7 @@ class Magnet():
         :raises MagnetError: if set to an invalid value
         """
         return self._infohash
+
     @infohash.setter
     def infohash(self, value):
         value = str(value)
@@ -133,6 +136,7 @@ class Magnet():
         :raises MagnetError: if set to an invalid value
         """
         return self._xl
+
     @xl.setter
     def xl(self, value):
         if value is not None:
@@ -156,6 +160,7 @@ class Magnet():
         :raises URLError: if any of the URLs is invalid
         """
         return self._tr
+
     @tr.setter
     def tr(self, value):
         if value is None:
@@ -173,6 +178,7 @@ class Magnet():
         :raises URLError: if the URL is invalid
         """
         return self._xs
+
     @xs.setter
     def xs(self, value):
         self._xs = utils.URL(value) if value is not None else None
@@ -187,6 +193,7 @@ class Magnet():
         :raises URLError: if the URL is invalid
         """
         return self._as
+
     @as_.setter
     def as_(self, value):
         self._as = utils.URL(value) if value is not None else None
@@ -201,6 +208,7 @@ class Magnet():
         :raises URLError: if any of the URLs is invalid
         """
         return self._ws
+
     @ws.setter
     def ws(self, value):
         if value is None:
@@ -214,6 +222,7 @@ class Magnet():
     def kt(self):
         """Keyword Topic: List of search keywords or ``None``"""
         return self._kt
+
     @kt.setter
     def kt(self, value):
         if value is None:
@@ -277,8 +286,9 @@ class Magnet():
         :return: ``True`` if the "info" section was successfully downloaded,
             ``False`` otherwise
         """
-        start = time.monotonic()
-        success = lambda: hasattr(self, '_info')
+        def success():
+            return hasattr(self, '_info')
+
         torrent_urls = []
         if self.xs: torrent_urls.append(self.xs)
         if self.as_: torrent_urls.append(self.as_)
@@ -291,6 +301,7 @@ class Magnet():
                 infohash_enc = urllib.parse.quote_from_bytes(binascii.unhexlify(self.infohash))
                 torrent_urls.append(f'{url.scheme}://{url.netloc}/file?info_hash={infohash_enc}')
 
+        start = time.monotonic()
         for url in torrent_urls:
             to = timeout - (time.monotonic() - start)
             try:

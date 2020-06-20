@@ -29,7 +29,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
-from urllib.parse import quote_plus as urlquote
+from urllib.parse import quote_plus as urlquote  # noqa: F401
 
 from . import _errors as error
 
@@ -97,10 +97,11 @@ def real_size(path):
     Raise ReadError on failure
     """
     if os.path.isdir(os.path.realpath(path)):
-        size = 0
         def onerror(exc):
             raise error.ReadError(getattr(exc, 'errno', None),
                                   getattr(exc, 'filename', None))
+
+        size = 0
         walker = os.walk(path, followlinks=True, onerror=onerror)
         for dirpath,dirnames,filenames in walker:
             for filename in filenames:
@@ -628,7 +629,7 @@ def download_http(url, timeout=60):
                    getattr(e, 'strerror', None) or
                    'Failed')
         raise error.ConnectionError(url, msg)
-    except socket.timeout as e:
+    except socket.timeout:
         raise error.ConnectionError(url, 'Timed out')
     except http.client.HTTPException:
         raise error.ConnectionError(url, 'No HTTP response')

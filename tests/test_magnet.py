@@ -99,11 +99,11 @@ def test_tr(xt):
     assert m.tr == ['http://foo.bar/baz', 'http://blim/blam']
     assert str(m) == f'magnet:?xt={xt}&tr=http%3A%2F%2Ffoo.bar%2Fbaz&tr=http%3A%2F%2Fblim%2Fblam'
 
-    with pytest.raises(torf.URLError) as excinfo:
+    with pytest.raises(torf.URLError):
         m.tr = 'foo'
     assert m.tr == ['http://foo.bar/baz', 'http://blim/blam']
 
-    with pytest.raises(torf.URLError) as excinfo:
+    with pytest.raises(torf.URLError):
         m.tr.append('foo')
     assert m.tr == ['http://foo.bar/baz', 'http://blim/blam']
 
@@ -117,7 +117,7 @@ def test_xs(xt):
     m.xs = 'http://blim/blam.torrent'
     assert m.xs == 'http://blim/blam.torrent'
     assert str(m) == f'magnet:?xt={xt}&xs=http%3A%2F%2Fblim%2Fblam.torrent'
-    with pytest.raises(torf.URLError) as excinfo:
+    with pytest.raises(torf.URLError):
         m.xs = 23
 
 def test_as(xt):
@@ -127,7 +127,7 @@ def test_as(xt):
     m.as_ = 'http://blim/blam.torrent'
     assert m.as_ == 'http://blim/blam.torrent'
     assert str(m) == f'magnet:?xt={xt}&as_=http%3A%2F%2Fblim%2Fblam.torrent'
-    with pytest.raises(torf.URLError) as excinfo:
+    with pytest.raises(torf.URLError):
         m.as_ = 23
 
 def test_ws(xt):
@@ -135,14 +135,14 @@ def test_ws(xt):
                             'http://bar.foo/baz.jpg'])
     assert m.ws == ['http://foo.bar/baz.jpg',
                     'http://bar.foo/baz.jpg']
-    with pytest.raises(torf.URLError) as excinfo:
+    with pytest.raises(torf.URLError):
         m.ws = ['foo']
     assert str(m) == f'magnet:?xt={xt}&ws=http%3A%2F%2Ffoo.bar%2Fbaz.jpg&ws=http%3A%2F%2Fbar.foo%2Fbaz.jpg'
     m.ws.remove('http://foo.bar/baz.jpg')
     assert str(m) == f'magnet:?xt={xt}&ws=http%3A%2F%2Fbar.foo%2Fbaz.jpg'
     m.ws = 'http://some/other/url/to/baz.jpg'
     assert m.ws == ['http://some/other/url/to/baz.jpg']
-    with pytest.raises(torf.URLError) as excinfo:
+    with pytest.raises(torf.URLError):
         m.ws.replace(('adf',))
     assert m.ws == ['http://some/other/url/to/baz.jpg']
 
@@ -163,7 +163,7 @@ def test_x(xt):
     assert m.x['bar'] == (1, 2, 3)
     m.x['foo'] = '1234'
     assert m.x['foo'] == '1234'
-    assert m.x['baz'] == None
+    assert m.x['baz'] is None
 
 def test_torrent(hash16, hash32):
     m = torf.Magnet(xt='urn:btih:' + hash16(b'some string'),
@@ -260,37 +260,37 @@ def test_from_string_with_invalid_xt_parameter():
     uri = 'magnet:?xt=foo'
     with pytest.raises(torf.MagnetError) as excinfo:
         torf.Magnet.from_string(uri)
-    assert str(excinfo.value) == f'foo: Invalid exact topic ("xt")'
+    assert str(excinfo.value) == 'foo: Invalid exact topic ("xt")'
 
 def test_from_string_with_invalid_xl_parameter(xt):
     uri = f'magnet:?xt={xt}&xl=nan'
     with pytest.raises(torf.MagnetError) as excinfo:
         torf.Magnet.from_string(uri)
-    assert str(excinfo.value) == f'nan: Invalid exact length ("xl")'
+    assert str(excinfo.value) == 'nan: Invalid exact length ("xl")'
 
 def test_from_string_with_invalid_tr_parameter(xt):
     uri = f'magnet:?xt={xt}&tr=not+a+URL'
     with pytest.raises(torf.URLError) as excinfo:
         torf.Magnet.from_string(uri)
-    assert str(excinfo.value) == f'not a URL: Invalid URL'
+    assert str(excinfo.value) == 'not a URL: Invalid URL'
 
 def test_from_string_with_invalid_xs_parameter(xt):
     uri = f'magnet:?xt={xt}&xs=not+a+URL'
     with pytest.raises(torf.URLError) as excinfo:
         torf.Magnet.from_string(uri)
-    assert str(excinfo.value) == f'not a URL: Invalid URL'
+    assert str(excinfo.value) == 'not a URL: Invalid URL'
 
 def test_from_string_with_invalid_as_parameter(xt):
     uri = f'magnet:?xt={xt}&as=not+a+URL'
     with pytest.raises(torf.URLError) as excinfo:
         torf.Magnet.from_string(uri)
-    assert str(excinfo.value) == f'not a URL: Invalid URL'
+    assert str(excinfo.value) == 'not a URL: Invalid URL'
 
 def test_from_string_with_invalid_ws_parameter(xt):
     uri = f'magnet:?xt={xt}&ws=not+a+URL'
     with pytest.raises(torf.URLError) as excinfo:
         torf.Magnet.from_string(uri)
-    assert str(excinfo.value) == f'not a URL: Invalid URL'
+    assert str(excinfo.value) == 'not a URL: Invalid URL'
 
 
 def test_from_torrent(singlefile_content, multifile_content):
@@ -434,15 +434,30 @@ def test_getting_info__xs_succeeds__as_fails(generated_singlefile_torrent, https
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == torrent.metainfo['info']
 
-def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver):
+def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver, monkeypatch):
     torrent = generated_singlefile_torrent
+    total_timeout = 100
+    now = 0.0
+    mock_time_monotonic = mock.MagicMock(return_value=now)
+    monkeypatch.setattr(time, 'monotonic', mock_time_monotonic)
+
+    def timed_out_download(url, *args, **kwargs):
+        # First download() call (xs) took almost all our available time
+        mock_time_monotonic.return_value = now + total_timeout - 1
+        # Remove mock for second download() call (as)
+        download_patch.stop()
+        raise torf.ConnectionError(url, 'Nope')
+    download_patch = mock.patch('torf._utils.download', timed_out_download)
+    download_patch.start()
+
+    httpserver.expect_request('/as.torrent').respond_with_data(torrent.dump())
     magnet = torf.Magnet(torrent.infohash,
-                         xs='http://xs.foo:123/torrent', as_=httpserver.url_for('/torrent'))
-    httpserver.expect_request('/torrent').respond_with_data(torrent.dump())
+                         xs='http://xs.foo:123/torrent',
+                         as_=httpserver.url_for('/as.torrent'))
 
     cb = mock.MagicMock()
-    assert magnet.get_info(callback=cb) is True
-    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Name or service not known')))]
+    assert magnet.get_info(callback=cb, timeout=total_timeout) is True
+    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Nope')))]
     assert cb.call_args_list == exp_calls
 
     torrent_ = magnet.torrent()
@@ -477,35 +492,6 @@ def test_getting_info__as_returns_invalid_bytes(generated_singlefile_torrent, ht
 
     torrent_ = magnet.torrent()
     assert torrent_.metainfo['info'] == {}
-
-def test_getting_info__xs_fails__as_succeeds(generated_singlefile_torrent, httpserver, monkeypatch):
-    torrent = generated_singlefile_torrent
-    total_timeout = 100
-    now = 0.0
-    mock_time_monotonic = mock.MagicMock(return_value=now)
-    monkeypatch.setattr(time, 'monotonic', mock_time_monotonic)
-
-    def timed_out_download(url, *args, **kwargs):
-        # First download() call (xs) took almost all our available time
-        mock_time_monotonic.return_value = now + total_timeout - 1
-        # Remove mock for second download() call (as)
-        download_patch.stop()
-        raise torf.ConnectionError(url, 'Nope')
-    download_patch = mock.patch('torf._utils.download', timed_out_download)
-    download_patch.start()
-
-    httpserver.expect_request('/as.torrent').respond_with_data(torrent.dump())
-    magnet = torf.Magnet(torrent.infohash,
-                         xs='http://xs.foo:123/torrent',
-                         as_=httpserver.url_for('/as.torrent'))
-
-    cb = mock.MagicMock()
-    assert magnet.get_info(callback=cb, timeout=total_timeout) is True
-    exp_calls = [mock.call(ComparableException(torf.ConnectionError('http://xs.foo:123/torrent', 'Nope')))]
-    assert cb.call_args_list == exp_calls
-
-    torrent_ = magnet.torrent()
-    assert torrent_.metainfo['info'] == torrent.metainfo['info']
 
 def test_getting_info__xs_times_out(generated_singlefile_torrent, monkeypatch):
     torrent = generated_singlefile_torrent
@@ -553,7 +539,7 @@ def test_getting_info_from_tr(generated_multifile_torrent, httpserver):
     magnet = torf.Magnet(torrent.infohash, tr=[httpserver.url_for('/announce')])
 
     infohash_enc = urllib.parse.quote_from_bytes(binascii.unhexlify(torrent.infohash))
-    httpserver.expect_request(f'/file', query_string=f'info_hash={infohash_enc}').respond_with_data(torrent.dump())
+    httpserver.expect_request('/file', query_string=f'info_hash={infohash_enc}').respond_with_data(torrent.dump())
     cb = mock.MagicMock()
     assert magnet.get_info(callback=cb) is True
     assert cb.call_args_list == []

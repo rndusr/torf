@@ -47,7 +47,7 @@ def test_path_reset(create_torrent, singlefile_content, multifile_content):
     torrent.private = True
     torrent.generate()
     assert 'pieces' in torrent.metainfo['info']
-    assert torrent.metainfo['info']['private'] == True
+    assert torrent.metainfo['info']['private'] is True
     assert torrent.metainfo['info']['name'] == os.path.basename(singlefile_content.path)
     assert 'length' in torrent.metainfo['info']
     assert 'files' not in torrent.metainfo['info']
@@ -55,10 +55,10 @@ def test_path_reset(create_torrent, singlefile_content, multifile_content):
     torrent.path = multifile_content.path
     assert torrent.path == Path(multifile_content.path)
     assert 'pieces' not in torrent.metainfo['info']
-    assert torrent.metainfo['info']['private'] == True
+    assert torrent.metainfo['info']['private'] is True
     torrent.generate()
     assert 'pieces' in torrent.metainfo['info']
-    assert torrent.metainfo['info']['private'] == True
+    assert torrent.metainfo['info']['private'] is True
     assert torrent.metainfo['info']['name'] == os.path.basename(multifile_content.path)
     assert 'files' in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
@@ -67,7 +67,7 @@ def test_path_reset(create_torrent, singlefile_content, multifile_content):
     assert torrent.path is None
     assert 'pieces' not in torrent.metainfo['info']
     assert 'length' not in torrent.metainfo['info']
-    assert torrent.metainfo['info']['private'] == True
+    assert torrent.metainfo['info']['private'] is True
     assert torrent.metainfo['info']['name'] == os.path.basename(multifile_content.path)
     assert torrent.metainfo['info']['files'] == multifile_content.exp_metainfo['info']['files']
 
@@ -226,7 +226,7 @@ def test_files_only_accepts_relative_paths(create_torrent, tmp_path):
     assert torrent.files == (torf.File(Path('foo'), size=4),)
 
 def test_files_needs_common_path(create_torrent, tmp_path):
-    content = tmp_path / 'asdf' ; content.mkdir()
+    content = tmp_path / 'asdf' ; content.mkdir()  # noqa: E702
     for i in range(1, 3): (content / f'file{i}').write_text('<data>')
     torrent = create_torrent(path=content)
     torrent.generate()
@@ -243,7 +243,7 @@ def test_files_needs_common_path(create_torrent, tmp_path):
     assert 'length' not in torrent.metainfo['info']
 
 def test_files_updates_metainfo_when_manipulated(create_torrent, tmp_path):
-    content = tmp_path / 'bar' ; content.mkdir()
+    content = tmp_path / 'bar' ; content.mkdir()  # noqa: E702
     for i in range(1, 3): (content / f'file{i}').write_text('<data>')
     torrent = create_torrent(path=content)
     torrent.generate()
@@ -601,9 +601,9 @@ def test_filetree_with_subdirectories(create_torrent, tmp_path):
         'file1': File(Path('content', 'file1'), size=6),
         'file2': File(Path('content', 'file2'), size=6),
         'subdir': {'file3': File(Path('content', 'subdir', 'file3'), size=9),
-            'file4': File(Path('content', 'subdir', 'file4'), size=9),
-            'subsubdir': {'file5': File(Path('content/subdir/subsubdir/file5'), size=12),
-                          'file6': File(Path('content/subdir/subsubdir/file6'), size=12)}}}}
+                   'file4': File(Path('content', 'subdir', 'file4'), size=9),
+                   'subsubdir': {'file5': File(Path('content/subdir/subsubdir/file5'), size=12),
+                                 'file6': File(Path('content/subdir/subsubdir/file6'), size=12)}}}}
 
 def test_filetree_with_single_file_in_directory(create_torrent, tmp_path):
     (tmp_path / 'content').mkdir()
@@ -620,7 +620,6 @@ def test_filetree_with_single_file(create_torrent, tmp_path):
 
 
 def test_name(create_torrent, singlefile_content, multifile_content):
-    torrent = create_torrent()
     def generate_exp_files(content, torrent_name):
         if content is singlefile_content:
             return (Path(torrent_name),)
@@ -640,6 +639,7 @@ def test_name(create_torrent, singlefile_content, multifile_content):
             return tuple(sorted(Path(f) for f in glob.iglob(os.path.join(content.path, '**'), recursive=True)
                                 if os.path.isfile(f)))
 
+    torrent = create_torrent()
     for content in (singlefile_content, multifile_content):
         torrent.name = None
 
@@ -700,26 +700,26 @@ def test_piece_size_is_set_automatically(create_torrent, multifile_content):
     assert 'piece length' in torrent.metainfo['info']
 
 def test_piece_size_is_set_manually(create_torrent, multifile_content):
-    torrent = create_torrent(path=multifile_content.path, piece_size=16*2**20)
-    assert torrent.piece_size == 16*2**20
-    assert torrent.metainfo['info']['piece length'] == 16*2**20
+    torrent = create_torrent(path=multifile_content.path, piece_size=16 * 2**20)
+    assert torrent.piece_size == 16 * 2**20
+    assert torrent.metainfo['info']['piece length'] == 16 * 2**20
 
-    torrent = torf.Torrent(piece_size=16*2**20)
-    assert torrent.piece_size == 16*2**20
-    assert torrent.metainfo['info']['piece length'] == 16*2**20
+    torrent = torf.Torrent(piece_size=16 * 2**20)
+    assert torrent.piece_size == 16 * 2**20
+    assert torrent.metainfo['info']['piece length'] == 16 * 2**20
 
     torrent.path = multifile_content.path
-    assert torrent.piece_size != 16*2**20
-    assert torrent.metainfo['info']['piece length'] != 16*2**20
+    assert torrent.piece_size != 16 * 2**20
+    assert torrent.metainfo['info']['piece length'] != 16 * 2**20
 
 def test_piece_size_defaults_to_return_value_of_calculate_piece_size(create_torrent, multifile_content):
     torrent = create_torrent(path=multifile_content.path)
-    assert torrent.piece_size != 4*2**20
-    assert torrent.metainfo['info']['piece length'] != 4*2**20
-    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 4*2**20):
+    assert torrent.piece_size != 4 * 2**20
+    assert torrent.metainfo['info']['piece length'] != 4 * 2**20
+    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 4 * 2**20):
         torrent.piece_size = None
-    assert torrent.piece_size == 4*2**20
-    assert torrent.metainfo['info']['piece length'] == 4*2**20
+    assert torrent.piece_size == 4 * 2**20
+    assert torrent.metainfo['info']['piece length'] == 4 * 2**20
 
 def test_piece_size_when_torrent_size_is_zero(create_torrent, multifile_content):
     torrent = torf.Torrent(path=multifile_content.path, exclude_globs=('*',))
@@ -761,29 +761,29 @@ def test_calculate_piece_size(monkeypatch):
     calc = torf.Torrent.calculate_piece_size
     for size in (1, 10, 100):
         assert calc(size) == 1024
-    assert calc(100 * 2**20) == 128 * 1024
-    assert calc(500 * 2**20) == 512 * 1024
-    assert calc(  1 * 2**30) ==      2**20
-    assert calc(  2 * 2**30) ==      2**20
-    assert calc(  3 * 2**30) ==  2 * 2**20
-    assert calc(  6 * 2**30) ==  2 * 2**20
-    assert calc(  7 * 2**30) ==  4 * 2**20
-    assert calc(  8 * 2**30) ==  4 * 2**20
-    assert calc(  9 * 2**30) ==  8 * 2**20
-    assert calc( 16 * 2**30) ==  8 * 2**20
-    assert calc( 32 * 2**30) ==  8 * 2**20
-    assert calc( 64 * 2**30) ==  8 * 2**20
-    assert calc( 80 * 2**30) ==  8 * 2**20
-    assert calc( 81 * 2**30) == 16 * 2**20
-    assert calc(160 * 2**30) == 16 * 2**20
-    assert calc(165 * 2**30) == 32 * 2**20
-    assert calc(200 * 2**30) == 32 * 2**20
-    assert calc(300 * 2**30) == 32 * 2**20
-    assert calc(400 * 2**30) == 64 * 2**20
-    assert calc(1000 * 2**30) == 128 * 2**20
-    assert calc(4000 * 2**30) == 256 * 2**20
-    assert calc(40000 * 2**30) == 256 * 2**20
-    assert calc(400000 * 2**30) == 256 * 2**20
+    assert calc(100 * 2**20) == 128 * 1024      # noqa: E201,E222
+    assert calc(500 * 2**20) == 512 * 1024      # noqa: E201,E222
+    assert calc(  1 * 2**30) ==      2**20      # noqa: E201,E222
+    assert calc(  2 * 2**30) ==      2**20      # noqa: E201,E222
+    assert calc(  3 * 2**30) ==  2 * 2**20      # noqa: E201,E222
+    assert calc(  6 * 2**30) ==  2 * 2**20      # noqa: E201,E222
+    assert calc(  7 * 2**30) ==  4 * 2**20      # noqa: E201,E222
+    assert calc(  8 * 2**30) ==  4 * 2**20      # noqa: E201,E222
+    assert calc(  9 * 2**30) ==  8 * 2**20      # noqa: E201,E222
+    assert calc( 16 * 2**30) ==  8 * 2**20      # noqa: E201,E222
+    assert calc( 32 * 2**30) ==  8 * 2**20      # noqa: E201,E222
+    assert calc( 64 * 2**30) ==  8 * 2**20      # noqa: E201,E222
+    assert calc( 80 * 2**30) ==  8 * 2**20      # noqa: E201,E222
+    assert calc( 81 * 2**30) == 16 * 2**20      # noqa: E201,E222
+    assert calc(160 * 2**30) == 16 * 2**20      # noqa: E201,E222
+    assert calc(165 * 2**30) == 32 * 2**20      # noqa: E201,E222
+    assert calc(200 * 2**30) == 32 * 2**20      # noqa: E201,E222
+    assert calc(300 * 2**30) == 32 * 2**20      # noqa: E201,E222
+    assert calc(400 * 2**30) == 64 * 2**20      # noqa: E201,E222
+    assert calc(1000 * 2**30) == 128 * 2**20    # noqa: E201,E222
+    assert calc(4000 * 2**30) == 256 * 2**20    # noqa: E201,E222
+    assert calc(40000 * 2**30) == 256 * 2**20   # noqa: E201,E222
+    assert calc(400000 * 2**30) == 256 * 2**20  # noqa: E201,E222
 
 
 def test_hashes(create_torrent, multifile_content):
@@ -794,7 +794,7 @@ def test_hashes(create_torrent, multifile_content):
     assert torrent.hashes == ()
     torrent.generate()
     hashes_string = multifile_content.exp_metainfo['info']['pieces']
-    assert torrent.hashes == tuple(hashes_string[pos:pos+20]
+    assert torrent.hashes == tuple(hashes_string[pos : pos + 20]
                                    for pos in range(0, len(hashes_string), 20))
     torrent.path = None
     assert torrent.hashes == ()
@@ -936,7 +936,7 @@ def test_webseeds__sync_to_metainfo(create_torrent):
     assert 'url-list' not in torrent.metainfo
     torrent.webseeds = ['http://foo']
     assert torrent.webseeds == ['http://foo']
-    assert torrent.metainfo['url-list'] ==  ['http://foo']
+    assert torrent.metainfo['url-list'] == ['http://foo']
     torrent.webseeds.clear()
     assert torrent.webseeds == []
     assert 'url-list' not in torrent.metainfo
@@ -984,7 +984,7 @@ def test_httpseeds__sync_to_metainfo(create_torrent):
     assert 'httpseeds' not in torrent.metainfo
     torrent.httpseeds = ['http://foo']
     assert torrent.httpseeds == ['http://foo']
-    assert torrent.metainfo['httpseeds'] ==  ['http://foo']
+    assert torrent.metainfo['httpseeds'] == ['http://foo']
     torrent.httpseeds.clear()
     assert torrent.httpseeds == []
     assert 'httpseeds' not in torrent.metainfo

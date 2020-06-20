@@ -1,11 +1,9 @@
 import torf
 
 import pytest
-import io
 import flatbencode as bencode
 import time
 import os
-from unittest.mock import MagicMock
 
 
 def test_successful_write(generated_singlefile_torrent, tmp_path):

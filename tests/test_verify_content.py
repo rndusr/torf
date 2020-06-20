@@ -8,9 +8,10 @@ import collections
 import itertools
 import errno
 
+from . import *  # noqa: F403
+
 import logging
 debug = logging.getLogger('test').debug
-from . import *
 
 class CollectingCallback():
     """Collect call arguments and make basic assertions"""
@@ -18,10 +19,10 @@ class CollectingCallback():
         super().__init__()
         self.torrent = torrent
         self.seen_pieces_done = []
-        self._seen_piece_indexes = collections.defaultdict(lambda: fuzzylist())
-        self._seen_good_pieces = collections.defaultdict(lambda: fuzzylist())
-        self._seen_skipped_pieces = collections.defaultdict(lambda: fuzzylist())
-        self.seen_exceptions = fuzzylist()
+        self._seen_piece_indexes = collections.defaultdict(lambda: fuzzylist())  # noqa: F405
+        self._seen_good_pieces = collections.defaultdict(lambda: fuzzylist())  # noqa: F405
+        self._seen_skipped_pieces = collections.defaultdict(lambda: fuzzylist())  # noqa: F405
+        self.seen_exceptions = fuzzylist()  # noqa: F405
 
     def __call__(self, t, path, pieces_done, pieces_total, piece_index, piece_hash, exc):
         assert t is self.torrent
@@ -34,7 +35,7 @@ class CollectingCallback():
                 assert type(piece_hash) is bytes and len(piece_hash) == 20
             else:
                 assert piece_hash is None
-            self.seen_exceptions.append(ComparableException(exc))
+            self.seen_exceptions.append(ComparableException(exc))  # noqa: F405
         elif piece_hash is None:
             assert exc is None
             self._seen_skipped_pieces[path.name].append(piece_index)
@@ -134,7 +135,7 @@ class _TestCaseBase():
     @property
     def exp_pieces_done(self):
         if not hasattr(self, '_exp_pieces_done'):
-            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size,
+            self._exp_pieces_done = calc_pieces_done(self.filespecs_abspath, self.piece_size,  # noqa: F405
                                                      self.files_missing, self.files_missized)
             debug(f'Expected pieces done: {self._exp_pieces_done}')
         return self._exp_pieces_done
@@ -142,7 +143,7 @@ class _TestCaseBase():
     @property
     def exp_piece_indexes(self):
         if not hasattr(self, '_exp_piece_indexes'):
-            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size,
+            self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size,  # noqa: F405
                                                          self.files_missing, self.files_missized)
             debug(f'Expected piece indexes: {dict(self._exp_piece_indexes)}')
         return dict(self._exp_piece_indexes)
@@ -150,10 +151,15 @@ class _TestCaseBase():
     @property
     def exp_good_pieces(self):
         if not hasattr(self, '_exp_good_pieces'):
-            self._exp_good_pieces = calc_good_pieces(self.filespecs, self.piece_size, self.files_missing,
-                                                     self.corruption_positions, self.files_missized)
+            self._exp_good_pieces = calc_good_pieces(self.filespecs,  # noqa: F405
+                                                     self.piece_size,
+                                                     self.files_missing,
+                                                     self.corruption_positions,
+                                                     self.files_missized)
             if self.skip_on_error:
-                self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces, self.filespecs, self.piece_size,
+                self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces,  # noqa: F405
+                                                         self.filespecs,
+                                                         self.piece_size,
                                                          self.corruption_positions)
             debug(f'Expected good pieces: {self._exp_good_pieces}')
         return self._exp_good_pieces
@@ -161,9 +167,11 @@ class _TestCaseBase():
     @property
     def exp_exc_corruptions(self):
         if not hasattr(self, '_exp_exc_corruptions'):
-            self._exp_exc_corruptions = calc_corruptions(self.filespecs_abspath, self.piece_size, self.corruption_positions)
+            self._exp_exc_corruptions = calc_corruptions(self.filespecs_abspath,  # noqa: F405
+                                                         self.piece_size,
+                                                         self.corruption_positions)
             if self.skip_on_error:
-                self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,
+                self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,  # noqa: F405
                                                              self.piece_size, self.corruption_positions,
                                                              self.files_missing, self.files_missized)
             debug(f'Expected corruptions: {self._exp_exc_corruptions}')
@@ -172,7 +180,7 @@ class _TestCaseBase():
     @property
     def exp_exc_files_missing(self):
         if not hasattr(self, '_exp_exc_files_missing'):
-            self._exp_exc_files_missing = fuzzylist(*(ComparableException(torf.ReadError(errno.ENOENT, filepath))
+            self._exp_exc_files_missing = fuzzylist(*(ComparableException(torf.ReadError(errno.ENOENT, filepath))  # noqa: F405
                                                       for filepath in self.files_missing))
             debug(f'Expected files missing: {self._exp_exc_files_missing}')
         return self._exp_exc_files_missing
@@ -183,16 +191,16 @@ class _TestCaseBase():
             def mkexc(filepath):
                 fsize_orig = self.get_original_filesize(filepath)
                 fsize_actual = self.get_actual_filesize(filepath)
-                return ComparableException(torf.VerifyFileSizeError(
+                return ComparableException(torf.VerifyFileSizeError(  # noqa: F405
                     filepath, actual_size=fsize_actual, expected_size=fsize_orig))
-            self._exp_exc_files_missized = fuzzylist(*(mkexc(filepath) for filepath in self.files_missized))
+            self._exp_exc_files_missized = fuzzylist(*(mkexc(filepath) for filepath in self.files_missized))  # noqa: F405
             debug(f'Expected files missized: {self._exp_exc_files_missized}')
         return self._exp_exc_files_missized
 
     @property
     def exp_exceptions(self):
         if not hasattr(self, '_exp_exceptions'):
-            debug(f'Calculating expected exceptions:')
+            debug('Calculating expected exceptions:')
 
             # Exceptions that must be reported
             mandatory = set(self.exp_exc_files_missing)
@@ -206,7 +214,7 @@ class _TestCaseBase():
 
             # If there are no missing or missized files, corruptions are mandatory
             if not mandatory:
-                debug(f'  all corruption exceptions are mandatory')
+                debug('  all corruption exceptions are mandatory')
                 mandatory.update(self.exp_exc_corruptions)
                 maybe.update(self.exp_exc_corruptions.maybe)
             else:
@@ -227,11 +235,11 @@ class _TestCaseBase():
                     debug(f'  also allowing {str(exc)}')
                     maybe.add(exc)
 
-            self._exp_exceptions = fuzzylist(*mandatory, maybe=maybe)
-            debug(f'Expected exceptions:')
+            self._exp_exceptions = fuzzylist(*mandatory, maybe=maybe)  # noqa: F405
+            debug('Expected exceptions:')
             for e in self._exp_exceptions:
                 debug(repr(e))
-            debug(f'Tolerated exceptions:')
+            debug('Tolerated exceptions:')
             for e in self._exp_exceptions.maybe:
                 debug(repr(e))
         return self._exp_exceptions
@@ -259,7 +267,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         if self.files_missing or self.files_missized:
             return
         # Introduce random number of corruptions without changing stream length
-        corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)
+        corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)  # noqa: F405
         for corrpos in corruption_positions:
             debug(f'Introducing corruption at index {corrpos}')
             self.stream_corrupt[corrpos] = (self.stream_corrupt[corrpos] + 1) % 256
@@ -283,7 +291,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         if self.corruption_positions or self.files_missing:
             return
         debug(f'Changing file size in file system: {os.path.basename(self.content_path)}')
-        self.stream_corrupt = change_file_size(self.content_path, self.torrent.size)
+        self.stream_corrupt = change_file_size(self.content_path, self.torrent.size)  # noqa: F405
         self.files_missized.append(self.content_path)
 
     def get_original_filesize(self, filepath):
@@ -330,9 +338,9 @@ class _TestCaseMultifile(_TestCaseBase):
         # Introduce corruptions without changing stream length
         error_files = set(os.path.basename(f) for f in itertools.chain(
             self.files_missing, self.files_missized))
-        corruption_positions = set(random_positions(self.stream_original) if not positions else positions)
+        corruption_positions = set(random_positions(self.stream_original) if not positions else positions)  # noqa: F405
         for corrpos_in_stream in corruption_positions:
-            filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)
+            filename,corrpos_in_file = pos2file(corrpos_in_stream, self.filespecs, self.piece_size)  # noqa: F405
             if filename in error_files:
                 continue
             else:
@@ -369,10 +377,10 @@ class _TestCaseMultifile(_TestCaseBase):
             # Find the first byte of the first affected piece and the first byte
             # of the last affected piece and mark them as corrupt
             removed_filename = os.path.basename(removed_filepath)
-            file_beg,file_end = file_range(removed_filename, self.filespecs)
+            file_beg,file_end = file_range(removed_filename, self.filespecs)  # noqa: F405
             debug(f'  {removed_filename} starts at {file_beg} and ends at {file_end} in stream')
-            first_affected_piece_pos = round_down_to_multiple(file_beg, self.piece_size)
-            last_affected_piece_pos = round_down_to_multiple(file_end, self.piece_size)
+            first_affected_piece_pos = round_down_to_multiple(file_beg, self.piece_size)  # noqa: F405
+            last_affected_piece_pos = round_down_to_multiple(file_end, self.piece_size)  # noqa: F405
             debug(f'  First affected piece starts at {first_affected_piece_pos} '
                   f'and last affected piece starts at {last_affected_piece_pos}')
             corruption_positions.add(first_affected_piece_pos)
@@ -388,7 +396,7 @@ class _TestCaseMultifile(_TestCaseBase):
         skipped_files = {str(filepath) for filepath in itertools.chain(self.files_missing, self.files_missized)}
         debug(f'  skipped_files: {skipped_files}')
         for corrpos in tuple(self.corruption_positions):
-            affected_files = pos2files(corrpos, self.filespecs_abspath, self.piece_size)
+            affected_files = pos2files(corrpos, self.filespecs_abspath, self.piece_size)  # noqa: F405
             if all(f in skipped_files for f in affected_files):
                 debug(f'  only skipped files are affected by corruption at position {corrpos}')
                 self.corruption_positions.remove(corrpos)
@@ -409,12 +417,12 @@ class _TestCaseMultifile(_TestCaseBase):
             return
 
         # Change file size
-        self.content_corrupt[filename] = change_file_size(
+        self.content_corrupt[filename] = change_file_size(  # noqa: F405
             filepath, len(self.content_original[filename]))
         self.files_missized.append(filepath)
 
         # Check if the beginning of adjacent files will be corrupted
-        file_beg,file_end = file_range(filename, self.filespecs)
+        file_beg,file_end = file_range(filename, self.filespecs)  # noqa: F405
         debug(f'  Original file beginning and end in stream: {file_beg}, {file_end}')
         if file_beg % self.piece_size != 0:
             debug(f'  Beginning corrupts previous file at piece_index {file_beg // self.piece_size}')
@@ -422,7 +430,7 @@ class _TestCaseMultifile(_TestCaseBase):
 
         # Check if the end of adjacent files will be corrupted
         if (file_end + 1) % self.piece_size != 0:
-            filepath,_ = pos2file(file_end, self.filespecs_abspath, self.piece_size)
+            filepath,_ = pos2file(file_end, self.filespecs_abspath, self.piece_size)  # noqa: F405
             if (filepath not in self.files_missing and
                 filepath not in self.files_missized and
                 filepath != self.filespecs_abspath[-1][0]):
@@ -459,70 +467,72 @@ def test_validate_is_called_first(monkeypatch):
     monkeypatch.setattr(torrent, 'validate', mock_validate)
     with pytest.raises(torf.MetainfoError) as excinfo:
         torrent.verify('some/path')
-    assert str(excinfo.value) == f'Invalid metainfo: Mock error'
+    assert str(excinfo.value) == 'Invalid metainfo: Mock error'
     mock_validate.assert_called_once_with()
 
 def test_verify_content_successfully(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)
-    cb = tc.run(with_callback=callback['enabled'],
-                exp_return_value=True)
+    tc.run(with_callback=callback['enabled'],
+           exp_return_value=True)
 
 def test_verify_content_with_random_corruptions_and_no_skipping(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
-    cb = tc.run(with_callback=callback['enabled'],
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           exp_return_value=False)
 
 def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)
     tc.corrupt_stream()
-    cb = tc.run(with_callback=callback['enabled'],
-                skip_on_error=True,
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           skip_on_error=True,
+           exp_return_value=False)
 
 def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)
     for index in filespec_indexes:
         tc.delete_file(index)
-    cb = tc.run(with_callback=callback['enabled'],
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           exp_return_value=False)
 
 def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)
     for index in filespec_indexes:
         tc.delete_file(index)
-    cb = tc.run(with_callback=callback['enabled'],
-                skip_on_error=True,
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           skip_on_error=True,
+           exp_return_value=False)
 
 def test_verify_content_with_changed_file_size_and_no_skipping(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
+
     tc = mktestcase(filespecs, piece_size)
     tc.change_file_size()
-    cb = tc.run(with_callback=callback['enabled'],
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           exp_return_value=False)
 
 def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
+
     tc = mktestcase(filespecs, piece_size)
     tc.change_file_size()
-    cb = tc.run(with_callback=callback['enabled'],
-                skip_on_error=True,
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           skip_on_error=True,
+           exp_return_value=False)
 
 def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)
+    display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)
     # Introduce 2 or 3 errors in random order
     errorizers = [tc.corrupt_stream, tc.delete_file, tc.change_file_size]
     for _ in range(random.randint(2, len(errorizers))):
         errorizer = errorizers.pop(random.choice(range(len(errorizers))))
         errorizer()
-    cb = tc.run(with_callback=callback['enabled'],
-                skip_on_error=random.choice((True, False)),
-                exp_return_value=False)
+    tc.run(with_callback=callback['enabled'],
+           skip_on_error=random.choice((True, False)),
+           exp_return_value=False)

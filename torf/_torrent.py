@@ -14,7 +14,6 @@
 
 import base64
 import errno
-import fnmatch
 import hashlib
 import inspect
 import io
@@ -23,7 +22,7 @@ import math
 import os
 import pathlib
 import re
-from collections import abc, namedtuple
+from collections import abc
 from datetime import datetime
 
 import flatbencode as bencode
@@ -160,6 +159,7 @@ class Torrent():
             readable
         """
         return self._path
+
     @path.setter
     def path(self, value):
         if value is None:
@@ -210,7 +210,6 @@ class Torrent():
 
     @files.setter
     def files(self, files):
-        info = self.metainfo['info']
         if not isinstance(files, utils.Iterable):
             raise ValueError(f'Not an Iterable: {files}')
         for f in files:
@@ -266,7 +265,6 @@ class Torrent():
         if not isinstance(filepaths, utils.Iterable):
             raise ValueError(f'Not an Iterable: {filepaths}')
 
-        info = self.metainfo['info']
         filepaths = utils.Filepaths(filepaths)  # Resolve directories
         if not filepaths:
             self._set_files(files=())
@@ -381,6 +379,7 @@ class Torrent():
         ======== ============================
         """
         return self._exclude['globs']
+
     @exclude_globs.setter
     def exclude_globs(self, value):
         if not isinstance(value, utils.Iterable):
@@ -397,6 +396,7 @@ class Torrent():
         :raises re.error: if any regular expression is invalid
         """
         return self._exclude['regexs']
+
     @exclude_regexs.setter
     def exclude_regexs(self, value):
         if not isinstance(value, utils.Iterable):
@@ -462,6 +462,7 @@ class Torrent():
         if 'name' not in self.metainfo['info'] and self.path is not None:
             self.metainfo['info']['name'] = self.path.name
         return self.metainfo['info'].get('name', None)
+
     @name.setter
     def name(self, value):
         if value is None:
@@ -541,6 +542,7 @@ class Torrent():
         if 'piece length' not in self.metainfo['info']:
             self.piece_size = None  # Calculate piece size
         return self.metainfo['info'].get('piece length', 0)
+
     @piece_size.setter
     def piece_size(self, value):
         if value is None:
@@ -578,13 +580,13 @@ class Torrent():
 
         :return: calculated piece size
         """
-        if size <= 2**30:          #  1 GiB / 1024 pieces = 1 MiB max
+        if size <= 2**30:          # 1 GiB / 1024 pieces = 1 MiB max
             pieces = size / 1024
-        elif size <= 4 * 2**30:    #  4 GiB / 2048 pieces = 2 MiB max
+        elif size <= 4 * 2**30:    # 4 GiB / 2048 pieces = 2 MiB max
             pieces = size / 2048
-        elif size <= 6 * 2**30:    #  6 GiB / 3072 pieces = 2 MiB max
+        elif size <= 6 * 2**30:    # 6 GiB / 3072 pieces = 2 MiB max
             pieces = size / 3072
-        elif size <= 8 * 2**30:    #  8 GiB / 2048 pieces = 4 MiB max
+        elif size <= 8 * 2**30:    # 8 GiB / 2048 pieces = 4 MiB max
             pieces = size / 2048
         elif size <= 16 * 2**30:   # 16 GiB / 2048 pieces = 8 MiB max
             pieces = size / 2048
@@ -607,7 +609,7 @@ class Torrent():
     :class:`PieceSizeError`.
     """
 
-    piece_size_max = 16 * 1024*1024  # 16 MiB
+    piece_size_max = 16 * 1024 * 1024  # 16 MiB
     """
     Greatest allowed piece size
 
@@ -631,7 +633,7 @@ class Torrent():
         hashes = self.metainfo['info'].get('pieces')
         if isinstance(hashes, (bytes, bytearray)):
             # Each hash is 20 bytes long
-            return tuple(bytes(hashes[pos:pos+20])
+            return tuple(bytes(hashes[pos : pos + 20])
                          for pos in range(0, len(hashes), 20))
         else:
             return ()
@@ -785,6 +787,7 @@ class Torrent():
             return bool(self.metainfo['info']['private'])
         else:
             return None
+
     @private.setter
     def private(self, value):
         if value is None:
@@ -800,6 +803,7 @@ class Torrent():
         Setting this property sets or removes :attr:`metainfo`\ ``['comment']``.
         """
         return self.metainfo.get('comment', None)
+
     @comment.setter
     def comment(self, value):
         if value is not None:
@@ -819,6 +823,7 @@ class Torrent():
         :attr:`metainfo`\ ``['creation date']``.
         """
         return self.metainfo.get('creation date', None)
+
     @creation_date.setter
     def creation_date(self, value):
         if isinstance(value, (float, int)):
@@ -839,6 +844,7 @@ class Torrent():
         :attr:`metainfo`\ ``['created by']``.
         """
         return self.metainfo.get('created by', None)
+
     @created_by.setter
     def created_by(self, value):
         if value is not None:
@@ -855,6 +861,7 @@ class Torrent():
         :attr:`metainfo`\ ``['info']``\ ``['created by']``.
         """
         return self.metainfo['info'].get('source', None)
+
     @source.setter
     def source(self, value):
         if value is not None:
@@ -904,6 +911,7 @@ class Torrent():
         Setting it to ``False`` removes that field.
         """
         return bool(self.metainfo['info'].get('entropy', False))
+
     @randomize_infohash.setter
     def randomize_infohash(self, value):
         if value:
@@ -972,7 +980,7 @@ class Torrent():
         # Read piece_size'd chunks from disk and push them to queue for hashing
         reader = generate.Reader(filepaths=filepaths,
                                  piece_size=self.piece_size,
-                                 queue_size=threads*3)
+                                 queue_size=threads * 3)
 
         # Pool of workers that pull from reader's piece queue, calculate the
         # hashes, and quickly offload the results to a hash queue
@@ -991,9 +999,9 @@ class Torrent():
                                               callback=collector_callback)
 
         if maybe_cancel:
-           maybe_cancel.on_cancel(reader.stop,
-                                  hasher_threadpool.stop,
-                                  collector_thread.stop)
+            maybe_cancel.on_cancel(reader.stop,
+                                   hasher_threadpool.stop,
+                                   collector_thread.stop)
 
         try:
             reader.read()
@@ -1189,7 +1197,7 @@ class Torrent():
                                      file_sizes={fs_path:self.partial_size(t_path)
                                                  for fs_path,t_path in filepaths},
                                      piece_size=self.piece_size,
-                                     queue_size=threads*3,
+                                     queue_size=threads * 3,
                                      skip_on_error=skip_on_error)
 
             # Pool of workers that pull from reader_thread's piece queue, calculate
