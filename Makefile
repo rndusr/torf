@@ -11,11 +11,12 @@ clean:
 
 venv:
 	"$(PYTHON)" -m venv "$(VENV_PATH)"
-	# Docutils is needed for `setup.py check -r -s`
-	"$(VENV_PATH)"/bin/pip install --upgrade wheel docutils pygments
-	"$(VENV_PATH)"/bin/pip install --upgrade tox pytest pytest-xdist pytest-httpserver
+	"$(VENV_PATH)"/bin/pip install --upgrade wheel tox pytest pytest-xdist pytest-httpserver
+	"$(VENV_PATH)"/bin/pip install --upgrade wheel tox pytest flake8 isort
 	"$(VENV_PATH)"/bin/pip install --editable .
 	"$(VENV_PATH)"/bin/pip install --editable ../torf-cli
+	# Dependencies for `setup.py check -r -s`
+	"$(VENV_PATH)"/bin/pip install --upgrade docutils pygments
 
 test: venv
 	. "$(VENV_PATH)"/bin/activate ; \
@@ -27,6 +28,10 @@ test: venv
 fulltest: venv
 	. "$(VENV_PATH)"/bin/activate ; \
 	  tox
+	. "$(VENV_PATH)"/bin/activate ; \
+	  flake8 torf tests
+	. "$(VENV_PATH)"/bin/activate ; \
+	  isort --recursive torf tests
 
 release:
 	pyrelease CHANGELOG ./torf/__init__.py
