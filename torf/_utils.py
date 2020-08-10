@@ -143,7 +143,8 @@ def list_files(path):
         return list(sorted(filepaths, key=lambda fp: str(fp).casefold()))
 
 
-def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True):
+def filter_files(items, getter=lambda f: f, hidden=True, empty=True,
+                 exclude=(), include=()):
     """
     Return reduced copy of `items`
 
@@ -152,6 +153,8 @@ def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True)
     getter: Callable that takes an item of `filepaths` and returns a file path
     exclude: Sequence of regular expressions or strings with wildcard characters
         (see `fnmatch`) that are matched against full paths
+    include: Same as `exclude`, but instead of removing files, matching patterns
+        keep files even if they match a pattern in `excluude
     hidden: Whether to include hidden files
     empty: Whether to include empty files
     """
@@ -162,11 +165,18 @@ def filter_files(items, getter=lambda f: f, exclude=(), hidden=True, empty=True)
         return False
 
     def is_excluded(path,
-                    regexs=tuple(x for x in exclude if isinstance(x, typing.Pattern)),
-                    globs=tuple(x for x in exclude if isinstance(x, str))):
-        if any(r.search(str(path)) for r in regexs):
+                    ex_regexs=tuple(x for x in exclude if isinstance(x, typing.Pattern)),
+                    ex_globs=tuple(x for x in exclude if isinstance(x, str)),
+                    in_regexs=tuple(i for i in include if isinstance(i, typing.Pattern)),
+                    in_globs=tuple(i for i in include if isinstance(i, str))):
+        # Include patterns take precedence over exclude pattersn
+        if any(r.search(str(path)) for r in in_regexs):
+            return False
+        elif any(fnmatch.fnmatch(str(path).casefold(), g.casefold()) for g in in_globs):
+            return False
+        elif any(r.search(str(path)) for r in ex_regexs):
             return True
-        elif any(fnmatch.fnmatch(str(path).casefold(), g.casefold()) for g in globs):
+        elif any(fnmatch.fnmatch(str(path).casefold(), g.casefold()) for g in ex_globs):
             return True
         return False
 
