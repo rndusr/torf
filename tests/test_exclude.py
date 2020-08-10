@@ -149,3 +149,41 @@ def test_more_exclude_regexs_tests(create_torrent, tmp_path):
     torrent.exclude_regexs = ('.*(?:_bar|2)$',)
     assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'baz', 'file4']},
                                                  {'length': 4, 'path': ['bar', 'file3']}]
+
+def test_include_globs_take_precedence(create_torrent, tmp_path):
+    (tmp_path / 'content' / 'foo' / 'bar').mkdir(parents=True)
+    (tmp_path / 'content' / 'bar' / 'baz').mkdir(parents=True)
+    (tmp_path / 'content' / 'foo' / 'file_bar').write_text('data')
+    (tmp_path / 'content' / 'foo' / 'bar' / 'file2').write_text('data')
+    (tmp_path / 'content' / 'bar' / 'file3').write_text('data')
+    (tmp_path / 'content' / 'bar' / 'baz' / 'file4').write_text('data')
+
+    torrent = create_torrent(path=tmp_path / 'content')
+    assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'baz', 'file4']},
+                                                 {'length': 4, 'path': ['bar', 'file3']},
+                                                 {'length': 4, 'path': ['foo', 'bar', 'file2']},
+                                                 {'length': 4, 'path': ['foo', 'file_bar']}]
+    torrent.exclude_globs = ('*foo*',)
+    torrent.include_globs = ('*foo/*/file?',)
+    assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'baz', 'file4']},
+                                                 {'length': 4, 'path': ['bar', 'file3']},
+                                                 {'length': 4, 'path': ['foo', 'bar', 'file2']}]
+
+def test_include_regexs_take_precedence(create_torrent, tmp_path):
+    (tmp_path / 'content' / 'foo' / 'bar').mkdir(parents=True)
+    (tmp_path / 'content' / 'bar' / 'baz').mkdir(parents=True)
+    (tmp_path / 'content' / 'foo' / 'file_bar').write_text('data')
+    (tmp_path / 'content' / 'foo' / 'bar' / 'file2').write_text('data')
+    (tmp_path / 'content' / 'bar' / 'file3').write_text('data')
+    (tmp_path / 'content' / 'bar' / 'baz' / 'file4').write_text('data')
+
+    torrent = create_torrent(path=tmp_path / 'content')
+    assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'baz', 'file4']},
+                                                 {'length': 4, 'path': ['bar', 'file3']},
+                                                 {'length': 4, 'path': ['foo', 'bar', 'file2']},
+                                                 {'length': 4, 'path': ['foo', 'file_bar']}]
+    torrent.exclude_regexs = ('file.$',)
+    torrent.include_regexs = ('file[23]',)
+    assert torrent.metainfo['info']['files'] == [{'length': 4, 'path': ['bar', 'file3']},
+                                                 {'length': 4, 'path': ['foo', 'bar', 'file2']},
+                                                 {'length': 4, 'path': ['foo', 'file_bar']}]
