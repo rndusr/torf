@@ -31,7 +31,7 @@ fulltest: venv
 	. "$(VENV_PATH)"/bin/activate ; \
 	  flake8 torf tests
 	. "$(VENV_PATH)"/bin/activate ; \
-	  isort --recursive torf tests
+	  isort torf tests
 
 release:
 	pyrelease CHANGELOG ./torf/__init__.py
