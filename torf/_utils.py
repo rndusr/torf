@@ -481,7 +481,10 @@ class URLs(MonitoredList):
     def __init__(self, urls, callback=None, _get_known_urls=lambda: ()):
         self._get_known_urls = _get_known_urls
         if isinstance(urls, str):
-            urls = (urls,)
+            if not urls.strip():
+                urls = ()
+            else:
+                urls = (urls,)
         else:
             urls = flatten(urls)
         super().__init__(urls, callback=callback, type=URL)

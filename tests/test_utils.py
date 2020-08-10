@@ -453,6 +453,10 @@ def test_URLs_accepts_string_or_iterable():
     assert urls == utils.URLs(('http://foo:123',))
     assert urls == utils.URLs(['http://foo:123'])
 
+def test_URLs_interprets_empty_string_as_empty_list():
+    urls = utils.URLs('')
+    assert urls == ()
+
 def test_URLs_deduplicates_when_initializing():
     urls = utils.URLs(('http://foo:123', 'http://bar:456', 'http://foo:123'))
     assert urls == ['http://foo:123', 'http://bar:456']

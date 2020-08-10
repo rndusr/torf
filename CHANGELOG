@@ -1,3 +1,8 @@
+2020-08-10 3.?.?
+  - Bugfix: Gracefully handle empty string for "url-list" and other URL lists in
+    metainfo
+
+
 2020-06-20 3.0.2
   - Bugfix: Torrent.validate() and Torrent.read_stream() now raise MetainfoError
     if the "info" field is not a dictionary.
