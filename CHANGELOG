@@ -1,4 +1,4 @@
-2020-08-10 3.?.?
+2020-08-11 3.1.0
   - Bugfix: Gracefully handle empty string for "url-list" and other URL lists in
     metainfo
   - The new properties Torrent.include_globs and Torrent.include_regexs can be
