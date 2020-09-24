@@ -392,7 +392,7 @@ class Filepath(type(pathlib.Path())):
             return os.path.join(os.getcwd(), str(path))
 
     def __eq__(self, other):
-        return self._realpath(self) == self._realpath(other)
+        return hash(self) == hash(other)
 
     def __hash__(self):
         try:
