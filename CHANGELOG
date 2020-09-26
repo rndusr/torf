@@ -1,3 +1,8 @@
+2020-09-26 3.1.1
+  - Bugfix: Fix poor performance when torrent contains huge number of files
+    (Thanks, @mon)
+
+
 2020-08-11 3.1.0
   - Bugfix: Gracefully handle empty string for "url-list" and other URL lists in
     metainfo
