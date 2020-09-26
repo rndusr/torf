@@ -392,7 +392,8 @@ class Filepath(type(pathlib.Path())):
             return os.path.join(os.getcwd(), str(path))
 
     def __eq__(self, other):
-        if isinstance(other, Filepath): # use fast cached path if possible
+        # Use fast cached path if possible
+        if isinstance(other, Filepath):
             return hash(self) == hash(other)
         else:
             return self._realpath(self) == self._realpath(other)
