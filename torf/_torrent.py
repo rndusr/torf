@@ -156,7 +156,7 @@ class Torrent():
         :attr:`include_regexs`.
 
         Setting or manipulating this property updates
-        :attr:`metainfo`\ ``['info']``:
+        :attr:`metainfo`\\ ``['info']``:
 
         - ``name``, ``piece length`` and ``files`` or ``length`` are set.
         - ``pieces`` and ``md5sum`` are removed if they exist.
@@ -187,7 +187,7 @@ class Torrent():
         deduplicated.  Every path starts with :attr:`name`.
 
         Setting or manipulating this property updates
-        :attr:`metainfo`\ ``['info']``:
+        :attr:`metainfo`\\ ``['info']``:
 
         - ``name``, ``piece length`` and ``files`` or ``length`` are set.
         - ``pieces`` and ``md5sum`` are removed if they exist.
@@ -246,7 +246,7 @@ class Torrent():
         deduplicated.  Directories are resolved into a list of files.
 
         Setting or manipulating this property updates
-        :attr:`metainfo`\ ``['info']``:
+        :attr:`metainfo`\\ ``['info']``:
 
         - ``name``, ``piece length`` and ``files`` or ``length`` are set.
         - ``pieces`` and ``md5sum`` are removed if they exist.
@@ -292,7 +292,7 @@ class Torrent():
     def _set_files(self, files, basepath=None):
         """
         Update ``name`` and ``files`` or ``length``, remove ``pieces`` and
-        ``md5sum`` in :attr:`metainfo`\ ``['info']``
+        ``md5sum`` in :attr:`metainfo`\\ ``['info']``
 
         :param files: Sequence of :class:`File`
         :param basepath: path-like that all paths in `files` start with; may be
@@ -385,7 +385,7 @@ class Torrent():
         ======== ============================
         Wildcard Description
         ======== ============================
-        \*       matches everything
+        \\*      matches everything
         ?        matches any single character
         [SEQ]    matches any character in SEQ
         [!SEQ]   matches any char not in SEQ
@@ -503,7 +503,7 @@ class Torrent():
         is set to the default.
 
         Setting this property sets or removes ``name`` in
-        :attr:`metainfo`\ ``['info']``.
+        :attr:`metainfo`\\ ``['info']``.
         """
         if 'name' not in self.metainfo['info'] and self.path is not None:
             self.metainfo['info']['name'] = self.path.name
@@ -583,7 +583,7 @@ class Torrent():
         value of :attr:`calculate_piece_size`.
 
         Setting this property sets or removes ``piece length`` in
-        :attr:`metainfo`\ ``['info']``.
+        :attr:`metainfo`\\ ``['info']``.
         """
         if 'piece length' not in self.metainfo['info']:
             self.piece_size = None  # Calculate piece size
@@ -695,20 +695,20 @@ class Torrent():
         validation and deduplication.  You can set this property to a URL, an
         iterable of URLs or an iterable of iterables of URLs (i.e. "tiers").
 
-        This property automatically sets :attr:`metainfo`\ ``['announce']`` and
-        :attr:`metainfo`\ ``['announce-list']`` when it is manipulated or set
+        This property automatically sets :attr:`metainfo`\\ ``['announce']`` and
+        :attr:`metainfo`\\ ``['announce-list']`` when it is manipulated or set
         according to these rules:
 
-        - If it contains a single URL, :attr:`metainfo`\ ``['announce']`` is set
-          and :attr:`metainfo`\ ``['announce-list']`` is removed if it exists.
+        - If it contains a single URL, :attr:`metainfo`\\ ``['announce']`` is set
+          and :attr:`metainfo`\\ ``['announce-list']`` is removed if it exists.
 
-        - If it contains an iterable of URLs, :attr:`metainfo`\ ``['announce']``
-          is set to the first URL and :attr:`metainfo`\ ``['announce-list']`` is
+        - If it contains an iterable of URLs, :attr:`metainfo`\\ ``['announce']``
+          is set to the first URL and :attr:`metainfo`\\ ``['announce-list']`` is
           set to a list of tiers, one tier for each URL.
 
         - If it contains an iterable of iterables of URLs,
-          :attr:`metainfo`\ ``['announce']`` is set to the first URL of the first
-          iterable and :attr:`metainfo`\ ``['announce-list']`` is set to a list
+          :attr:`metainfo`\\ ``['announce']`` is set to the first URL of the first
+          iterable and :attr:`metainfo`\\ ``['announce-list']`` is set to a list
           of tiers, one tier for each iterable of URLs.
 
         :raises URLError: if any of the announce URLs is invalid
@@ -756,8 +756,8 @@ class Torrent():
         http://bittorrent.org/beps/bep_0019.html
 
         The list returned by this property automatically updates
-        :attr:`metainfo`\ ``['url-list']`` when manipulated.  Setting this
-        property sets :attr:`metainfo`\ ``['url-list']``.
+        :attr:`metainfo`\\ ``['url-list']`` when manipulated.  Setting this
+        property sets :attr:`metainfo`\\ ``['url-list']``.
 
         :raises URLError: if any URL is invalid
         :raises ValueError: if set to anything that isn't an iterable or a
@@ -792,8 +792,8 @@ class Torrent():
         http://bittorrent.org/beps/bep_0017.html
 
         The list returned by this property automatically updates
-        :attr:`metainfo`\ ``['httpseeds']`` when manipulated.  Setting this
-        property sets :attr:`metainfo`\ ``['httpseeds']``.
+        :attr:`metainfo`\\ ``['httpseeds']`` when manipulated.  Setting this
+        property sets :attr:`metainfo`\\ ``['httpseeds']``.
 
         :raises URLError: if any URL is invalid
         :raises ValueError: if set to anything that isn't an iterable or a
@@ -826,7 +826,7 @@ class Torrent():
         Whether torrent should use trackers exclusively for peer discovery
 
         ``True`` or ``False`` if
-        :attr:`metainfo`\ ``['info']``\ ``['private']`` exists, ``None``
+        :attr:`metainfo`\\ ``['info']``\\ ``['private']`` exists, ``None``
         otherwise.
         """
         if 'private' in self.metainfo['info']:
@@ -846,7 +846,7 @@ class Torrent():
         """
         Comment string or ``None`` for no comment
 
-        Setting this property sets or removes :attr:`metainfo`\ ``['comment']``.
+        Setting this property sets or removes :attr:`metainfo`\\ ``['comment']``.
         """
         return self.metainfo.get('comment', None)
 
@@ -866,7 +866,7 @@ class Torrent():
         :meth:`datetime.datetime.fromtimestamp`.
 
         Setting this property sets or removes
-        :attr:`metainfo`\ ``['creation date']``.
+        :attr:`metainfo`\\ ``['creation date']``.
         """
         return self.metainfo.get('creation date', None)
 
@@ -887,7 +887,7 @@ class Torrent():
         Application name or ``None`` for no creator
 
         Setting this property sets or removes
-        :attr:`metainfo`\ ``['created by']``.
+        :attr:`metainfo`\\ ``['created by']``.
         """
         return self.metainfo.get('created by', None)
 
@@ -904,7 +904,7 @@ class Torrent():
         Source string or ``None`` for no source
 
         Setting this property sets or removes
-        :attr:`metainfo`\ ``['info']``\ ``['created by']``.
+        :attr:`metainfo`\\ ``['info']``\\ ``['created by']``.
         """
         return self.metainfo['info'].get('source', None)
 
@@ -953,7 +953,7 @@ class Torrent():
         This allows for cross-seeding without changing :attr:`piece_size`.
 
         Setting this property to ``True`` sets
-        :attr:`metainfo`\ ``['info']``\ ``['entropy']`` to a random integer.
+        :attr:`metainfo`\\ ``['info']``\\ ``['entropy']`` to a random integer.
         Setting it to ``False`` removes that field.
         """
         return bool(self.metainfo['info'].get('entropy', False))
@@ -982,7 +982,7 @@ class Torrent():
         """
         Hash pieces and report progress to `callback`
 
-        This method sets :attr:`metainfo`\ ``['info']``\ ``['pieces']`` after
+        This method sets :attr:`metainfo`\\ ``['info']``\\ ``['pieces']`` after
         all pieces are hashed successfully.
 
         :param int threads: How many threads to use for hashing pieces or
@@ -1188,7 +1188,7 @@ class Torrent():
         Check if `path` contains all the data specified in this torrent
 
         Generate hashes from the contents of :attr:`files` and compare them to
-        the ones stored in :attr:`metainfo`\ ``['info']``\ ``['pieces']``.
+        the ones stored in :attr:`metainfo`\\ ``['info']``\\ ``['pieces']``.
 
         :param str path: Directory or file to check
         :param bool skip_on_error: Whether to stop hashing pieces from file if a
