@@ -18,7 +18,7 @@
 Create and parse torrent files and magnet URIs
 """
 
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
 from ._errors import *
 from ._magnet import Magnet
