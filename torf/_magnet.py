@@ -33,7 +33,7 @@ class Magnet():
     :param int xl: eXact Length: Size in bytes
     :param list tr: TRacker: Iterable of tracker URLs
     :param str xs: eXact Source: Torrent file URL
-    :param str as\_: Acceptable Source: Fallback torrent file URL
+    :param str as\\_: Acceptable Source: Fallback torrent file URL
     :param list ws: WebSeeds: Iterable of webseed URLs (see BEP19)
     :param list kt: Keyword Topic: List of search keywords
 
