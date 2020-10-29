@@ -17,7 +17,7 @@ setup(
     name               = 'torf',
     version            = __version__,
     license            = 'GPLv3+',
-    packages           = find_packages(),
+    packages           = find_packages(exclude=['tests']),
     python_requires    = '>=3.6, ==3.*',
     install_requires   = ['flatbencode==0.2.*'],
 
