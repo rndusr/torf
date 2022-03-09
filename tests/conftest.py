@@ -203,7 +203,7 @@ def _mktempdir(tmp_path_factory, subdir=None):
     return path / subdir
 
 def _generate_random_file(dirpath, filename=None, hidden=False):
-    filesize = random.randint(1e3, 1e6)
+    filesize = random.randint(int(1e3), int(1e6))
     filecontent = bytearray(random.getrandbits(8) for _ in range(filesize))
     if filename is None:
         filename = ''

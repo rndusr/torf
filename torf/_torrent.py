@@ -964,7 +964,7 @@ class Torrent():
             # According to BEP0003 "Integers have no size limitation", but some
             # parsers seem to have problems with large numbers.
             import random
-            self.metainfo['info']['entropy'] = random.randint(-2e9, 2e9)
+            self.metainfo['info']['entropy'] = random.randint(int(-2e9), int(2e9))
         else:
             self.metainfo['info'].pop('entropy', None)
 
