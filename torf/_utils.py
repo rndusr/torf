@@ -624,9 +624,10 @@ def download(url, timeout=60):
     """
     Download data from URL
 
-    :raises ConnectionError: if the download fails
+    :raises ConnectionError: if the download fails or the protocol is not
+        supported
 
-    :return: the downloaded data or ``None`` if the protocol is not supported
+    :return: the downloaded data
     """
     if timeout <= 0:
         raise error.ConnectionError(url, 'Timed out')
