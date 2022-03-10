@@ -139,6 +139,13 @@ def test_path_ends_with_double_period(create_torrent, multifile_content):
     assert torrent.metainfo['info']['files'] == multifile_content.exp_metainfo['info']['files']
 
 
+def test_location(create_torrent, tmp_path):
+    torrent = create_torrent()
+    assert torrent.location is None
+    torrent.path = tmp_path
+    assert torrent.location == tmp_path.parent
+
+
 def test_mode(singlefile_content, multifile_content):
     torrent = torf.Torrent()
     assert torrent.mode is None

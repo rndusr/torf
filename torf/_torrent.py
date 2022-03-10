@@ -179,6 +179,14 @@ class Torrent():
             self._set_files(filepaths, basepath)
 
     @property
+    def location(self):
+        """
+        :attr:`path` without :attr:`name` or `None` if :attr:`path` is `None`
+        """
+        if self.path:
+            return self._path.parent
+
+    @property
     def files(self):
         """
         List of relative paths in this torrent
