@@ -665,9 +665,7 @@ class Torrent():
 
     @property
     def pieces(self):
-        """
-        Number of pieces the content is split into
-        """
+        """Number of pieces the content is split into"""
         if self.size > 0:
             return math.ceil(self.size / self.piece_size)
         else:

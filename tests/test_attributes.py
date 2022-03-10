@@ -787,6 +787,26 @@ def test_calculate_piece_size(monkeypatch):
     assert calc(400000 * 2**30) == 256 * 2**20  # noqa: E201,E222
 
 
+@pytest.mark.parametrize(
+    argnames='length, piece_size, exp_pieces',
+    argvalues=(
+        (0, 8, 0),
+        (1, 8, 1),
+        (7, 8, 1),
+        (8, 8, 1),
+        (9, 8, 2),
+        (55, 8, 7),
+        (56, 8, 7),
+        (57, 8, 8),
+    ),
+)
+def test_pieces(length, piece_size, exp_pieces, create_torrent, mocker):
+    torrent = create_torrent()
+    torrent.metainfo['info']['length'] = length
+    torrent.metainfo['info']['piece length'] = piece_size
+    assert torrent.pieces == exp_pieces
+
+
 def test_hashes(create_torrent, multifile_content):
     torrent = create_torrent()
     assert torrent.hashes == ()
