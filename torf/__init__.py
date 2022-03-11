@@ -22,7 +22,6 @@ __version__ = '3.1.3'
 
 from ._errors import *
 from ._magnet import Magnet
+from ._stream import TorrentFileStream
 from ._torrent import Torrent
-# Export File class so users can add items to Torrent.files and Filepath so it
-# is documented by readthedocs.
 from ._utils import File, Filepath
