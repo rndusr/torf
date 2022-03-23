@@ -302,7 +302,7 @@ class MonitoredList(collections.abc.MutableSequence):
 
 
 class File(os.PathLike):
-    """Path-like that only accepts relative paths and also stores the file size"""
+    """Path-like that also stores the file size"""
     def __fspath__(self):
         return str(self._path)
 
@@ -315,6 +315,7 @@ class File(os.PathLike):
             self._path = pathlib.Path(*path)
         else:
             raise ValueError(f'Path must be str, PathLike or Iterable, not {type(path).__name__}: {path}')
+
         try:
             self._size = int(size)
         except (ValueError, TypeError):
