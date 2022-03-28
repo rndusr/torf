@@ -1,5 +1,4 @@
 import base64
-import math
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -226,11 +225,14 @@ def test_callback_raises_exception(piece_size, create_file, forced_piece_size):
         with mock.patch('torf._generate.sha1') as sha1_mock:
             def mock_digest():
                 return b'\x00' * 20
+
             sha1_mock.return_value.digest.side_effect = mock_digest
             cb = mock.Mock(side_effect=Exception('Argh!'))
+
             t = torf.Torrent(content_path)
             with pytest.raises(Exception) as e:
                 t.generate(callback=cb)
+
             assert str(e.value) == 'Argh!'
             cb.assert_called_once_with(t, Path(content_path), 1, t.pieces)
             # The pool of hashers should be stopped before all pieces are hashed
