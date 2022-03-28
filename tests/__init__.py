@@ -93,8 +93,7 @@ class fuzzylist(list):
 
     def __repr__(self):
         s = f'{type(self).__name__}('
-        if super().__len__() > 0:
-            s += ', '.join(repr(item) for item in super().__iter__())
+        s += '[' + ', '.join(repr(item) for item in super().__iter__()) + ']'
         if self.maybe:
             s += f', maybe={repr(self.maybe)}'
         if self.max_maybe_items:
