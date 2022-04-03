@@ -175,7 +175,9 @@ class _TestCaseBase():
                 self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,  # noqa: F405
                                                              self.piece_size, self.corruption_positions,
                                                              self.files_missing, self.files_missized)
-            debug(f'Expected corruptions: {self._exp_exc_corruptions}')
+            debug(f'Expected corruptions:')
+            for exc in self._exp_exc_corruptions:
+                debug(f'  {exc}')
         return self._exp_exc_corruptions
 
     @property
@@ -215,7 +217,7 @@ class _TestCaseBase():
 
             # If there are no missing or missized files, corruptions are mandatory
             if not mandatory:
-                debug('  all corruption exceptions are mandatory')
+                debug('all corruption exceptions are mandatory')
                 mandatory.update(self.exp_exc_corruptions)
                 maybe.update(self.exp_exc_corruptions.maybe)
             else:
@@ -270,7 +272,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         # Introduce random number of corruptions without changing stream length
         corruption_positions = set(random_positions(self.stream_corrupt) if not positions else positions)  # noqa: F405
         for corrpos in corruption_positions:
-            debug(f'Introducing corruption at index {corrpos}')
+            debug(f'* Introducing corruption at index {corrpos}')
             self.stream_corrupt[corrpos] = (self.stream_corrupt[corrpos] + 1) % 256
             self.content_path.write_bytes(self.stream_corrupt)
         self.corruption_positions.update(corruption_positions)
@@ -279,7 +281,7 @@ class _TestCaseSinglefile(_TestCaseBase):
         # Check if this file already has other errors
         if self.corruption_positions or self.files_missized:
             return
-        debug(f'Removing file from file system: {os.path.basename(self.content_path)}')
+        debug(f'* Removing file from file system: {os.path.basename(self.content_path)}')
         os.rename(self.content_path, str(self.content_path) + '.deleted')
         self.files_missing = [self.content_path]
         self.stream_corrupt = b'\xCC' * self.torrent.size
@@ -291,9 +293,10 @@ class _TestCaseSinglefile(_TestCaseBase):
         # Check if this file already has other errors
         if self.corruption_positions or self.files_missing:
             return
-        debug(f'Changing file size in file system: {os.path.basename(self.content_path)}')
+        debug(f'* Changing file size in file system: {os.path.basename(self.content_path)}')
         self.stream_corrupt = change_file_size(self.content_path, self.torrent.size)  # noqa: F405
         self.files_missized.append(self.content_path)
+        debug(f'  Corruption positions after changing file size: {self.corruption_positions}')
 
     def get_original_filesize(self, filepath):
         return len(self.stream_original)
@@ -345,14 +348,14 @@ class _TestCaseMultifile(_TestCaseBase):
             if filename in error_files:
                 continue
             else:
-                debug(f'Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
+                debug(f'* Introducing corruption in {filename} at index {corrpos_in_stream} in stream, '
                       f'{corrpos_in_file} in file {filename}')
                 self.corruption_positions.add(corrpos_in_stream)
                 data = self.content_corrupt[filename]
                 data[corrpos_in_file] = (data[corrpos_in_file] + 1) % 256
                 (self.content_path / filename).write_bytes(data)
                 self.files_corrupt.append(str(self.content_path / filename))
-        debug(f'Corruption positions after corrupting stream: {self.corruption_positions}')
+        debug(f'  Corruption positions after corrupting stream: {self.corruption_positions}')
 
     def delete_file(self, index=None):
         if index is None:
@@ -366,7 +369,7 @@ class _TestCaseMultifile(_TestCaseBase):
         if filename in error_files:
             return
 
-        debug(f'Removing file from file system: {os.path.basename(filename)}')
+        debug(f'* Removing file from file system: {os.path.basename(filename)}')
         filepath = self.content_path / filename
         os.rename(filepath, str(filepath) + '.deleted')
         self.files_missing.append(filepath)
@@ -389,7 +392,7 @@ class _TestCaseMultifile(_TestCaseBase):
 
         self.corruption_positions.update(corruption_positions)
         self._remove_skipped_corruptions()
-        debug(f'Corruption positions after removing file: {self.corruption_positions}')
+        debug(f'  Corruption positions after removing file: {self.corruption_positions}')
 
     def _remove_skipped_corruptions(self):
         # Finally, remove corruptions that exclusively belong to
@@ -409,13 +412,14 @@ class _TestCaseMultifile(_TestCaseBase):
         else:
             filename = tuple(self.content_original)[index]
         filepath = self.content_path / filename
-        debug(f'Changing file size in file system: {filepath}')
 
         # Don't change corrupt/missing file
         error_files = set(os.path.basename(f) for f in itertools.chain(
             self.files_missing, self.files_corrupt))
         if filename in error_files:
             return
+
+        debug(f'* Changing file size in file system: {filepath}')
 
         # Change file size
         self.content_corrupt[filename] = change_file_size(  # noqa: F405
@@ -439,7 +443,7 @@ class _TestCaseMultifile(_TestCaseBase):
                 self.corruption_positions.add(file_end)
 
         self._remove_skipped_corruptions()
-        debug(f'Corruption positions after changing file size: {self.corruption_positions}')
+        debug(f'  Corruption positions after changing file size: {self.corruption_positions}')
 
     def get_original_filesize(self, filepath):
         return len(self.content_original[os.path.basename(filepath)])
