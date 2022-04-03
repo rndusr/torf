@@ -88,24 +88,34 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
                  (piece_size * piece_count // file_count),
                  (piece_size * piece_count // file_count) + 1)
     if file_count == 1:
-        return (((alphabet[0], filesizes[0]),),
-                ((alphabet[0], filesizes[1]),),
-                ((alphabet[0], filesizes[2]),))
+        return (
+            ((alphabet[0], filesizes[0]),),
+            ((alphabet[0], filesizes[1]),),
+            ((alphabet[0], filesizes[2]),),
+        )
     elif file_count == 2:
-        return (((alphabet[0], filesizes[1]), (alphabet[1], filesizes[0])),
-                ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[2])),
-                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[1])),
-                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1])),
-                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[2])))
+        return (
+            ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[0])),
+            ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[1])),
+            ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[2])),
+            ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[0])),
+            ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[1])),
+            ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[2])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[0])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2])),
+        )
     elif file_count == 3:
-        return (((alphabet[0], filesizes[0]), (alphabet[1], filesizes[0]), (alphabet[2], filesizes[0])),
-                ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
-                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[0])),
-                ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
-                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[1])),
-                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[1])),
-                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
-                ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[2])))
+        return (
+            ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[0]), (alphabet[2], filesizes[0])),
+            ((alphabet[0], filesizes[0]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
+            ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[0])),
+            ((alphabet[0], filesizes[1]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[1])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[1])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[1]), (alphabet[2], filesizes[2])),
+            ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[2])),
+        )
     else:
         # For itertools.combinations() to produce more than one item, we need at
         # least one more file size than files.
@@ -117,10 +127,25 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
             i += 1
         filesizes.update((max(1, piece_size // 2), max(1, piece_size // 3)))
         filesizes = list(sorted(filesizes))
+        filesizeorders = ['small_first', 'small_middle', 'small_last']
         filespecs = set()
         if fuzzy:
             random.shuffle(filesizes)
+            random.shuffle(filesizeorders)
+        filesizeorders_iter= itertools.cycle(filesizeorders)
         for fsizes in itertools.combinations(filesizes, file_count):
+            order = next(filesizeorders_iter)
+            if order == 'small_first':
+                fsizes = sorted(fsizes, reverse=False)
+            elif order == 'small_last':
+                fsizes = sorted(fsizes, reverse=True)
+            elif order == 'small_middle':
+                groupsize = int(len(fsizes) / 3) + 1
+                fsizes = (
+                    sorted(fsizes[-groupsize:], reverse=True)
+                    + sorted(fsizes[groupsize:-groupsize], reverse=False)
+                    + sorted(fsizes[:groupsize], reverse=False)
+                )
             filespecs.add(tuple((alphabet[i], fsize)
                                 for i,fsize in enumerate(fsizes)))
     # Ensure identical order or xdist will complain with --numprocesses > 1
