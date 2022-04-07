@@ -24,7 +24,7 @@ def pytest_addoption(parser):
             setattr(namespace, self.dest, tuple(int(value) for value in values.split(',')))
     parser.addoption('--piece-sizes', default=(8,), action=IntList,
                      help='Comma-separated list of piece sizes to use for test torrents')
-    parser.addoption('--piece-counts', default=(1, 2, 3, 4, 6, 9), action=IntList,
+    parser.addoption('--piece-counts', default=(1, 2, 3, 4, 23, 24), action=IntList,
                      help='Comma-separated list of number of pieces to use for test torrents')
     parser.addoption('--file-counts', default=(1, 2, 3, 4), action=IntList,
                      help='Comma-separated list of number of files to use for test torrents')
@@ -117,22 +117,30 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
             ((alphabet[0], filesizes[2]), (alphabet[1], filesizes[2]), (alphabet[2], filesizes[2])),
         )
     else:
+        filesizes = set(filesizes)
+
         # For itertools.combinations() to produce more than one item, we need at
         # least one more file size than files.
-        filesizes = set(filesizes)
         i = 2
         while len(filesizes) < file_count + 1:
             filesizes.add(max(1, piece_size * piece_count // file_count - i))
             filesizes.add(piece_size * piece_count // file_count + i)
             i += 1
         filesizes.update((max(1, piece_size // 2), max(1, piece_size // 3)))
+
+        # Limit filesizes to reduce number of test
+        while len(filesizes) > file_count + 2:
+            middle_item = sorted(filesizes)[int(len(filesizes)/2)]
+            filesizes.discard(middle_item)
+
         filesizes = list(sorted(filesizes))
         filesizeorders = ['small_first', 'small_middle', 'small_last']
-        filespecs = set()
         if fuzzy:
             random.shuffle(filesizes)
             random.shuffle(filesizeorders)
+
         filesizeorders_iter= itertools.cycle(filesizeorders)
+        filespecs = set()
         for fsizes in itertools.combinations(filesizes, file_count):
             order = next(filesizeorders_iter)
             if order == 'small_first':
@@ -148,6 +156,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
                 )
             filespecs.add(tuple((alphabet[i], fsize)
                                 for i,fsize in enumerate(fsizes)))
+
     # Ensure identical order or xdist will complain with --numprocesses > 1
     return sorted(sorted(filespecs), key=lambda f: sum(s[1] for s in f))
 
