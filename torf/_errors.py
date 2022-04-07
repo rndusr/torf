@@ -188,7 +188,8 @@ class VerifyFileSizeError(TorfError):
 
 class VerifyContentError(TorfError):
     """On-disk data does not match hashes in metainfo"""
-    def __init__(self, piece_index, piece_size, file_sizes):
+    def __init__(self, filepath, piece_index, piece_size, file_sizes):
+        self._filepath = filepath
         self._piece_index = piece_index
         self._piece_size = piece_size
         msg = f'Corruption in piece {piece_index+1}'
@@ -230,7 +231,12 @@ class VerifyContentError(TorfError):
                         ', '.join(str(f) for f in corrupt_files))
 
         self._files = tuple(corrupt_files)
-        super().__init__(msg, piece_index, piece_size, file_sizes)
+        super().__init__(msg, filepath, piece_index, piece_size, file_sizes)
+
+    @property
+    def filepath(self):
+        """Path to file that caused the piece corruption"""
+        return self._filepath
 
     @property
     def piece_index(self):
@@ -244,7 +250,7 @@ class VerifyContentError(TorfError):
 
     @property
     def files(self):
-        """Potentially corrupt files"""
+        """Potentially corrupt neighboring files"""
         return self._files
 
 
