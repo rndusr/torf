@@ -267,18 +267,26 @@ def calc_piece_indexes(filespecs, piece_size, files_missing=(), files_missized=(
     names to the piece indexes they cover. Pieces that overlap multiple files
     belong to the last file they cover.
     """
+    piece_indexes_seen = set()
     piece_indexes = collections.defaultdict(lambda: fuzzylist())
     pos = 0
-    for i,(filename,filesize) in enumerate(filespecs):
-        first_pi = pos // piece_size
-        # Last piece needs special treatment
-        if i < len(filespecs) - 1:
-            pos_end = pos + filesize
-        else:
-            pos_end = round_up_to_multiple(pos + filesize, piece_size)
-        last_pi = pos_end // piece_size
-        piece_indexes[filename].extend(range(first_pi, last_pi))
+    for i, (filename, filesize) in enumerate(filespecs):
+        # Piece indexes that cover only one file must be reported for that file.
+        exclusive_file_pis = file_piece_indexes(filename, filespecs, piece_size, exclusive=True)
+        # Piece indexes that cover multiple files may be reported for any of
+        # those files.
+        multiple_file_pis = [
+            pi for pi in file_piece_indexes(filename, filespecs, piece_size, exclusive=False)
+            if pi not in exclusive_file_pis
+        ]
+        piece_indexes[filename].extend(exclusive_file_pis)
+        piece_indexes[filename].maybe.extend(multiple_file_pis)
         pos += filesize
+
+    # Remove empty lists
+    for k in tuple(piece_indexes):
+        if not piece_indexes[k]:
+            del piece_indexes[k]
 
     # For each missing/missized file, the first piece of the file may get two
     # calls, one for the "no such file"/"wrong file size" error and one for the
@@ -287,48 +295,48 @@ def calc_piece_indexes(filespecs, piece_size, files_missing=(), files_missized=(
         filename = os.path.basename(filepath)
         file_beg,file_end = file_range(filename, filespecs)
         piece_index = file_beg // piece_size
-        piece_indexes[filename].maybe.append(piece_index)
+        if piece_index not in piece_indexes[filename].maybe:
+            piece_indexes[filename].maybe.append(piece_index)
 
-    # Remove empty lists, which we added to maintain file order
-    for k in tuple(piece_indexes):
-        if not piece_indexes[k]:
-            del piece_indexes[k]
-
-    return piece_indexes
+    return fuzzydict(piece_indexes)
 
 def calc_good_pieces(filespecs, piece_size, files_missing, corruption_positions, files_missized):
     """
     Same as `calc_piece_indexes`, but exclude corrupt pieces and pieces of
     missing or missized files
     """
-    corr_pis = {corrpos // piece_size for corrpos in corruption_positions}
-    debug('Calculating good pieces')
-    debug(f'corrupt piece_indexes: {corr_pis}')
-    debug(f'missing files: {files_missing}')
-    debug(f'missized files: {files_missized}')
+    debug('* Calculating good pieces')
+    all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing, files_missized)
+    bad_pis = {corrpos // piece_size for corrpos in corruption_positions}
+    debug(f'  missing files: {files_missing}')
+    debug(f'  missized files: {files_missized}')
+    debug(f'  all piece_indexes: {all_piece_indexes}')
+    debug(f'  corrupt piece_indexes: {bad_pis}')
 
     # Find pieces that exclusively belong to missing or missized files
-    missing_pis = set()
     for filepath in itertools.chain(files_missing, files_missized):
         file_beg,file_end = file_range(os.path.basename(filepath), filespecs)
-        first_missing_pi = file_beg // piece_size
-        last_missing_pi = file_end // piece_size
-        affected_files_beg = pos2files(file_beg, filespecs, piece_size)
-        affected_files_end = pos2files(file_end, filespecs, piece_size)
-        debug(f'affected_files_beg: {affected_files_beg}')
-        debug(f'affected_files_end: {affected_files_end}')
-        missing_pis.update(range(first_missing_pi, last_missing_pi + 1))
+        first_bad_pi = file_beg // piece_size
+        last_bad_pi = file_end // piece_size
+        bad_pis.update(range(first_bad_pi, last_bad_pi + 1))
+    debug(f'  combined bad piece_indexes: {bad_pis}')
 
-    all_piece_indexes = calc_piece_indexes(filespecs, piece_size, files_missing, files_missized)
-    debug(f'all piece_indexes: {all_piece_indexes}')
-
-    # Remove pieces that are either corrupt or in missing_pis
+    # Remove pieces that are in bad_pis
     good_pieces = collections.defaultdict(lambda: fuzzylist())
     for fname,all_pis in all_piece_indexes.items():
-        for i,pi in enumerate(all_pis):
-            if pi not in corr_pis and pi not in missing_pis:
-                good_pieces[fname].append(pi)
-    debug(f'corruptions and missing/missized files removed: {good_pieces}')
+        # Maintain mandatory and optional piece_indexes from all_piece_indexes
+        for pi in itertools.chain(all_pis, all_pis.maybe):
+            if pi not in bad_pis:
+                debug(f'  filename={fname}: piece_index={pi}: good')
+                if pi in all_pis.maybe:
+                    good_pieces[fname].maybe.append(pi)
+                else:
+                    good_pieces[fname].append(pi)
+            else:
+                debug(f'  filename={fname}: piece_index={pi}: bad')
+
+    good_pieces = fuzzydict(good_pieces)
+    debug(f'  corruptions and missing/missized files removed: {good_pieces}')
     return good_pieces
 
 def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
@@ -336,32 +344,33 @@ def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
     For each file in `good_pieces`, remove piece_indexes between the first
     corruption and the end of the file
     """
-    # Find out which piece_indexes to skip
+    debug(f'* Skipping good pieces after corruptions')
+    # Find out which piece_indexes should be skipped
     skipped_pis = set()
     for corrpos in sorted(corruption_positions):
         corr_pi = corrpos // piece_size
         affected_files = pos2files(corrpos, filespecs, piece_size)
-        debug(f'corruption at position {corrpos}, piece_index {corr_pi}: {affected_files}')
+        debug(f'  corruption at position {corrpos}, piece_index {corr_pi}: {affected_files}')
         for file in affected_files:
             file_pis_exclusive = file_piece_indexes(file, filespecs, piece_size, exclusive=True)
-            debug(f'  {file} piece_indexes exclusive: {file_pis_exclusive}')
+            debug(f'    {file}: piece_indexes exclusive: {file_pis_exclusive}')
             file_pis = file_piece_indexes(file, filespecs, piece_size, exclusive=False)
-            debug(f'  {file} piece_indexes non-exclusive: {file_pis}')
+            debug(f'       piece_indexes non-exclusive: {file_pis}')
             try:
                 first_corr_index_in_file = file_pis.index(corr_pi)
             except ValueError:
                 # Skip all pieces in `file` that don't contain bytes from other files
-                debug(f'  piece_index {corr_pi} is not part of {file}: {file_pis_exclusive}')
+                debug(f'       piece_index {corr_pi} is not part of {file}: {file_pis_exclusive}')
                 skipped_pis.update(file_pis_exclusive)
             else:
                 # Skip all pieces after the first corrupted piece in `file`
-                debug(f'  first corruption in {file} is at {first_corr_index_in_file} in file {file}')
-                skipped_pis.update(file_pis[first_corr_index_in_file + 1:])
-            debug(f'updated skipped_pis: {skipped_pis}')
+                skip_pis = file_pis[first_corr_index_in_file + 1:]
+                debug(f'       skipping piece_indexes after corruption: {skip_pis}')
+                skipped_pis.update(skip_pis)
 
     # Make skipped piece_indexes optional while unskipped piece_indexes stay
     # mandatory.
-    debug(f'skipping piece_indexes: {skipped_pis}')
+    debug(f'  skipping piece_indexes: {skipped_pis}')
     good_pieces_skipped = collections.defaultdict(lambda: fuzzylist())
     for fname,pis in good_pieces.items():
         for pi in pis:
@@ -369,20 +378,20 @@ def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
                 good_pieces_skipped[fname].maybe.append(pi)
             else:
                 good_pieces_skipped[fname].append(pi)
-    debug(f'skipped good_pieces: {good_pieces_skipped}')
     return fuzzydict(good_pieces_skipped)
 
 def calc_corruptions(filespecs, piece_size, corruption_positions):
     """Map file names to (piece_index, exception) tuples"""
-    corrupt_pieces = []
-    reported = []
+    exceptions = []
+    reported = set()
     for corrpos in sorted(corruption_positions):
         corr_pi = corrpos // piece_size
         if corr_pi not in reported:
-            exc = ComparableException(torf.VerifyContentError(corr_pi, piece_size, filespecs))
-            corrupt_pieces.append(exc)
-            reported.append(corr_pi)
-    return fuzzylist(*corrupt_pieces)
+            filepath, _ = pos2file(corrpos, filespecs, piece_size)
+            exc = ComparableException(torf.VerifyContentError(filepath, corr_pi, piece_size, filespecs))
+            exceptions.append(exc)
+            reported.add(corr_pi)
+    return fuzzylist(*exceptions)
 
 def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_positions, files_missing, files_missized):
     """Make every non-first corruption optional"""
@@ -430,7 +439,7 @@ def skip_corruptions(all_corruptions, filespecs, piece_size, corruption_position
     return corruptions
 
 def calc_pieces_done(filespecs_abspath, piece_size, files_missing=(), files_missized=()):
-    debug('Calculating pieces_done')
+    debug('* Calculating pieces_done')
     # The callback gets the number of verified pieces (pieces_done).  This
     # function calculates the expected values for that argument.
     #

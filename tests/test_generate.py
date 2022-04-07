@@ -197,24 +197,20 @@ def test_callback_is_called_at_interval(filespecs, piece_size, create_file, crea
             assert cb.call_count == exp_call_count
 
 
-# FIXME: This test sometimes hangs indefinitely with no CPU load.  The reason
-#        could be a deadlock in ExhaustableQueue.  To reproduce this issue, put
-#        the complete test below in a for _ in range(1000...) loop and wait 20
-#        minutes.
-def test_callback_cancels(piece_size, create_file, forced_piece_size):
-    # We need a large file size because generate() might finish before
-    # maybe_cancel() as a chance to cancel.
-    content_path = create_file('file.jpg', piece_size * 1000)
-    with forced_piece_size(piece_size):
-        def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
-            if pieces_done / pieces_total > 0.5:
-                return 'STOP THE PRESSES!'
-        cb = mock.Mock(side_effect=maybe_cancel)
+def test_callback_cancels(piece_size, create_file, forced_piece_size, mocker):
+    def maybe_cancel(torrent, filepath, pieces_done, pieces_total):
+        if pieces_done / pieces_total > 0.1:
+            return 'STOP THE PRESSES!'
 
+    cb = mock.Mock(side_effect=maybe_cancel)
+    piece_count = 1000
+    content_path = create_file('file.jpg', piece_size * piece_count)
+
+    with forced_piece_size(piece_size):
         t = torf.Torrent(content_path)
-        success = t.generate(callback=cb)
+        success = t.generate(callback=cb, interval=0, threads=1)
         assert success is False
-        assert cb.call_count == math.floor(t.pieces * 0.5) + 1
+        assert cb.call_count < piece_count
 
 
 def test_callback_raises_exception(piece_size, create_file, forced_piece_size):

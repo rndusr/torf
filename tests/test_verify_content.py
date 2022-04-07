@@ -37,12 +37,15 @@ class CollectingCallback():
             else:
                 assert piece_hash is None
             self.seen_exceptions.append(ComparableException(exc))  # noqa: F405
+            debug(f'--- Seeing exception: {self.seen_exceptions[-1]}')
         elif piece_hash is None:
             assert exc is None
             self._seen_skipped_pieces[path.name].append(piece_index)
+            debug(f'--- Seeing skipped piece of {path.name}: {piece_index}')
         else:
             assert exc is None
             assert type(piece_hash) is bytes and len(piece_hash) == 20
+            debug(f'--- Seeing good piece of {path.name}: {piece_index}')
             self._seen_good_pieces[path.name].append(piece_index)
 
     @property
@@ -83,18 +86,23 @@ class _TestCaseBase():
     def run(self, *_, with_callback, exp_return_value=None, skip_on_error=False):
         debug(f'Original stream: {self.stream_original.hex()}')
         debug(f' Corrupt stream: {self.stream_corrupt.hex()}')
-        debug(f'Corruption positions: {self.corruption_positions}')
-        debug(f'Corrupt piece indexes: {set(corrpos // self.piece_size for corrpos in self.corruption_positions)}')
+        debug(f'Corruption positions: {sorted(self.corruption_positions)}')
+        debug(f'Corrupt piece indexes: {sorted(set(corrpos // self.piece_size for corrpos in self.corruption_positions))}')
 
         self.skip_on_error = skip_on_error
-        kwargs = {'skip_on_error': skip_on_error,
-                  'exp_return_value': exp_return_value}
+        kwargs = {
+            # 'skip_on_error': skip_on_error,
+            'exp_return_value': exp_return_value,
+        }
         if not with_callback:
             exp_exceptions = self.exp_exceptions
             if not exp_exceptions:
+                debug(f'Expecting no exceptions')
                 self._run_without_callback(**kwargs)
             else:
+                debug(f'Expected exceptions: {exp_exceptions}')
                 exp_exception_types = tuple(set(type(exc) for exc in exp_exceptions))
+                debug(f'Expected exception types: {exp_exception_types}')
                 with pytest.raises(exp_exception_types) as e:
                     self._run_without_callback(**kwargs)
                 # Usually the first error in the stream is reported, but not
@@ -117,19 +125,23 @@ class _TestCaseBase():
         kwargs['callback'] = cb
         kwargs['interval'] = 0
         if exp_return_value is not None:
-            assert self.torrent.verify(self.content_path, **kwargs) is exp_return_value
+            return_value = self.torrent.verify(self.content_path, **kwargs)
+            assert return_value == exp_return_value
         else:
             self.torrent.verify(self.content_path, **kwargs)
+
+        debug(f'seen_exceptions: {cb.seen_exceptions}')
+        assert cb.seen_exceptions == self.exp_exceptions
+
+        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
+        assert cb.seen_piece_indexes == self.exp_piece_indexes
+
+        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
+        assert cb.seen_pieces_done == self.exp_pieces_done
         # Last pieces_done value must be the total number of pieces so progress
         # is finalized correctly, e.g. progress bar ends at 100%
         assert cb.seen_pieces_done[-1] == self.torrent.pieces
 
-        debug(f'seen_exceptions: {cb.seen_exceptions}')
-        assert cb.seen_exceptions == self.exp_exceptions
-        debug(f'seen_piece_indexes: {cb.seen_piece_indexes}')
-        assert cb.seen_piece_indexes == self.exp_piece_indexes
-        debug(f'seen_pieces_done: {cb.seen_pieces_done}')
-        assert cb.seen_pieces_done == self.exp_pieces_done
         debug(f'seen_good_pieces: {cb.seen_good_pieces}')
         assert cb.seen_good_pieces == self.exp_good_pieces
 
@@ -147,7 +159,7 @@ class _TestCaseBase():
             self._exp_piece_indexes = calc_piece_indexes(self.filespecs, self.piece_size,  # noqa: F405
                                                          self.files_missing, self.files_missized)
             debug(f'Expected piece indexes: {dict(self._exp_piece_indexes)}')
-        return dict(self._exp_piece_indexes)
+        return self._exp_piece_indexes
 
     @property
     def exp_good_pieces(self):
@@ -157,11 +169,14 @@ class _TestCaseBase():
                                                      self.files_missing,
                                                      self.corruption_positions,
                                                      self.files_missized)
-            if self.skip_on_error:
-                self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces,  # noqa: F405
-                                                         self.filespecs,
-                                                         self.piece_size,
-                                                         self.corruption_positions)
+            # This is disabled because the skip_on_error option for
+            # Torrent.verify() was removed. Feel free to re-implement and
+            # re-enable.
+            # if self.skip_on_error:
+            #     self._exp_good_pieces = skip_good_pieces(self._exp_good_pieces,  # noqa: F405
+            #                                              self.filespecs,
+            #                                              self.piece_size,
+            #                                              self.corruption_positions)
             debug(f'Expected good pieces: {self._exp_good_pieces}')
         return self._exp_good_pieces
 
@@ -171,10 +186,13 @@ class _TestCaseBase():
             self._exp_exc_corruptions = calc_corruptions(self.filespecs_abspath,  # noqa: F405
                                                          self.piece_size,
                                                          self.corruption_positions)
-            if self.skip_on_error:
-                self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,  # noqa: F405
-                                                             self.piece_size, self.corruption_positions,
-                                                             self.files_missing, self.files_missized)
+            # This is disabled because the skip_on_error option for
+            # Torrent.verify() was removed. Feel free to re-implement and
+            # re-enable.
+            # if self.skip_on_error:
+            #     self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,  # noqa: F405
+            #                                                  self.piece_size, self.corruption_positions,
+            #                                                  self.files_missing, self.files_missized)
             debug(f'Expected corruptions:')
             for exc in self._exp_exc_corruptions:
                 debug(f'  {exc}')
@@ -221,17 +239,20 @@ class _TestCaseBase():
                 mandatory.update(self.exp_exc_corruptions)
                 maybe.update(self.exp_exc_corruptions.maybe)
             else:
-                # Corruptions must be reported if they don't exist in missing or
-                # missized files.
+                debug('not all corruption exceptions are mandatory')
+                # Corrupt files are only reported if their piece_indexes aren't
+                # already covered by missing or missized files
+                missing_missized_pis = set()
+                for filepath in itertools.chain(self.files_missing, self.files_missized):
+                    filename = os.path.basename(filepath)
+                    file_pis = file_piece_indexes(filename, self.filespecs, self.piece_size, exclusive=False)
+                    missing_missized_pis.update(file_pis)
                 for exc in self.exp_exc_corruptions:
-                    if any(filepath in itertools.chain(self.files_missing, self.files_missized)
-                           for filepath in exc.files):
+                    if exc.piece_index not in missing_missized_pis:
                         debug(f'  expecting non-missing/missized: {str(exc)}')
                         mandatory.add(exc)
-                    elif not all(filepath in itertools.chain(self.files_missing, self.files_missized)
-                                 for filepath in exc.files):
-                        debug(f'  expecting side-effect: {str(exc)}')
-                        mandatory.add(exc)
+                    else:
+                        debug(f'  not expecting missing/missized: {str(exc)}')
 
                 # Also allow corruptions that are already classified as optional.
                 for exc in self.exp_exc_corruptions.maybe:
@@ -245,6 +266,7 @@ class _TestCaseBase():
             debug('Tolerated exceptions:')
             for e in self._exp_exceptions.maybe:
                 debug(repr(e))
+
         return self._exp_exceptions
 
 class _TestCaseSinglefile(_TestCaseBase):
@@ -488,13 +510,13 @@ def test_verify_content_with_random_corruptions_and_no_skipping(mktestcase, piec
     tc.run(with_callback=callback['enabled'],
            exp_return_value=False)
 
-def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)  # noqa: F405
-    tc = mktestcase(filespecs, piece_size)
-    tc.corrupt_stream()
-    tc.run(with_callback=callback['enabled'],
-           skip_on_error=True,
-           exp_return_value=False)
+# def test_verify_content_with_random_corruptions_and_skipping(mktestcase, piece_size, callback, filespecs):
+#     display_filespecs(filespecs, piece_size)  # noqa: F405
+#     tc = mktestcase(filespecs, piece_size)
+#     tc.corrupt_stream()
+#     tc.run(with_callback=callback['enabled'],
+#            skip_on_error=True,
+#            exp_return_value=False)
 
 def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
     display_filespecs(filespecs, piece_size)  # noqa: F405
@@ -504,31 +526,29 @@ def test_verify_content_with_missing_files_and_no_skipping(mktestcase, piece_siz
     tc.run(with_callback=callback['enabled'],
            exp_return_value=False)
 
-def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
-    display_filespecs(filespecs, piece_size)  # noqa: F405
-    tc = mktestcase(filespecs, piece_size)
-    for index in filespec_indexes:
-        tc.delete_file(index)
-    tc.run(with_callback=callback['enabled'],
-           skip_on_error=True,
-           exp_return_value=False)
+# def test_verify_content_with_missing_files_and_skipping(mktestcase, piece_size, callback, filespecs, filespec_indexes):
+#     display_filespecs(filespecs, piece_size)  # noqa: F405
+#     tc = mktestcase(filespecs, piece_size)
+#     for index in filespec_indexes:
+#         tc.delete_file(index)
+#     tc.run(with_callback=callback['enabled'],
+#            skip_on_error=True,
+#            exp_return_value=False)
 
 def test_verify_content_with_changed_file_size_and_no_skipping(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)  # noqa: F405
-
     tc = mktestcase(filespecs, piece_size)
     tc.change_file_size()
     tc.run(with_callback=callback['enabled'],
            exp_return_value=False)
 
-def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_size, callback, filespecs):
-    display_filespecs(filespecs, piece_size)  # noqa: F405
-
-    tc = mktestcase(filespecs, piece_size)
-    tc.change_file_size()
-    tc.run(with_callback=callback['enabled'],
-           skip_on_error=True,
-           exp_return_value=False)
+# def test_verify_content_with_changed_file_size_and_skipping(mktestcase, piece_size, callback, filespecs):
+#     display_filespecs(filespecs, piece_size)  # noqa: F405
+#     tc = mktestcase(filespecs, piece_size)
+#     tc.change_file_size()
+#     tc.run(with_callback=callback['enabled'],
+#            skip_on_error=True,
+#            exp_return_value=False)
 
 def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)  # noqa: F405
@@ -539,5 +559,5 @@ def test_verify_content_with_multiple_error_types(mktestcase, piece_size, callba
         errorizer = errorizers.pop(random.choice(range(len(errorizers))))
         errorizer()
     tc.run(with_callback=callback['enabled'],
-           skip_on_error=random.choice((True, False)),
+           # skip_on_error=random.choice((True, False)),
            exp_return_value=False)
