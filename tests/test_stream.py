@@ -1,3 +1,4 @@
+import errno
 import math
 import os
 import re
@@ -5,8 +6,9 @@ from unittest.mock import Mock, PropertyMock, call
 
 import pytest
 
-import torf
-from torf import TorrentFileStream
+from torf import ReadError, TorrentFileStream, VerifyFileSizeError
+
+from . import ComparableException
 
 
 class File(str):
@@ -30,6 +32,18 @@ class File(str):
             self.content = bytes(content)
 
         return self
+
+    def __eq__(self, other):
+        if isinstance(other, type(self)):
+            return super().__eq__(other) and self.size == other.size
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((str(self), self.size))
 
     def __repr__(self):
         return f'{type(self).__name__}({str(self)}, {len(self.content)})'
@@ -155,7 +169,7 @@ def test_close():
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, exp_max_piece_index',
+    argnames='chunk_size, files, exp_max_piece_index',
     argvalues=(
         # 0     1     2     3     4     5     6     7     8     9     0
         # aaaaaabbbbbbbbbbbb
@@ -175,14 +189,14 @@ def test_close():
     ),
     ids=lambda v: str(v),
 )
-def test_max_piece_index(piece_size, files, exp_max_piece_index):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_max_piece_index(chunk_size, files, exp_max_piece_index):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     assert tfs.max_piece_index == exp_max_piece_index
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, file, exp_result',
+    argnames='chunk_size, files, file, exp_result',
     argvalues=(
         (4, [File('a', 1)], 'x', ValueError('File not specified: x')),
         (3, [File('a', 1)], 'a', 0),
@@ -213,8 +227,8 @@ def test_max_piece_index(piece_size, files, exp_max_piece_index):
     ),
     ids=lambda v: str(v),
 )
-def test_get_file_position(piece_size, files, file, exp_result):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_file_position(chunk_size, files, file, exp_result):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     if isinstance(exp_result, BaseException):
         with pytest.raises(type(exp_result), match=rf'^{re.escape(str(exp_result))}$'):
@@ -224,7 +238,7 @@ def test_get_file_position(piece_size, files, file, exp_result):
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, position, exp_result',
+    argnames='chunk_size, files, position, exp_result',
     argvalues=(
         # 0   1   2   3   4   5
         # abc
@@ -265,8 +279,8 @@ def test_get_file_position(piece_size, files, file, exp_result):
          21, ValueError('position is out of bounds (0 - 20): 21')),
     ),
 )
-def test_get_file_at_position(piece_size, files, position, exp_result, mocker):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_file_at_position(chunk_size, files, position, exp_result, mocker):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
 
     def mock_content_path(content_path, none_ok, file):
@@ -285,7 +299,7 @@ def test_get_file_at_position(piece_size, files, position, exp_result, mocker):
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, exp_piece_indexes',
+    argnames='chunk_size, files, exp_piece_indexes',
     argvalues=(
         (3, [File('a', 1)], {'a': [0]}),
         (3, [File('a', 2)], {'a': [0]}),
@@ -319,8 +333,8 @@ def test_get_file_at_position(piece_size, files, position, exp_result, mocker):
     ),
     ids=lambda v: repr(v),
 )
-def test_get_piece_indexes_of_file_nonexclusive(piece_size, files, exp_piece_indexes):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_piece_indexes_of_file_nonexclusive(chunk_size, files, exp_piece_indexes):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     for filename, exp_indexes in exp_piece_indexes.items():
         file = [f for f in torrent.files if f == filename][0]
@@ -328,7 +342,7 @@ def test_get_piece_indexes_of_file_nonexclusive(piece_size, files, exp_piece_ind
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, exp_piece_indexes',
+    argnames='chunk_size, files, exp_piece_indexes',
     argvalues=(
         (3, [File('a', 1)], {'a': [0]}),
         (3, [File('a', 2)], {'a': [0]}),
@@ -362,8 +376,8 @@ def test_get_piece_indexes_of_file_nonexclusive(piece_size, files, exp_piece_ind
     ),
     ids=lambda v: repr(v),
 )
-def test_get_piece_indexes_of_file_exclusive(piece_size, files, exp_piece_indexes):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_piece_indexes_of_file_exclusive(chunk_size, files, exp_piece_indexes):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     for filename, exp_indexes in exp_piece_indexes.items():
         file = [f for f in torrent.files if f == filename][0]
@@ -371,7 +385,7 @@ def test_get_piece_indexes_of_file_exclusive(piece_size, files, exp_piece_indexe
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, first_byte_indexes, last_byte_indexes, exp_files',
+    argnames='chunk_size, files, first_byte_indexes, last_byte_indexes, exp_files',
     argvalues=(
         # Files smaller than piece size
         # 0     1     2     3     4     5     6     7     8     9     0
@@ -430,8 +444,8 @@ def test_get_piece_indexes_of_file_exclusive(piece_size, files, exp_piece_indexe
     ),
     ids=lambda v: str(v),
 )
-def test_get_files_at_byte_range(piece_size, first_byte_indexes, last_byte_indexes, files, exp_files, mocker):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_files_at_byte_range(chunk_size, first_byte_indexes, last_byte_indexes, files, exp_files, mocker):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
 
     first_byte_indexes = tuple(first_byte_indexes)
@@ -457,7 +471,7 @@ def test_get_files_at_byte_range(piece_size, first_byte_indexes, last_byte_index
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, file, exp_byte_range',
+    argnames='chunk_size, files, file, exp_byte_range',
     argvalues=(
         # All files in one piece
         # 0     1     2     3     4     5     6     7     8     9     0
@@ -504,8 +518,8 @@ def test_get_files_at_byte_range(piece_size, first_byte_indexes, last_byte_index
     ),
     ids=lambda v: str(v),
 )
-def test_get_byte_range_of_file(piece_size, files, file, exp_byte_range):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_byte_range_of_file(chunk_size, files, file, exp_byte_range):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     file = {str(f): f for f in torrent.files}[file]
     byte_range = tfs.get_byte_range_of_file(file)
@@ -513,7 +527,7 @@ def test_get_byte_range_of_file(piece_size, files, file, exp_byte_range):
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, piece_index, exp_return_value',
+    argnames='chunk_size, files, piece_index, exp_return_value',
     argvalues=(
         # First piece contains multiple files
         # 0     1     2     3     4     5     6     7     8     9     0
@@ -611,8 +625,8 @@ def test_get_byte_range_of_file(piece_size, files, file, exp_byte_range):
     ),
     ids=lambda v: str(v),
 )
-def test_get_files_at_piece_index(piece_size, files, piece_index, exp_return_value, mocker):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_files_at_piece_index(chunk_size, files, piece_index, exp_return_value, mocker):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
 
     def mock_content_path(content_path, none_ok, file):
@@ -630,7 +644,7 @@ def test_get_files_at_piece_index(piece_size, files, piece_index, exp_return_val
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, file, relative_piece_indexes, exp_absolute_indexes',
+    argnames='chunk_size, files, file, relative_piece_indexes, exp_absolute_indexes',
     argvalues=(
         # Multiple files in one piece
         # 0     1     2     3     4     5     6     7     8     9     0
@@ -664,8 +678,8 @@ def test_get_files_at_piece_index(piece_size, files, piece_index, exp_return_val
     ),
     ids=lambda v: str(v),
 )
-def test_get_absolute_piece_indexes(piece_size, files, file, relative_piece_indexes, exp_absolute_indexes):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_absolute_piece_indexes(chunk_size, files, file, relative_piece_indexes, exp_absolute_indexes):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     file = [f for f in files if f == file][0]
     assert tfs.get_absolute_piece_indexes(file, relative_piece_indexes) == exp_absolute_indexes
@@ -713,42 +727,46 @@ def test_get_relative_piece_indexes(file, relative_piece_indexes, exp_indexes,
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, piece_index',
+    argnames='chunk_size, files, piece_index',
     argvalues=(
         # 0     1     2     3     4     5     6     7
+        # abcd
+        (6, [File('t/a', 1), File('t/b', 1), File('t/c', 1), File('t/d', 1)], 0),
+
+        # 0     1     2     3     4     5     6     7
         # aaaaaaaaaaabbbbbbbbbbbbbcccccccddddddddddd
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 0),
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 1),
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 2),
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 3),
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 4),
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 5),
-        (6, [File('a', 11), File('b', 13), File('c', 7), File('d', 11)], 6),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 0),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 1),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 2),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 3),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 4),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 5),
+        (6, [File('t/a', 11), File('t/b', 13), File('t/c', 7), File('t/d', 11)], 6),
 
         # First piece contains multiple complete files
         # 0           1           2           3           4           5
         # aaaabbbbbccccccccccccccccccccccccccccccccccccccccccccccccccccc
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 0),
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 1),
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 2),
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 3),
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 4),
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 5),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 0),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 1),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 2),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 3),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 4),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 5),
 
         # Middle piece contains multiple complete files
         # 0              1              2              3
         # aaaaaaaaaaaaaaaaaaaaabbbbbcccdddddddddddddddddddd
-        (15, [File('a', 21), File('b', 5), File('c', 3), File('d', 20)], 0),
-        (15, [File('a', 21), File('b', 5), File('c', 3), File('d', 20)], 1),
-        (15, [File('a', 21), File('b', 5), File('c', 3), File('d', 20)], 2),
-        (15, [File('a', 21), File('b', 5), File('c', 3), File('d', 20)], 3),
+        (15, [File('t/a', 21), File('t/b', 5), File('t/c', 3), File('t/d', 20)], 0),
+        (15, [File('t/a', 21), File('t/b', 5), File('t/c', 3), File('t/d', 20)], 1),
+        (15, [File('t/a', 21), File('t/b', 5), File('t/c', 3), File('t/d', 20)], 2),
+        (15, [File('t/a', 21), File('t/b', 5), File('t/c', 3), File('t/d', 20)], 3),
 
         # Last piece contains multiple complete files
         # 0           1           2           3
         # aaaaaaaaaaaaaaaaaaaaaaaaaabbbbccccc
-        (12, [File('a', 26), File('b', 4), File('c', 5)], 0),
-        (12, [File('a', 26), File('b', 4), File('c', 5)], 1),
-        (12, [File('a', 26), File('b', 4), File('c', 5)], 2),
+        (12, [File('t/a', 26), File('t/b', 4), File('t/c', 5)], 0),
+        (12, [File('t/a', 26), File('t/b', 4), File('t/c', 5)], 1),
+        (12, [File('t/a', 26), File('t/b', 4), File('t/c', 5)], 2),
     ),
     ids=lambda v: str(v),
 )
@@ -763,280 +781,291 @@ def test_get_relative_piece_indexes(file, relative_piece_indexes, exp_indexes,
 )
 def test_get_piece_returns_piece_from_files(
         torrent_content_path, stream_content_path, custom_content_path, exp_content_path,
-        piece_size, files, piece_index,
+        chunk_size, files, piece_index,
         tmp_path, mocker,
 ):
     torrent_name = 'my torrent'
     if torrent_content_path:
-        torrent_content_path = (tmp_path / torrent_content_path).parent / torrent_name
+        torrent_content_path = tmp_path / torrent_content_path / torrent_name
     if stream_content_path:
-        stream_content_path = (tmp_path / stream_content_path).parent / torrent_name
+        stream_content_path = tmp_path / stream_content_path / torrent_name
     if custom_content_path:
-        custom_content_path = (tmp_path / custom_content_path).parent / torrent_name
+        custom_content_path = tmp_path / custom_content_path / torrent_name
 
     print('torrent_content_path:', torrent_content_path)
     print('stream_content_path:', stream_content_path)
     print('custom_content_path:', custom_content_path)
 
     if exp_content_path:
-        exp_content_path = (tmp_path / exp_content_path).parent / torrent_name
+        exp_content_path = tmp_path / exp_content_path / torrent_name
         exp_content_path.mkdir(parents=True, exist_ok=True)
         for file in files:
-            filepath = exp_content_path.joinpath(file)
+            filepath = exp_content_path.joinpath(*file.parts[1:])
             print(f'{filepath}: {file.size} bytes: {file.content}')
             filepath.write_bytes(file.content)
 
     stream = b''.join(f.content for f in files)
     print('concatenated stream:', stream)
-    start = piece_index * piece_size
-    stop = min(start + piece_size, len(stream))
+    start = piece_index * chunk_size
+    stop = min(start + chunk_size, len(stream))
     exp_piece = stream[start:stop]
     print('exp_piece:', f'[{start}:{stop}]:', exp_piece)
     exp_piece_length = stop - start
     assert len(exp_piece) == exp_piece_length
 
-    torrent = Torrent(piece_size=piece_size, files=files, path=torrent_content_path)
+    torrent = Torrent(piece_size=chunk_size, files=files, path=torrent_content_path)
     with TorrentFileStream(torrent, content_path=stream_content_path) as tfs:
         if exp_content_path is None:
             with pytest.raises(ValueError, match=r'^Missing content_path argument and torrent has no path specified$'):
-                print(tfs.get_piece(piece_index, content_path=custom_content_path))
+                tfs.get_piece(piece_index, content_path=custom_content_path)
         else:
             piece = tfs.get_piece(piece_index, content_path=custom_content_path)
             assert piece == exp_piece
 
 
-@pytest.mark.parametrize('piece_size', (4, 6, 8, 9, 12))
-def test_get_piece_resets_seek_position_when_reusing_file_handle(piece_size, tmp_path):
+@pytest.mark.parametrize('chunk_size', range(1, 40))
+def test_get_piece_resets_seek_position_when_reusing_file_handle(chunk_size, tmp_path):
     files = (
-        File('a', 12),
-        File('b', 13),
-        File('c', 7),
-        File('d', 16),
+        File('MyTorrent/a', 12),
+        File('MyTorrent/b', 13),
+        File('MyTorrent/c', 7),
+        File('MyTorrent/d', 16),
     )
     for f in files:
         print(f'{f}: {f.size} bytes: {f.content}')
+        (tmp_path / 'MyTorrent').mkdir(parents=True, exist_ok=True)
         f.write_at(tmp_path)
     stream = b''.join(f.content for f in files)
     print('concatenated stream:', stream)
 
     total_size = sum(f.size for f in files)
-    max_piece_index = math.floor((total_size - 1) // piece_size)
+    max_piece_index = math.floor((total_size - 1) // chunk_size)
     for piece_index in range(max_piece_index + 1):
         print('testing piece:', piece_index)
-        start = piece_index * piece_size
-        stop = min(start + piece_size, len(stream))
+        start = piece_index * chunk_size
+        stop = min(start + chunk_size, len(stream))
         exp_piece = stream[start:stop]
         print('exp_piece:', f'[{start}:{stop}]:', exp_piece)
         exp_piece_length = stop - start
         assert len(exp_piece) == exp_piece_length
 
-        torrent = Torrent(piece_size=piece_size, files=files)
+        torrent = Torrent(piece_size=chunk_size, files=files)
         with TorrentFileStream(torrent) as tfs:
             for i in range(3):
-                piece = tfs.get_piece(piece_index, content_path=tmp_path)
+                piece = tfs.get_piece(piece_index, content_path=tmp_path / 'MyTorrent')
                 assert piece == exp_piece
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, piece_index, exp_max_piece_index',
+    argnames='chunk_size, files, piece_index, exp_max_piece_index',
     argvalues=(
         # First file is smaller than one piece
         # 0           1           2           3           4           5           6           7
         # aaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbcccccccccccccccccccccccccccccc
-        (12, [File('a', 11), File('b', 49), File('c', 30)], -1, 7),
-        (12, [File('a', 11), File('b', 49), File('c', 30)], 8, 7),
+        (12, [File('t/a', 11), File('t/b', 49), File('t/c', 30)], -1, 7),
+        (12, [File('t/a', 11), File('t/b', 49), File('t/c', 30)], 8, 7),
 
         # Last file is smaller than one piece
         # 0   1   2   3   4   5   6   7
         # aaaaaaaabbbbbbbbbbbbbbbbbccc
-        (4, [File('a', 8), File('b', 17), File('c', 3)], -1, 6),
-        (4, [File('a', 8), File('b', 17), File('c', 3)], 7, 6),
+        (4, [File('t/a', 8), File('t/b', 17), File('t/c', 3)], -1, 6),
+        (4, [File('t/a', 8), File('t/b', 17), File('t/c', 3)], 7, 6),
 
         # First piece contains multiple complete files
-        # 0           1           2           3           4           5           6
+        # 0           1           2           3           4           5
         # aaaabbbbbccccccccccccccccccccccccccccccccccccccccccccccccccccc
-        (12, [File('a', 4), File('b', 5), File('c', 53)], -1, 5),
-        (12, [File('a', 4), File('b', 5), File('c', 53)], 6, 5),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], -1, 5),
+        (12, [File('t/a', 4), File('t/b', 5), File('t/c', 53)], 6, 5),
 
         # Middle piece contains multiple complete files
         # 0              1              2              3
         # aaaaaaaaaaaaaaaaaaaaabbbbbcccdddddddddddddddddddd
-        (15, [File('a', 21), File('b', 5), File('c', 3), File('d', 20)], -1, 3),
-        (15, [File('a', 21), File('b', 5), File('c', 3), File('d', 20)], 4, 3),
+        (15, [File('t/a', 21), File('t/b', 5), File('t/c', 3), File('t/d', 20)], -1, 3),
+        (15, [File('t/a', 21), File('t/b', 5), File('t/c', 3), File('t/d', 20)], 4, 3),
 
         # Last piece contains multiple complete files
         # 0           1           2           3
         # aaaaaaaaaaaaaaaaaaaaaaaaaabbbbccccc
-        (12, [File('a', 26), File('b', 4), File('c', 5)], -1, 2),
-        (12, [File('a', 26), File('b', 4), File('c', 5)], 3, 2),
+        (12, [File('t/a', 26), File('t/b', 4), File('t/c', 5)], -1, 2),
+        (12, [File('t/a', 26), File('t/b', 4), File('t/c', 5)], 3, 2),
     ),
     ids=lambda v: str(v),
 )
-def test_get_piece_with_piece_index_out_of_bounds(piece_size, files, piece_index, exp_max_piece_index, tmp_path):
-    torrent = Torrent(piece_size=piece_size, files=files)
+def test_get_piece_with_piece_index_out_of_bounds(chunk_size, files, piece_index, exp_max_piece_index, tmp_path):
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
     with pytest.raises(ValueError, match=rf'^piece_index must be in range 0 - {exp_max_piece_index}: {piece_index}$'):
         tfs.get_piece(piece_index)
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, missing_files, piece_index, exp_piece',
+    argnames='chunk_size, files, missing_files, piece_index, exp_missing_file',
     argvalues=(
         # 0     1     2     3     4     5     6     7
         # abcd
-        (6, [File('a', 1), File('b', 1), File('c', 1), File('d', 1)], ['a'], 0, None),
-        (6, [File('a', 1), File('b', 1), File('c', 1), File('d', 1)], ['b'], 0, None),
-        (6, [File('a', 1), File('b', 1), File('c', 1), File('d', 1)], ['c'], 0, None),
-        (6, [File('a', 1), File('b', 1), File('c', 1), File('d', 1)], ['d'], 0, None),
+        (6, [File('t/a', 1), File('t/b', 1), File('t/c', 1), File('t/d', 1)], ['t/a'], 0, 't/a'),
+        (6, [File('t/a', 1), File('t/b', 1), File('t/c', 1), File('t/d', 1)], ['t/b'], 0, 't/b'),
+        (6, [File('t/a', 1), File('t/b', 1), File('t/c', 1), File('t/d', 1)], ['t/c'], 0, 't/c'),
+        (6, [File('t/a', 1), File('t/b', 1), File('t/c', 1), File('t/d', 1)], ['t/d'], 0, 't/d'),
+        (6, [File('t/a', 1), File('t/b', 1), File('t/c', 1), File('t/d', 1)], ['t/b', 't/c'], 0, 't/b'),
 
         # 0     1     2     3     4     5     6     7
         # aaaaaaaaaaabbbcccccccccccccccccdddddd
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 0, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 1, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 2, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 3, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 4, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 5, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a'], 6, bytes),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 0, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 1, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 2, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 3, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 4, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 5, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a'], 6, None),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 0, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 1, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 2, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 3, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 4, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 5, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b'], 6, bytes),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 0, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 1, 't/b'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 2, 't/b'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 3, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 4, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 5, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b'], 6, None),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 0, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 1, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 2, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 3, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 4, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 5, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c'], 6, bytes),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 0, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 1, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 2, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 3, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 4, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 5, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c'], 6, None),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 0, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 1, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 2, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 3, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 4, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 5, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['d'], 6, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 0, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 1, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 2, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 3, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 4, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 5, 't/d'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/d'], 6, 't/d'),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 0, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 1, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 2, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 3, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 4, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 5, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'b'], 6, bytes),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 0, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 1, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 2, 't/b'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 3, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 4, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 5, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/b'], 6, None),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 0, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 1, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 2, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 3, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 4, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 5, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'c'], 6, bytes),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 0, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 1, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 2, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 3, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 4, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 5, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/c'], 6, None),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 0, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 1, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 2, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 3, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 4, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 5, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['a', 'd'], 6, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 0, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 1, 't/a'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 2, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 3, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 4, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 5, 't/d'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/a', 't/d'], 6, 't/d'),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 0, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 1, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 2, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 3, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 4, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 5, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['c', 'd'], 6, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 0, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 1, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 2, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 3, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 4, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 5, 't/c'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/c', 't/d'], 6, 't/d'),
 
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 0, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 1, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 2, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 3, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 4, bytes),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 5, None),
-        (6, [File('a', 11), File('b', 3), File('c', 17), File('d', 6)], ['b', 'd'], 6, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 0, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 1, 't/b'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 2, 't/b'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 3, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 4, None),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 5, 't/d'),
+        (6, [File('t/a', 11), File('t/b', 3), File('t/c', 17), File('t/d', 6)], ['t/b', 't/d'], 6, 't/d'),
     ),
     ids=lambda v: str(v),
 )
-def test_get_piece_with_missing_file(piece_size, files, missing_files, piece_index, exp_piece, tmp_path):
-    for f in files:
-        if f not in missing_files:
-            print(f'writing {f}: {f.size} bytes: {f.content}')
-            f.write_at(tmp_path)
+def test_get_piece_with_missing_file(chunk_size, files, missing_files, piece_index, exp_missing_file, tmp_path):
+    torrent_name = files[0].parts[0]
+    for file in files:
+        if file not in missing_files:
+            filepath = tmp_path / file
+            print(f'writing {filepath}: {file.size} bytes: {file.content}')
+            filepath.parent.mkdir(parents=True, exist_ok=True)
+            filepath.write_bytes(file.content)
         else:
-            print(f'not writing {f}: {f.size} bytes: {f.content}')
+            print(f'not writing {file}: {file.size} bytes: {file.content}')
 
-    torrent = Torrent(piece_size=piece_size, files=files)
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
-    piece = tfs.get_piece(piece_index, content_path=tmp_path)
-    if exp_piece is None:
-        assert piece is None
+
+    if exp_missing_file:
+        exp_exception = ReadError(errno.ENOENT, tmp_path / exp_missing_file)
+        with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+            tfs.get_piece(piece_index, content_path=tmp_path / torrent_name)
     else:
+        piece = tfs.get_piece(piece_index, content_path=tmp_path / torrent_name)
         assert isinstance(piece, bytes)
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, contents, piece_index, exp_result',
+    argnames='chunk_size, files, contents, piece_index, exp_result',
     argvalues=(
         # 0     1     2     3     4     5
         # aaaaaaaaaaabbbbbbbbbbbbcccccc
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'a': b'x' * 1}, 0, Exception('a')),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'a': b'x' * 2}, 1, Exception('a')),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'a': b'x' * 3}, 2, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'a': b'x' * 4}, 3, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'a': b'x' * 5}, 4, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'b': b'x' * 6}, 0, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'b': b'x' * 7}, 1, Exception('b')),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'b': b'x' * 8}, 2, Exception('b')),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'b': b'x' * 9}, 3, Exception('b')),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'b': b'x' * 10}, 4, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'c': b'x' * 11}, 0, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'c': b'x' * 12}, 1, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'c': b'x' * 13}, 2, bytes),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'c': b'x' * 14}, 3, Exception('c')),
-        (6, [File('a', 11), File('b', 12), File('c', 6)], {'c': b'x' * 15}, 4, Exception('c')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/a': b'x' * 1}, 0, Exception('t/a')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/a': b'x' * 2}, 1, Exception('t/a')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/a': b'x' * 3}, 2, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/a': b'x' * 4}, 3, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/a': b'x' * 5}, 4, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/b': b'x' * 6}, 0, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/b': b'x' * 7}, 1, Exception('t/b')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/b': b'x' * 8}, 2, Exception('t/b')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/b': b'x' * 9}, 3, Exception('t/b')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/b': b'x' * 10}, 4, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/c': b'x' * 11}, 0, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/c': b'x' * 12}, 1, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/c': b'x' * 13}, 2, bytes),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/c': b'x' * 14}, 3, Exception('t/c')),
+        (6, [File('t/a', 11), File('t/b', 12), File('t/c', 6)], {'t/c': b'x' * 15}, 4, Exception('t/c')),
     ),
     ids=lambda v: str(v),
 )
-def test_get_piece_with_wrong_file_size(piece_size, files, contents, piece_index, exp_result, tmp_path):
-    for f in files:
-        content = contents.get(f, f.content)
-        print(f'{f}: {f.size} bytes: {content}, real size: {len(content)} bytes')
-        f.write_at(tmp_path, content)
+def test_get_piece_with_wrong_file_size(chunk_size, files, contents, piece_index, exp_result, tmp_path):
+    for file in files:
+        filepath = tmp_path / file
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        content = contents.get(str(file), file.content)
+        print(f'{filepath}: {bytes(file.content)}, {len(file.content)} bytes')
+        if content != file.content:
+            print(f'  wrong file size: {bytes(content)}, {len(content)} bytes')
+        filepath.write_bytes(content)
 
-    torrent = Torrent(piece_size=piece_size, files=files)
+    torrent = Torrent(piece_size=chunk_size, files=files)
 
     if isinstance(exp_result, BaseException):
-        exp_filename = str(exp_result)
-        exp_filepath = str(tmp_path / exp_filename)
-        exp_filesize = {f: f.size for f in files}[exp_filename]
-        actual_file_size = os.path.getsize(tmp_path / exp_filename)
-        exp_exception = torf.VerifyFileSizeError(exp_filepath, actual_file_size, exp_filesize)
-        print('exp_exception:', repr(exp_exception))
+        exp_filepath_rel = str(exp_result)
+        exp_filepath = str(tmp_path / exp_filepath_rel)
+        exp_filesize = {str(f): f.size for f in files}[exp_filepath_rel]
+        actual_file_size = os.path.getsize(tmp_path / exp_filepath_rel)
+        exp_exception = VerifyFileSizeError(exp_filepath, actual_file_size, exp_filesize)
 
         with TorrentFileStream(torrent) as tfs:
             with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
-                tfs.get_piece(piece_index, content_path=tmp_path)
+                tfs.get_piece(piece_index, content_path=tmp_path / 't')
 
     else:
         stream = b''.join(f.content for f in files)
         print('concatenated stream:', stream)
-        start = piece_index * piece_size
-        stop = min(start + piece_size, len(stream))
+        start = piece_index * chunk_size
+        stop = min(start + chunk_size, len(stream))
         exp_piece = stream[start:stop]
         print('exp_piece:', f'[{start}:{stop}]:', exp_piece)
         exp_piece_length = stop - start
         assert len(exp_piece) == exp_piece_length
 
         with TorrentFileStream(torrent) as tfs:
-            assert tfs.get_piece(piece_index, content_path=tmp_path) == exp_piece
+            assert tfs.get_piece(piece_index, content_path=tmp_path / 't') == exp_piece
 
 
 def test_get_file_size_from_fs_returns_file_size(mocker):
@@ -1068,193 +1097,525 @@ def test_get_file_size_from_fs_gets_private_file(mocker):
 
 
 def test_get_open_file_gets_nonexisting_file(mocker):
-    exists_mock = mocker.patch('os.path.exists', return_value=False)
     open_mock = mocker.patch('__main__.open')
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
     tfs = TorrentFileStream(torrent)
-    assert tfs._get_open_file('foo/path/b') is None
-    assert exists_mock.call_args_list == [call('foo/path/b')]
+    path = 'foo/path'
+    exp_exception = ReadError(errno.ENOENT, path)
+    with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+        tfs._get_open_file(path)
     assert open_mock.call_args_list == []
 
 def test_get_open_file_fails_to_open_file(mocker):
-    exists_mock = mocker.patch('os.path.exists', return_value=True)
     open_mock = mocker.patch('builtins.open', side_effect=OSError(2, 'nope'))
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
     tfs = TorrentFileStream(torrent)
-    with pytest.raises(torf.ReadError, match=r'^foo/path/b: No such file or directory$'):
+    with pytest.raises(ReadError, match=r'^foo/path/b: No such file or directory$'):
         tfs._get_open_file('foo/path/b')
-    assert exists_mock.call_args_list == [call('foo/path/b')]
     assert open_mock.call_args_list == [call('foo/path/b', 'rb')]
 
 def test_get_open_file_opens_file_only_once(mocker):
-    exists_mock = mocker.patch('os.path.exists', return_value=True)
     fh1, fh2 = (Mock(), Mock())
     open_mock = mocker.patch('builtins.open', side_effect=(fh1, fh2))
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
     tfs = TorrentFileStream(torrent)
     for _ in range(5):
         assert tfs._get_open_file('foo/path/b') == fh1
-    assert exists_mock.call_args_list == [call('foo/path/b')]
     assert open_mock.call_args_list == [call('foo/path/b', 'rb')]
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, exp_chunks',
+    argnames='chunk_size, files, exp_chunks',
     argvalues=(
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABC
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], [b'abc']),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], [
+            (b'abc', ('C', 1), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAABC
-        (8, [File('A', b'abcdef'), File('B', b'g'), File('C', b'h')], [b'abcdefgh']),
+        (8, [File('t/A', b'abcdef'), File('t/B', b'g'), File('t/C', b'h')], [
+            (b'abcdefgh', ('C', 1), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAABCC
-        (8, [File('A', b'abcdef'), File('B', b'g'), File('C', b'hi')], [b'abcdefgh', b'i']),
+        (8, [File('t/A', b'abcdef'), File('t/B', b'g'), File('t/C', b'hi')], [
+            (b'abcdefgh', ('C', 2), ()),
+            (b'i', ('C', 2), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAABBC
-        (8, [File('A', b'abcdef'), File('B', b'gh'), File('C', b'i')], [b'abcdefgh', b'i']),
+        (8, [File('t/A', b'abcdef'), File('t/B', b'gh'), File('t/C', b'i')], [
+            (b'abcdefgh', ('B', 2), ()),
+            (b'i', ('C', 1), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAABBCC
-        (8, [File('A', b'abcdef'), File('B', b'gh'), File('C', b'ij')], [b'abcdefgh', b'ij']),
+        (8, [File('t/A', b'abcdef'), File('t/B', b'gh'), File('t/C', b'ij')], [
+            (b'abcdefgh', ('B', 2), ()),
+            (b'ij', ('C', 2), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAAAABBCC
-        (8, [File('A', b'abcdefgh'), File('B', b'ij'), File('C', b'kl')], [b'abcdefgh', b'ijkl']),
+        (8, [File('t/A', b'abcdefgh'), File('t/B', b'ij'), File('t/C', b'kl')], [
+            (b'abcdefgh', ('A', 8), ()),
+            (b'ijkl', ('C', 2), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAAAAABBCC
-        (8, [File('A', b'abcdefghi'), File('B', b'jk'), File('C', b'lm')], [b'abcdefgh', b'ijklm']),
+        (8, [File('t/A', b'abcdefghi'), File('t/B', b'jk'), File('t/C', b'lm')], [
+            (b'abcdefgh', ('A', 9), ()),
+            (b'ijklm', ('C', 2), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAAAAABBCCCCC
-        (8, [File('A', b'abcdefghi'), File('B', b'jk'), File('C', b'lmnop')], [b'abcdefgh', b'ijklmnop']),
+        (8, [File('t/A', b'abcdefghi'), File('t/B', b'jk'), File('t/C', b'lmnop')], [
+            (b'abcdefgh', ('A', 9), ()),
+            (b'ijklmnop', ('C', 5), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAAAAABBBCCCCC
-        (8, [File('A', b'abcdefghi'), File('B', b'jkl'), File('C', b'mnopq')], [b'abcdefgh', b'ijklmnop', b'q']),
+        (8, [File('t/A', b'abcdefghi'), File('t/B', b'jkl'), File('t/C', b'mnopq')], [
+            (b'abcdefgh', ('A', 9), ()),
+            (b'ijklmnop', ('C', 5), ()),
+            (b'q', ('C', 5), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAAAABBBBCCCCC
-        (8, [File('A', b'abcdefgh'), File('B', b'ijkl'), File('C', b'mnopq')], [b'abcdefgh', b'ijklmnop', b'q']),
+        (8, [File('t/A', b'abcdefgh'), File('t/B', b'ijkl'), File('t/C', b'mnopq')], [
+            (b'abcdefgh', ('A', 8), ()),
+            (b'ijklmnop', ('C', 5), ()),
+            (b'q', ('C', 5), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAAAAAABBBBCCCCCC
-        (8, [File('A', b'abcdefg'), File('B', b'hijk'), File('C', b'lmnopq')], [b'abcdefgh', b'ijklmnop', b'q']),
+        (8, [File('t/A', b'abcdefg'), File('t/B', b'hijk'), File('t/C', b'lmnopq')], [
+            (b'abcdefgh', ('B', 4), ()),
+            (b'ijklmnop', ('C', 6), ()),
+            (b'q', ('C', 6), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABBBBCCCCC
-        (8, [File('A', b'a'), File('B', b'bcde'), File('C', b'fghij')], [b'abcdefgh', b'ij']),
+        (8, [File('t/A', b'a'), File('t/B', b'bcde'), File('t/C', b'fghij')], [
+            (b'abcdefgh', ('C', 5), ()),
+            (b'ij', ('C', 5), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABBBBCCCC
-        (8, [File('A', b'a'), File('B', b'bcde'), File('C', b'fghi')], [b'abcdefgh', b'i']),
+        (8, [File('t/A', b'a'), File('t/B', b'bcde'), File('t/C', b'fghi')], [
+            (b'abcdefgh', ('C', 4), ()),
+            (b'i', ('C', 4), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABBBBC
-        (8, [File('A', b'a'), File('B', b'bcde'), File('C', b'f')], [b'abcdef']),
+        (8, [File('t/A', b'a'), File('t/B', b'bcde'), File('t/C', b'f')], [
+            (b'abcdef', ('C', 1), ()),
+        ]),
     ),
     ids=lambda v: str(v),
 )
-def test_iter_chunks_without_missing_files(piece_size, files, exp_chunks, tmp_path):
-    for f in files:
-        # content = os.path.basename(f).encode('utf8') * f.size
-        print(f'writing {f}: {f.size} bytes: {f.content}')
-        f.write_at(tmp_path)
+@pytest.mark.parametrize(
+    argnames='torrent_content_path, stream_content_path, custom_content_path, exp_content_path',
+    argvalues=(
+        ('torrent/path', 'stream/path', 'custom/path', 'custom/path'),
+        ('torrent/path', 'stream/path', None, 'stream/path'),
+        ('torrent/path', None, None, 'torrent/path'),
+        (None, None, None, None),
+    ),
+)
+def test_iter_pieces_without_missing_files(
+    torrent_content_path, stream_content_path, custom_content_path, exp_content_path,
+    chunk_size, files, exp_chunks,
+    tmp_path, mocker,
+):
+    torrent_name = 'my_torrent'
+    if torrent_content_path:
+        torrent_content_path = (tmp_path / torrent_content_path).parent / torrent_name
+    if stream_content_path:
+        stream_content_path = (tmp_path / stream_content_path).parent / torrent_name
+    if custom_content_path:
+        custom_content_path = (tmp_path / custom_content_path).parent / torrent_name
 
-    torrent = Torrent(piece_size=piece_size, files=files)
-    tfs = TorrentFileStream(torrent)
-    assert list(tfs.iter_chunks(location=tmp_path)) == exp_chunks
+    print('torrent_content_path:', torrent_content_path)
+    print('stream_content_path:', stream_content_path)
+    print('custom_content_path:', custom_content_path)
+
+    if exp_content_path:
+        exp_content_path = (tmp_path / exp_content_path).parent / torrent_name
+        exp_content_path.mkdir(parents=True, exist_ok=True)
+        for file in files:
+            filepath = exp_content_path.joinpath(os.sep.join(file.parts[1:]))
+            print(f'{filepath}: {file.size} bytes: {file.content}')
+            filepath.write_bytes(file.content)
+
+    exp_chunks_fixed = []
+    for chunk, (filepath_rel, filesize), exceptions in exp_chunks:
+        if exp_content_path:
+            filepath = File(exp_content_path / filepath_rel, filesize)
+        else:
+            filepath = File(filepath_rel, filesize)
+        exp_chunks_fixed.append((chunk, filepath, exceptions))
+
+    torrent = Torrent(piece_size=chunk_size, files=files, path=torrent_content_path)
+    with TorrentFileStream(torrent, content_path=stream_content_path) as tfs:
+        if exp_content_path is None:
+            with pytest.raises(ValueError, match=r'^Missing content_path argument and torrent has no path specified$'):
+                list(tfs.iter_pieces(content_path=custom_content_path))
+        else:
+            assert list(tfs.iter_pieces(content_path=custom_content_path)) == exp_chunks_fixed
 
 
 @pytest.mark.parametrize(
-    argnames='piece_size, files, missing_files, exp_chunks',
+    argnames='chunk_size, files, missing_files, exp_chunks',
     argvalues=(
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABC
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['A'], [None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['B'], [None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['C'], [None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['A', 'B'], [None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['B', 'C'], [None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['A', 'C'], [None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'c')], ['A', 'B', 'C'], [None]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/A'], [
+            (None, ('t/A', 1), ('t/A',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/B'], [
+            (None, ('t/B', 1), ('t/B',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/C'], [
+            (None, ('t/C', 1), ('t/C',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/A', 't/B'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/B', 't/C'], [
+            (None, ('t/B', 1), ('t/B', 't/C')),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/A', 't/C'], [
+            (None, ('t/A', 1), ('t/A', 't/C')),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'c')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 1), ('t/A', 't/B', 't/C')),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # AAABBBCC
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['A'], [None]),
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['B'], [None]),
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['C'], [None]),
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['A', 'B'], [None]),
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['B', 'C'], [None]),
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['A', 'C'], [None]),
-        (8, [File('A', b'abc'), File('B', b'def'), File('C', b'gh')], ['A', 'B', 'C'], [None]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/A'], [
+            (None, ('t/A', 3), ('t/A',)),
+        ]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/B'], [
+            (None, ('t/B', 3), ('t/B',)),
+        ]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/C'], [
+            (None, ('t/C', 2), ('t/C',)),
+        ]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/A', 't/B'], [
+            (None, ('t/A', 3), ('t/A', 't/B')),
+        ]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/B', 't/C'], [
+            (None, ('t/B', 3), ('t/B', 't/C')),
+        ]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/A', 't/C'], [
+            (None, ('t/A', 3), ('t/A', 't/C')),
+        ]),
+        (8, [File('t/A', b'abc'), File('t/B', b'def'), File('t/C', b'gh')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 3), ('t/A', 't/B', 't/C')),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABCCCCCCC
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['A'], [None, b'i']),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['B'], [None, b'i']),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['C'], [None, None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['A', 'B'], [None, b'i']),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['B', 'C'], [None, None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['A', 'C'], [None, None]),
-        (8, [File('A', b'a'), File('B', b'b'), File('C', b'cdefghi')], ['A', 'B', 'C'], [None, None]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/A'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (b'i', ('t/C', 7), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/B'], [
+            (None, ('t/B', 1), ('t/B',)),
+            (b'i', ('t/C', 7), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/C'], [
+            (None, ('t/C', 7), ('t/C',)),
+            (None, ('t/C', 7), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/A', 't/B'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (b'i', ('t/C', 7), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/B', 't/C'], [
+            (None, ('t/B', 1), ('t/B',)),
+            (None, ('t/C', 7), ('t/C',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/A', 't/C'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (None, ('t/C', 7), ('t/C',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'b'), File('t/C', b'cdefghi')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (None, ('t/C', 7), ('t/C',)),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABBBBBBCC
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['A'], [None, b'i']),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['B'], [None, b'i']),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['C'], [None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['A', 'B'], [None, b'i']),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['B', 'C'], [None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['A', 'C'], [None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hi')], ['A', 'B', 'C'], [None, None]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/A'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (b'i', ('t/C', 2), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/B'], [
+            (None, ('t/B', 6), ('t/B',)),
+            (b'i', ('t/C', 2), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/C'], [
+            (None, ('t/C', 2), ('t/C',)),
+            (None, ('t/C', 2), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/A', 't/B'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (b'i', ('t/C', 2), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/B', 't/C'], [
+            (None, ('t/B', 6), ('t/B',)),
+            (None, ('t/C', 2), ('t/C',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/A', 't/C'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (None, ('t/C', 2), ('t/C',)),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hi')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (None, ('t/C', 2), ('t/C',)),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABBBBBBCCCCCCCCCC
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['A'], [None, b'ijklmnop', b'q']),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['B'], [None, b'ijklmnop', b'q']),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['C'], [None, None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['A', 'B'], [None, b'ijklmnop', b'q']),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['B', 'C'], [None, None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['A', 'C'], [None, None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefg'), File('C', b'hijklmnopq')], ['A', 'B', 'C'], [None, None, None]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/A'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (b'ijklmnop', ('t/C', 10), ()),
+            (b'q', ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/B'], [
+            (None, ('t/B', 6), ('t/B',)),
+            (b'ijklmnop', ('t/C', 10), ()),
+            (b'q', ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/C'], [
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+            (None, ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/A', 't/B'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (b'ijklmnop', ('t/C', 10), ()),
+            (b'q', ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/B', 't/C'], [
+            (None, ('t/B', 6), ('t/B',)),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/A', 't/C'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefg'), File('t/C', b'hijklmnopq')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
         # 0       1       2       3       4       5       6       7       8       8       9
         # ABBBBBBBCCCCCCCCCC
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['A'], [None, b'ijklmnop', b'qr']),
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['B'], [None, b'ijklmnop', b'qr']),
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['C'], [b'abcdefgh', None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['A', 'B'], [None, b'ijklmnop', b'qr']),
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['B', 'C'], [None, None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['A', 'C'], [None, None, None]),
-        (8, [File('A', b'a'), File('B', b'bcdefgh'), File('C', b'ijklmnopqr')], ['A', 'B', 'C'], [None, None, None]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/A'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (b'ijklmnop', ('t/C', 10), ()),
+            (b'qr', ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/B'], [
+            (None, ('t/B', 7), ('t/B',)),
+            (b'ijklmnop', ('t/C', 10), ()),
+            (b'qr', ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/C'], [
+            (b'abcdefgh', ('t/B', 7), ()),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/A', 't/B'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (b'ijklmnop', ('t/C', 10), ()),
+            (b'qr', ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/B', 't/C'], [
+            (None, ('t/B', 7), ('t/B',)),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/A', 't/C'], [
+            (None, ('t/A', 1), ('t/A',)),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
+        (8, [File('t/A', b'a'), File('t/B', b'bcdefgh'), File('t/C', b'ijklmnopqr')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 1), ('t/A', 't/B')),
+            (None, ('t/C', 10), ('t/C',)),
+            (None, ('t/C', 10), ()),
+        ]),
         # 0   1   2   3   4   5   6   7   8   8   9
         # AAAAABBBCCCCCC
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['A'], [None, None, b'ijkl', b'mn']),
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['B'], [b'abcd', None, b'ijkl', b'mn']),
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['C'], [b'abcd', b'efgh', None, None]),
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['A', 'B'], [None, None, b'ijkl', b'mn']),
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['B', 'C'], [b'abcd', None, None, None]),
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['A', 'C'], [None, None, None, None]),
-        (4, [File('A', b'abcde'), File('B', b'fgh'), File('C', b'ijklmn')], ['A', 'B', 'C'], [None, None, None, None]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/A'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ()),
+            (b'ijkl', ('t/C', 6), ()),
+            (b'mn', ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/B'], [
+            (b'abcd', ('t/A', 5), ()),
+            (None, ('t/B', 3), ('t/B',)),
+            (b'ijkl', ('t/C', 6), ()),
+            (b'mn', ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/C'], [
+            (b'abcd', ('t/A', 5), ()),
+            (b'efgh', ('t/B', 3), ()),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/A', 't/B'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ('t/B',)),
+            (b'ijkl', ('t/C', 6), ()),
+            (b'mn', ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/B', 't/C'], [
+            (b'abcd', ('t/A', 5), ()),
+            (None, ('t/B', 3), ('t/B',)),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/A', 't/C'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ()),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fgh'), File('t/C', b'ijklmn')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ('t/B',)),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
         # 0   1   2   3   4   5   6   7   8   8   9
         # AAAAABBBBCCCCC
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['A'], [None, None, b'ijkl', b'mn']),
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['B'], [b'abcd', None, None, b'mn']),
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['C'], [b'abcd', b'efgh', None, None]),
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['A', 'B'], [None, None, None, b'mn']),
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['B', 'C'], [b'abcd', None, None, None]),
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['A', 'C'], [None, None, None, None]),
-        (4, [File('A', b'abcde'), File('B', b'fghi'), File('C', b'jklmn')], ['A', 'B', 'C'], [None, None, None, None]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/A'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ()),
+            (b'ijkl', ('t/C', 5), ()),
+            (b'mn', ('t/C', 5), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/B'], [
+            (b'abcd', ('t/A', 5), ()),
+            (None, ('t/B', 4), ('t/B',)),
+            (None, ('t/B', 4), ()),
+            (b'mn', ('t/C', 5), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/C'], [
+            (b'abcd', ('t/A', 5), ()),
+            (b'efgh', ('t/B', 4), ()),
+            (None, ('t/C', 5), ('t/C',)),
+            (None, ('t/C', 5), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/A', 't/B'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ()),
+            (None, ('t/B', 4), ('t/B',)),
+            (b'mn', ('t/C', 5), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/B', 't/C'], [
+            (b'abcd', ('t/A', 5), ()),
+            (None, ('t/B', 4), ('t/B',)),
+            (None, ('t/B', 4), ()),
+            (None, ('t/C', 5), ('t/C',)),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/A', 't/C'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ()),
+            (None, ('t/C', 5), ('t/C',)),
+            (None, ('t/C', 5), ()),
+        ]),
+        (4, [File('t/A', b'abcde'), File('t/B', b'fghi'), File('t/C', b'jklmn')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 5), ('t/A',)),
+            (None, ('t/A', 5), ()),
+            (None, ('t/B', 4), ('t/B',)),
+            (None, ('t/C', 5), ('t/C',)),
+        ]),
         # 0   1   2   3   4   5   6   7   8   8   9
-        # AAABBBBBCCCCC
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['A'], [None, b'efgh', b'ijkl', b'mn']),
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['B'], [None, None, b'ijkl', b'mn']),
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['C'], [b'abcd', b'efgh', None, None]),
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['A', 'B'], [None, None, b'ijkl', b'mn']),
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['B', 'C'], [None, None, None, None]),
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['A', 'C'], [None, b'efgh', None, None]),
-        (4, [File('A', b'abc'), File('B', b'defgh'), File('C', b'ijklmn')], ['A', 'B', 'C'], [None, None, None, None]),
+        # AAABBBBBCCCCCC
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/A'], [
+            (None, ('t/A', 3), ('t/A',)),
+            (b'efgh', ('t/B', 5), ()),
+            (b'ijkl', ('t/C', 6), ()),
+            (b'mn', ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/B'], [
+            (None, ('t/B', 5), ('t/B',)),
+            (None, ('t/B', 5), ()),
+            (b'ijkl', ('t/C', 6), ()),
+            (b'mn', ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/C'], [
+            (b'abcd', ('t/B', 5), ()),
+            (b'efgh', ('t/B', 5), ()),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/A', 't/B'], [
+            (None, ('t/A', 3), ('t/A',)),
+            (None, ('t/B', 5), ('t/B',)),
+            (b'ijkl', ('t/C', 6), ()),
+            (b'mn', ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/B', 't/C'], [
+            (None, ('t/B', 5), ('t/B',)),
+            (None, ('t/B', 5), ()),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/A', 't/C'], [
+            (None, ('t/A', 3), ('t/A',)),
+            (b'efgh', ('t/B', 5), ()),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
+        (4, [File('t/A', b'abc'), File('t/B', b'defgh'), File('t/C', b'ijklmn')], ['t/A', 't/B', 't/C'], [
+            (None, ('t/A', 3), ('t/A',)),
+            (None, ('t/B', 5), ('t/B',)),
+            (None, ('t/C', 6), ('t/C',)),
+            (None, ('t/C', 6), ()),
+        ]),
     ),
     ids=lambda v: str(v),
 )
-def test_iter_chunks_with_missing_files(piece_size, files, missing_files, exp_chunks, tmp_path):
+def test_iter_pieces_with_missing_files(chunk_size, files, missing_files, exp_chunks, tmp_path):
+    torrent_name = files[0].parts[0]
+    content_path = tmp_path / torrent_name
+    content_path.mkdir(parents=True, exist_ok=True)
     for f in files:
-        if f not in missing_files:
-            print(f'writing {f}: {f.size} bytes: {f.content}')
-            f.write_at(tmp_path)
+        if str(f) not in missing_files:
+            filepath = tmp_path / f
+            print(f'writing {filepath}: {f.size} bytes: {f.content}')
+            filepath.write_bytes(f.content)
         else:
             print(f'not writing {f}: {f.size} bytes: {f.content}')
 
-    torrent = Torrent(piece_size=piece_size, files=files)
+    exp_chunks_fixed = []
+    for chunk, (filepath_rel, filesize), exceptions in exp_chunks:
+        filepath = File(tmp_path / filepath_rel, filesize)
+        exceptions = tuple(ComparableException(ReadError(errno.ENOENT, str(tmp_path / f)))
+                           for f in exceptions)
+        exp_chunks_fixed.append((chunk, filepath, exceptions))
+
+    torrent = Torrent(piece_size=chunk_size, files=files)
     tfs = TorrentFileStream(torrent)
-    assert list(tfs.iter_chunks(location=tmp_path)) == exp_chunks
+    chunks = list(tfs.iter_pieces(content_path=content_path))
+
+    def compare(x, y):
+        if chunks[x][y] != exp_chunks_fixed[x][y]:
+            print(f'{i}: {chunks[x][y]!r}\n   {exp_chunks_fixed[x][y]!r}')
+
+    for i in range(len(chunks)):
+        compare(i, 0)
+        compare(i, 1)
+        compare(i, 2)
+
+    assert chunks == exp_chunks_fixed
 
 
 def test_get_piece_hash_from_readable_piece(mocker):
@@ -1262,40 +1623,40 @@ def test_get_piece_hash_from_readable_piece(mocker):
     tfs = TorrentFileStream(torrent)
     get_piece_mock = mocker.patch.object(tfs, 'get_piece', return_value=b'mock piece')
     sha1_mock = mocker.patch('hashlib.sha1', return_value=Mock(digest=Mock(return_value=b'mock hash')))
-    assert tfs.get_piece_hash(123, location='foo/path') == b'mock hash'
-    assert get_piece_mock.call_args_list == [call(123, location='foo/path')]
+    assert tfs.get_piece_hash(123, content_path='foo/path') == b'mock hash'
+    assert get_piece_mock.call_args_list == [call(123, content_path='foo/path')]
     assert sha1_mock.call_args_list == [call(b'mock piece')]
 
 def test_get_piece_hash_from_unreadable_piece(mocker):
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
     tfs = TorrentFileStream(torrent)
-    get_piece_mock = mocker.patch.object(tfs, 'get_piece', return_value=None)
+    get_piece_mock = mocker.patch.object(tfs, 'get_piece', side_effect=ReadError(errno.ENOENT, 'foo/path'))
     sha1_mock = mocker.patch('hashlib.sha1', return_value=Mock(digest=Mock(return_value=b'mock hash')))
-    assert tfs.get_piece_hash(123, location='foo/path') is None
-    assert get_piece_mock.call_args_list == [call(123, location='foo/path')]
+    assert tfs.get_piece_hash(123, content_path='foo/path') is None
+    assert get_piece_mock.call_args_list == [call(123, content_path='foo/path')]
     assert sha1_mock.call_args_list == []
 
 
-def test_verify_piece_gets_valid_piece_index(mocker):
+def test_verify_piece_verifies_piece_hash(mocker):
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
-    tfs = TorrentFileStream(torrent)
     torrent.hashes = (b'd34d', b'b33f', b'b00b5')
+    tfs = TorrentFileStream(torrent)
     mocker.patch.object(tfs, 'get_piece_hash', return_value=b'b33f')
     mocker.patch.object(type(tfs), 'max_piece_index', PropertyMock(return_value=2))
-    assert tfs.verify_piece(0, location='foo/path') is False
-    assert tfs.verify_piece(1, location='foo/path') is True
-    assert tfs.verify_piece(2, location='foo/path') is False
+    assert tfs.verify_piece(0, content_path='foo/path') is False
+    assert tfs.verify_piece(1, content_path='foo/path') is True
+    assert tfs.verify_piece(2, content_path='foo/path') is False
     with pytest.raises(ValueError, match=r'^piece_index must be in range 0 - 2: 3$'):
-        tfs.verify_piece(3, location='foo/path')
+        tfs.verify_piece(3, content_path='foo/path')
 
-def test_verify_piece_returns_None_for_nonexisting_files(mocker):
+def test_verify_piece_gets_handles_no_piece_hash(mocker):
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
     torrent.hashes = (b'd34d', b'b33f', b'b00b5')
     tfs = TorrentFileStream(torrent)
     mocker.patch.object(tfs, 'get_piece_hash', return_value=None)
     mocker.patch.object(type(tfs), 'max_piece_index', PropertyMock(return_value=2))
-    assert tfs.verify_piece(0, location='foo/path') is None
-    assert tfs.verify_piece(1, location='foo/path') is None
-    assert tfs.verify_piece(2, location='foo/path') is None
+    assert tfs.verify_piece(0, content_path='foo/path') is None
+    assert tfs.verify_piece(1, content_path='foo/path') is None
+    assert tfs.verify_piece(2, content_path='foo/path') is None
     with pytest.raises(ValueError, match=r'^piece_index must be in range 0 - 2: 3$'):
-        tfs.verify_piece(3, location='foo/path')
+        tfs.verify_piece(3, content_path='foo/path')
