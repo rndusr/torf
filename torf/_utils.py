@@ -690,7 +690,7 @@ def key_exists_in_list_or_dict(key, lst_or_dct):
 
 def assert_type(obj, keys, exp_types, must_exist=True, check=None):
     """
-    Raise MetainfoError value is not of a particular type
+    Raise MetainfoError if value is not of a particular type
 
     :param obj: The object to check
     :type obj: sequence or mapping
