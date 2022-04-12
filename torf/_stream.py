@@ -6,6 +6,9 @@ import os
 
 from . import _errors as error
 
+# import logging  # isort:skip
+# _debug = logging.getLogger('torf').debug
+
 
 class TorrentFileStream:
     """
