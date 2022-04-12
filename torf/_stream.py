@@ -438,10 +438,12 @@ class TorrentFileStream:
 
             # Make generator that yields `(piece, filepath, exceptions)` tuples
             if fh:
+                # _debug(f'{file}: Reading {filepath}')
                 # Read pieces from opened file
                 pieces, skip_bytes = self._iter_from_file_handle(fh, piece, skip_bytes)
                 items = ((p, filepath, ()) for p in pieces)
             else:
+                # _debug(f'{file}: Faking {filepath}')
                 # Opening file failed
                 items, skip_bytes = missing_pieces(file, content_path, reason=exception)
                 # We can't complete the current piece
