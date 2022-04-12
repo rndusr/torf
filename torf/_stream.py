@@ -541,7 +541,7 @@ class _MissingPieces:
         self._torrent = torrent
         self._stream = stream
         self._piece_indexes_seen = set()
-        self._bycatch_files = set()
+        self._bycatch_files = []
 
     def __call__(self, file, content_path, reason):
         # Get the number of pieces covered by `file` minus all pieces we have
@@ -560,7 +560,7 @@ class _MissingPieces:
 
         # Files that are processed as a side effect because they only exist in a
         # piece that also belongs to `file`
-        bycatch_files = set()
+        bycatch_files = []
 
         # Unless `file` is the last file or it ends perfectly at a piece
         # boundary, we must calculate where the next piece starts in the next
@@ -590,13 +590,13 @@ class _MissingPieces:
 
                 # Mark all files between `file` and `next_file` as bycatch,
                 # excluding `file` and `next_file`
-                bycatch_files.update(affected_files[:-1])
+                bycatch_files.extend(affected_files[:-1])
             else:
                 # Include `next_file` in bycatch because it doesn't reach into
                 # the next piece
-                bycatch_files.update(affected_files)
+                bycatch_files.extend(affected_files)
 
-        self._bycatch_files.update(bycatch_files)
+        self._bycatch_files.extend(bycatch_files)
 
         def iter_yields():
             # _debug(f'Calculated missing pieces: {piece_indexes}')
