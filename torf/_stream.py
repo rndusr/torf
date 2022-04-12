@@ -495,8 +495,16 @@ class TorrentFileStream:
 
         :return: :class:`bytes`
         """
-        piece = self.get_piece(piece_index, content_path=content_path)
-        if piece is not None:
+        try:
+            piece = self.get_piece(piece_index, content_path=content_path)
+        except error.ReadError as e:
+            if e.errno is errno.ENOENT:
+                # No such file
+                return None
+            else:
+                # Other read error, e.g. permission denied
+                raise
+        else:
             return hashlib.sha1(piece).digest()
 
     def verify_piece(self, piece_index, content_path=None):

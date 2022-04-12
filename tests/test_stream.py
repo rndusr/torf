@@ -1627,12 +1627,23 @@ def test_get_piece_hash_from_readable_piece(mocker):
     assert get_piece_mock.call_args_list == [call(123, content_path='foo/path')]
     assert sha1_mock.call_args_list == [call(b'mock piece')]
 
-def test_get_piece_hash_from_unreadable_piece(mocker):
+def test_get_piece_hash_from_piece_from_missing_file(mocker):
     torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
     tfs = TorrentFileStream(torrent)
     get_piece_mock = mocker.patch.object(tfs, 'get_piece', side_effect=ReadError(errno.ENOENT, 'foo/path'))
     sha1_mock = mocker.patch('hashlib.sha1', return_value=Mock(digest=Mock(return_value=b'mock hash')))
     assert tfs.get_piece_hash(123, content_path='foo/path') is None
+    assert get_piece_mock.call_args_list == [call(123, content_path='foo/path')]
+    assert sha1_mock.call_args_list == []
+
+def test_get_piece_hash_from_piece_from_existing_unreadable_file(mocker):
+    torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
+    tfs = TorrentFileStream(torrent)
+    exception = ReadError(errno.EACCES, 'foo/path')
+    get_piece_mock = mocker.patch.object(tfs, 'get_piece', side_effect=exception)
+    sha1_mock = mocker.patch('hashlib.sha1', return_value=Mock(digest=Mock(return_value=b'mock hash')))
+    with pytest.raises(type(exception), match=rf'^{re.escape(str(exception))}$'):
+        tfs.get_piece_hash(123, content_path='foo/path')
     assert get_piece_mock.call_args_list == [call(123, content_path='foo/path')]
     assert sha1_mock.call_args_list == []
 
