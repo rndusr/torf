@@ -10,43 +10,6 @@ import torf
 from torf import _errors as errors
 from torf import _utils as utils
 
-ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
-
-def test_read_chunks__unreadable_file():
-    with pytest.raises(torf.ReadError) as excinfo:
-        tuple(utils.read_chunks('no/such/file', 10))
-    assert excinfo.match(r'^no/such/file: No such file or directory$')
-
-def test_read_chunks__readable_file(create_file):
-    filepath = create_file('some_file', ALPHABET[:16])
-    assert tuple(utils.read_chunks(filepath, 4)) == (b'abcd', b'efgh', b'ijkl', b'mnop')
-    assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde', b'fghij', b'klmno', b'p')
-    assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde', b'fghij', b'klmno', b'p')
-
-def test_read_chunks__normal_read(create_file):
-    filepath = create_file('some_file', ALPHABET[:5])
-    assert tuple(utils.read_chunks(filepath, 1)) == (b'a', b'b', b'c', b'd', b'e')
-    assert tuple(utils.read_chunks(filepath, 2)) == (b'ab', b'cd', b'e')
-    assert tuple(utils.read_chunks(filepath, 3)) == (b'abc', b'de')
-    assert tuple(utils.read_chunks(filepath, 4)) == (b'abcd', b'e')
-    assert tuple(utils.read_chunks(filepath, 5)) == (b'abcde',)
-    assert tuple(utils.read_chunks(filepath, 6)) == (b'abcde',)
-
-def test_read_chunks__prepend_bytes_to_file(create_file):
-    filepath = create_file('some_file', ALPHABET[:10])
-
-    assert tuple(utils.read_chunks(filepath, 2, prepend=b'1')) == (b'1a', b'bc', b'de', b'fg', b'hi', b'j')
-    assert tuple(utils.read_chunks(filepath, 2, prepend=b'12')) == (b'12', b'ab', b'cd', b'ef', b'gh', b'ij')
-    assert tuple(utils.read_chunks(filepath, 2, prepend=b'123')) == (b'12', b'3a', b'bc', b'de', b'fg', b'hi', b'j')
-    assert tuple(utils.read_chunks(filepath, 2, prepend=b'1234')) == (b'12', b'34', b'ab', b'cd', b'ef', b'gh', b'ij')
-
-    assert tuple(utils.read_chunks(filepath, 3, prepend=b'1')) == (b'1ab', b'cde', b'fgh', b'ij')
-    assert tuple(utils.read_chunks(filepath, 3, prepend=b'12')) == (b'12a', b'bcd', b'efg', b'hij')
-    assert tuple(utils.read_chunks(filepath, 3, prepend=b'123')) == (b'123', b'abc', b'def', b'ghi', b'j')
-    assert tuple(utils.read_chunks(filepath, 3, prepend=b'1234')) == (b'123', b'4ab', b'cde', b'fgh', b'ij')
-    assert tuple(utils.read_chunks(filepath, 3, prepend=b'12345')) == (b'123', b'45a', b'bcd', b'efg', b'hij')
-    assert tuple(utils.read_chunks(filepath, 3, prepend=b'123456')) == (b'123', b'456', b'abc', b'def', b'ghi', b'j')
-
 
 def test_is_power_of_2():
     assert utils.is_power_of_2(0) is False

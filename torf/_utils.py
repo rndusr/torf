@@ -63,33 +63,6 @@ def is_md5sum(value):
     return bool(_md5sum_regex.match(value))
 
 
-def read_chunks(filepath, chunksize, prepend=bytes()):
-    """
-    Generator that yields chunks from file
-
-    `prepend` is prepended to the content of `filepath`.
-    """
-    chunk = b''
-    for pos in range(0, len(prepend), chunksize):
-        chunk = prepend[pos:pos + chunksize]
-        if len(chunk) == chunksize:
-            yield chunk
-            chunk = b''
-    try:
-        with open(filepath, 'rb') as f:
-            # Fill last chunk from prepended bytes with first bytes from file
-            if chunk:
-                chunk += f.read(chunksize - len(chunk))
-                yield chunk
-            while True:
-                chunk = f.read(chunksize)
-                if chunk:
-                    yield chunk
-                else:
-                    break  # EOF
-    except OSError as e:
-        raise error.ReadError(e.errno, filepath)
-
 def real_size(path):
     """
     Return size for `path`, which is a (link to a) file or directory
