@@ -355,12 +355,12 @@ class _TranslatingCallback:
         # Figure out if we must ignore the interval for this call. This method
         # is called for every hashed piece and should be as efficient as
         # possible.
-        raise NotImplemented('You must implement this method!')
+        raise NotImplementedError('You must implement this method!')
 
     def _call_callback(self, piece_index, pieces_done, pieces_total, filepath, piece_hash, exceptions):
         # Translate arguments for the actual callback. This method is only
         # called at intervals (e.g. once per second).
-        raise NotImplemented('You must implement this method!')
+        raise NotImplementedError('You must implement this method!')
 
 
 class GenerateCallback(_TranslatingCallback):
@@ -422,10 +422,9 @@ class VerifyCallback(_TranslatingCallback):
             # Piece hash was calculated and doesn't match
             and piece_hash is not None and piece_hash != self._exp_hashes[piece_index]
         ):
-            exceptions = (
-                errors.VerifyContentError(
-                filepath, piece_index, self._torrent.piece_size, self._exp_file_sizes),
-            )
+            exceptions = (errors.VerifyContentError(
+                filepath, piece_index, self._torrent.piece_size, self._exp_file_sizes,
+            ),)
 
         if self._callback:
             # Callback can raise exception or handle it otherwise

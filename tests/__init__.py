@@ -267,7 +267,6 @@ def calc_piece_indexes(filespecs, piece_size, files_missing=(), files_missized=(
     names to the piece indexes they cover. Pieces that overlap multiple files
     belong to the last file they cover.
     """
-    piece_indexes_seen = set()
     piece_indexes = collections.defaultdict(lambda: fuzzylist())
     pos = 0
     for i, (filename, filesize) in enumerate(filespecs):
@@ -344,7 +343,7 @@ def skip_good_pieces(good_pieces, filespecs, piece_size, corruption_positions):
     For each file in `good_pieces`, remove piece_indexes between the first
     corruption and the end of the file
     """
-    debug(f'* Skipping good pieces after corruptions')
+    debug('* Skipping good pieces after corruptions')
     # Find out which piece_indexes should be skipped
     skipped_pis = set()
     for corrpos in sorted(corruption_positions):

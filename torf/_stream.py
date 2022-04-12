@@ -579,7 +579,6 @@ class _MissingPieces:
             #       fit lots and lots of files)
             next_file = affected_files[-1]
             next_file_start, next_file_end = self._stream.get_byte_range_of_file(next_file)
-            piece_size = self._torrent.piece_size
 
             # Stream index of the last byte of the last missing piece of `file`
             next_piece_boundary_index = (
@@ -618,7 +617,7 @@ class _MissingPieces:
         return iter_yields(), skip_bytes
 
     def _first_yield(self, piece_count, file, content_path, bycatch_files, reason):
-        assert isinstance(reason, BaseException), repr(exception)
+        assert isinstance(reason, BaseException), repr(reason)
         exceptions = [reason]
         if piece_count == 1:
             # First piece is also last piece, so we must add bycatch exceptions

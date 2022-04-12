@@ -97,7 +97,7 @@ class _TestCaseBase():
         if not with_callback:
             exp_exceptions = self.exp_exceptions
             if not exp_exceptions:
-                debug(f'Expecting no exceptions')
+                debug('Expecting no exceptions')
                 self._run_without_callback(**kwargs)
             else:
                 debug(f'Expected exceptions: {exp_exceptions}')
@@ -193,7 +193,7 @@ class _TestCaseBase():
             #     self._exp_exc_corruptions = skip_corruptions(self._exp_exc_corruptions, self.filespecs_abspath,  # noqa: F405
             #                                                  self.piece_size, self.corruption_positions,
             #                                                  self.files_missing, self.files_missized)
-            debug(f'Expected corruptions:')
+            debug('Expected corruptions:')
             for exc in self._exp_exc_corruptions:
                 debug(f'  {exc}')
         return self._exp_exc_corruptions
@@ -245,7 +245,7 @@ class _TestCaseBase():
                 missing_missized_pis = set()
                 for filepath in itertools.chain(self.files_missing, self.files_missized):
                     filename = os.path.basename(filepath)
-                    file_pis = file_piece_indexes(filename, self.filespecs, self.piece_size, exclusive=False)
+                    file_pis = file_piece_indexes(filename, self.filespecs, self.piece_size, exclusive=False)  # noqa: F405
                     missing_missized_pis.update(file_pis)
                 for exc in self.exp_exc_corruptions:
                     if exc.piece_index not in missing_missized_pis:

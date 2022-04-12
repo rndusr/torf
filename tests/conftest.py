@@ -130,7 +130,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
 
         # Limit filesizes to reduce number of test
         while len(filesizes) > file_count + 2:
-            middle_item = sorted(filesizes)[int(len(filesizes)/2)]
+            middle_item = sorted(filesizes)[int(len(filesizes) / 2)]
             filesizes.discard(middle_item)
 
         filesizes = list(sorted(filesizes))
@@ -139,7 +139,7 @@ def _generate_filespecs(file_count, piece_size, piece_count, fuzzy=False):
             random.shuffle(filesizes)
             random.shuffle(filesizeorders)
 
-        filesizeorders_iter= itertools.cycle(filesizeorders)
+        filesizeorders_iter = itertools.cycle(filesizeorders)
         filespecs = set()
         for fsizes in itertools.combinations(filesizes, file_count):
             order = next(filesizeorders_iter)
