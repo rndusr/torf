@@ -399,7 +399,7 @@ class VerifyCallback(_TranslatingCallback):
         #       against a torrent.
         self._exp_file_sizes = tuple(
             (
-                path / os.path.sep.join(file.parts[1:]),
+                os.sep.join((str(path), *file.parts[1:])),
                 self._torrent.partial_size(file),
             )
             for file in self._torrent.files
