@@ -1148,6 +1148,117 @@ class Torrent():
             piece_hashes = collector.collect()
             return piece_hashes == self.hashes
 
+    def verify_filesize(self, path, callback=None):
+        """
+        Check if `path` has the expected file size
+
+        Walk through :attr:`files` and check if each file exists relative to
+        `path`, is readable and has the correct size.  Excess files in `path`
+        are ignored.
+
+        This is fast and should find most manipulations, but :meth:`verify` is
+        necessary to detect corruptions (e.g. due to bit rot).
+
+        :param str path: Directory or file to check
+        :param callable callback: Callable to report progress and/or abort
+
+            `callback` must accept 6 positional arguments:
+
+                1. Torrent instance (:class:`Torrent`)
+                2. File path in file system (:class:`str`)
+                3. File path in torrent (:class:`str`)
+                4. Number of checked files (:class:`int`)
+                5. Total number of files (:class:`int`)
+                6. Exception (:class:`TorfError`) or ``None``
+
+            If `callback` returns anything that is not ``None``, verification is
+            stopped.
+
+        If a callback is specified, exceptions are not raised but passed to
+        `callback` instead.
+
+        :raises VerifyFileSizeError: if a file has an unexpected size
+        :raises VerifyNotDirectoryError: if `path` is a directory and this
+            torrent contains a single file
+        :raises ReadError: if any file's size can't be determined
+        :raises MetainfoError: if :meth:`validate` fails
+
+        :return: ``True`` if `path` is verified successfully, ``False``
+            otherwise
+        """
+        # First make sure we are a valid torrent
+        self.validate()
+
+        # Generate an ordered list of file system paths and their corresponding
+        # paths inside the torrent
+        # NOTE: The last segment in `path` is supposed to be the torrent name so
+        #       we must remove the name from each `file`.  This allows
+        #       verification of any renamed file/directory against a torrent.
+        filepaths = tuple(
+            (
+                utils.File([path, *file.parts[1:]], file.size),
+                file,
+            )
+            for file in self.files
+        )
+        files_total = len(filepaths)
+
+        def cancel(file_index, exception):
+            if callback:
+                fs_filepath = filepaths[file_index][0]
+                torrent_filepath = filepaths[file_index][1]
+                files_done = file_index + 1
+                return_value = callback(self, fs_filepath, torrent_filepath,
+                                        files_done, files_total, exception)
+                if return_value is not None:
+                    return True
+            elif exception:
+                # Raise exception if there is no callback to handle it
+                raise exception
+            else:
+                return False
+
+        exception = None
+
+        # If we expect a file, check if path is a file.  We don't need to check
+        # for a directory if we expect one because we are iterating over files
+        # (filepaths), so the path "foo/bar/baz" will result in a ReadError if
+        # "foo" or "foo/bar" is a file.
+        if self.mode == 'singlefile' and os.path.isdir(path):
+            exception = error.VerifyNotDirectoryError(path)
+            cancel(file_index=0, exception=exception)
+            return False
+
+        for file_index, (fs_filepath, torrent_filepath) in enumerate(filepaths):
+            # Check if path exists
+            if not os.path.exists(fs_filepath):
+                exception = error.ReadError(errno.ENOENT, fs_filepath)
+                if cancel(file_index, exception):
+                    return False
+                else:
+                    continue
+
+            # Check file size
+            fs_filepath_size = utils.real_size(fs_filepath)
+            expected_size = self.partial_size(torrent_filepath)
+            if fs_filepath_size != expected_size:
+                exception = error.VerifyFileSizeError(fs_filepath, fs_filepath_size, expected_size)
+                if cancel(file_index, exception):
+                    return False
+                else:
+                    continue
+
+            # Report no error for current file
+            if cancel(file_index, exception=None):
+                return False
+
+        if exception:
+            # `exception` is just an indicator of success/failure. At this point
+            # it was already raised or passed to cancel().
+            return False
+        else:
+            return True
+
     def validate(self):
         """
         Check if all mandatory keys exist in :attr:`metainfo` and all standard keys
