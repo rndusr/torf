@@ -417,7 +417,7 @@ class TorrentFileStream:
         :raise ReadError: if file exists but is not readable
         :raise VerifyFileSizeError: if file has unexpected size
         """
-        piece = bytearray()
+        trailing_bytes = b''
         missing_pieces = _MissingPieces(torrent=self._torrent, stream=self)
         skip_bytes = 0
 
@@ -443,47 +443,73 @@ class TorrentFileStream:
             if fh:
                 # _debug(f'{file}: Reading {filepath}')
                 # Read pieces from opened file
-                pieces, skip_bytes = self._iter_from_file_handle(fh, piece, skip_bytes)
-                items = ((p, filepath, ()) for p in pieces)
+                pieces, skip_bytes = self._iter_from_file_handle(
+                    fh,
+                    prepend=trailing_bytes,
+                    skip_bytes=skip_bytes,
+                )
+                trailing_bytes = b''
+                piece_size = self._torrent.piece_size
+                for piece in pieces:
+                    if len(piece) == piece_size:
+                        yield (piece, filepath, ())
+                    else:
+                        trailing_bytes = piece
+
             else:
                 # _debug(f'{file}: Faking {filepath}')
+                # We can't complete the current piece
+                trailing_bytes = b''
                 # Opening file failed
                 items, skip_bytes = missing_pieces(file, content_path, reason=exception)
-                # We can't complete the current piece
-                piece.clear()
-            yield from items
+                for item in items:
+                    yield item
 
         # Yield last few bytes in stream unless stream size is perfectly
         # divisible by piece size
-        if piece:
-            yield (bytes(piece), filepath, ())
+        if trailing_bytes:
+            yield (trailing_bytes, filepath, ())
 
-    def _iter_from_file_handle(self, fh, piece, skip_bytes):
-        # Read pieces from from file handle. `piece` must be a bytearray that
-        # contains bytes from the incomplete piece from the previous file, and
-        # it must contain the incomplete piece at the end of `fh` when EOF is
-        # reached.
+    def _iter_from_file_handle(self, fh, prepend, skip_bytes):
+        # Read pieces from from file handle.
+        # `prepend` is the incomplete piece from the previous file, i.e. the
+        # leading bytes of the next piece.
+        # `skip_bytes` is the number of bytes from `fh` to dump before
+        # reading the next piece.
 
         if skip_bytes:
             skipped = fh.seek(skip_bytes)
             skip_bytes -= skipped
 
-        def iter_pieces(fh, piece):
+        def iter_pieces(fh, prepend):
             piece_size = self._torrent.piece_size
-            while True:
-                readsize = piece_size - len(piece)
-                if readsize > 0:
-                    read_bytes = fh.read(readsize)
-                    if not read_bytes:
-                        break
-                    else:
-                        piece += read_bytes
+            piece = b''
 
+            # Iterate over pieces in `prepend`ed bytes, store incomplete piece
+            # in `piece`
+            for pos in range(0, len(prepend), piece_size):
+                piece = prepend[pos:pos + piece_size]
                 if len(piece) == piece_size:
-                    yield bytes(piece)
-                    piece.clear()
+                    yield piece
+                    piece = b''
 
-        return iter_pieces(fh, piece), skip_bytes
+            try:
+                # Fill incomplete piece with first bytes from `fh`
+                if piece:
+                    piece += fh.read(piece_size - len(piece))
+                    yield piece
+
+                # Iterate over `piece_size`ed chunks from `fh`
+                while True:
+                    piece = fh.read(piece_size)
+                    if piece:
+                        yield piece
+                    else:
+                        break  # EOF
+            except OSError as e:
+                raise error.ReadError(e.errno, fh.name)
+
+        return iter_pieces(fh, prepend), skip_bytes
 
     def get_piece_hash(self, piece_index, content_path=None):
         """
