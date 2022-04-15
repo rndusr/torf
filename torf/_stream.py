@@ -465,8 +465,8 @@ class TorrentFileStream:
         # reached.
 
         if skip_bytes:
-            skipped = fh.read(skip_bytes)
-            skip_bytes -= len(skipped)
+            skipped = fh.seek(skip_bytes)
+            skip_bytes -= skipped
 
         def iter_pieces(fh, piece):
             piece_size = self._torrent.piece_size
