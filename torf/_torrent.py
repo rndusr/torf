@@ -1515,7 +1515,7 @@ class Torrent():
                 metainfo = utils.decode_dict(metainfo_enc)
 
             # "info" must be a dictionary.  If validation is not wanted, it's OK
-            # if it doesn't exist because the "metainfo" property will add
+            # if it doesn't exist because the "metainfo" property will add it
             # automatically.
             utils.assert_type(metainfo, ('info',), (dict,), must_exist=validate)
 
