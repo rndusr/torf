@@ -294,7 +294,7 @@ def test_path_is_directory_and_torrent_contains_single_file(callback_return_valu
         assert os.path.isdir(content_path)
 
         # Without callback
-        with pytest.raises(torf.VerifyNotDirectoryError) as excinfo:
+        with pytest.raises(torf.VerifyIsDirectoryError) as excinfo:
             torrent.verify_filesize(content_path)
         assert excinfo.match(f'^{content_path}: Is a directory$')
 

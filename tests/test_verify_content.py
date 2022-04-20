@@ -497,6 +497,63 @@ def test_validate_is_called_first(monkeypatch):
     assert str(excinfo.value) == 'Invalid metainfo: Mock error'
     mock_validate.assert_called_once_with()
 
+def test_verify_singlefile_torrent_with_directory(generated_singlefile_torrent, create_dir):
+    content_path = create_dir('multifile')
+    exp_exception = torf.VerifyIsDirectoryError(content_path)
+
+    # Without callback
+    with pytest.raises(type(exp_exception)) as excinfo:
+        generated_singlefile_torrent.verify(content_path)
+    assert str(excinfo.value) == str(exp_exception)
+
+    # With callback
+    cb = mock.Mock()
+    generated_singlefile_torrent.verify(content_path, callback=cb)
+    exp_torrent = generated_singlefile_torrent
+    exp_filepath = content_path
+    exp_pieces_done = 0
+    exp_pieces_total = generated_singlefile_torrent.pieces
+    exp_piece_index = 0
+    exp_piece_hash = None
+    assert cb.call_args_list == [mock.call(
+        exp_torrent,
+        exp_filepath,
+        exp_pieces_done,
+        exp_pieces_total,
+        exp_piece_index,
+        exp_piece_hash,
+        ComparableException(exp_exception),
+    )]
+
+def test_verify_multifile_torrent_with_file(generated_multifile_torrent, tmp_path):
+    content_path = tmp_path / 'singlefile'
+    content_path.write_text('some file data')
+    exp_exception = torf.VerifyNotDirectoryError(content_path)
+
+    # Without callback
+    with pytest.raises(type(exp_exception)) as excinfo:
+        generated_multifile_torrent.verify(content_path)
+    assert str(excinfo.value) == str(exp_exception)
+
+    # With callback
+    cb = mock.Mock()
+    generated_multifile_torrent.verify(content_path, callback=cb)
+    exp_torrent = generated_multifile_torrent
+    exp_filepath = content_path
+    exp_pieces_done = 0
+    exp_pieces_total = generated_multifile_torrent.pieces
+    exp_piece_index = 0
+    exp_piece_hash = None
+    assert cb.call_args_list == [mock.call(
+        exp_torrent,
+        exp_filepath,
+        exp_pieces_done,
+        exp_pieces_total,
+        exp_piece_index,
+        exp_piece_hash,
+        ComparableException(exp_exception),
+    )]
+
 def test_verify_content_successfully(mktestcase, piece_size, callback, filespecs):
     display_filespecs(filespecs, piece_size)  # noqa: F405
     tc = mktestcase(filespecs, piece_size)

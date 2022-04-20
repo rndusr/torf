@@ -1092,6 +1092,10 @@ class Torrent():
         `callback` instead.
 
         :raises VerifyContentError: if a file contains unexpected data
+        :raises VerifyIsDirectoryError: if `path` is a directory and this
+            torrent contains a single file
+        :raises VerifyNotDirectoryError: if `path` is a file and this torrent
+            contains a directory
         :raises ReadError: if a file is not readable
         :raises MetainfoError: if :meth:`validate` fails
 
@@ -1109,14 +1113,21 @@ class Torrent():
             path=path,
         )
 
+        def early_exception(exception):
+            piece_index = 0
+            pieces_done = 0
+            pieces_total = self.pieces
+            filepath = None
+            piece_hash = None
+            exceptions = (exception,)
+            verify_callback(piece_index, pieces_done, pieces_total, filepath, piece_hash, exceptions)
+
         if self.mode == 'singlefile' and os.path.isdir(path):
-            exception = error.VerifyNotDirectoryError(path)
-            verify_callback(0, 0, self.pieces, None, exception)
+            early_exception(error.VerifyIsDirectoryError(path))
             return False
 
         elif self.mode == 'multifile' and not os.path.isdir(path):
-            exception = error.VerifyIsDirectoryError(path)
-            verify_callback(0, 0, self.pieces, None, exception)
+            early_exception(error.VerifyNotDirectoryError(path))
             return False
 
         else:
@@ -1178,7 +1189,7 @@ class Torrent():
         `callback` instead.
 
         :raises VerifyFileSizeError: if a file has an unexpected size
-        :raises VerifyNotDirectoryError: if `path` is a directory and this
+        :raises VerifyIsDirectoryError: if `path` is a directory and this
             torrent contains a single file
         :raises ReadError: if any file's size can't be determined
         :raises MetainfoError: if :meth:`validate` fails
@@ -1225,7 +1236,7 @@ class Torrent():
         # (filepaths), so the path "foo/bar/baz" will result in a ReadError if
         # "foo" or "foo/bar" is a file.
         if self.mode == 'singlefile' and os.path.isdir(path):
-            exception = error.VerifyNotDirectoryError(path)
+            exception = error.VerifyIsDirectoryError(path)
             cancel(file_index=0, exception=exception)
             return False
 

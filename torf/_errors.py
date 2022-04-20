@@ -131,7 +131,7 @@ class CommonPathError(TorfError):
         return self._filepaths
 
 
-class VerifyNotDirectoryError(TorfError):
+class VerifyIsDirectoryError(TorfError):
     """Expected file but found directory"""
     def __init__(self, path):
         self._path = path
@@ -143,7 +143,7 @@ class VerifyNotDirectoryError(TorfError):
         return self._path
 
 
-class VerifyIsDirectoryError(TorfError):
+class VerifyNotDirectoryError(TorfError):
     """Expected (link to) directory, but found something else"""
     def __init__(self, path):
         self._path = path
