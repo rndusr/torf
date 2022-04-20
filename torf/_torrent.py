@@ -92,7 +92,7 @@ class Torrent():
     >>> t = Torrent.read('my_torrent.torrent')
     >>> t.comment
     "This is my first torrent. Let's rock!"
-    >>> t.metainfo['info']['more stuff']
+    >>> t.metainfo['more stuff']
     {'bar': ['x', 'y', 'z'], 'foo': 12}
     """
 
