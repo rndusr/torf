@@ -18,6 +18,7 @@ class TorrentFileStream:
     closed when no longer needed.
 
     Example:
+
     >>> torrent = torf.Torrent(...)
     >>> with TorrentFileStream(torrent) as tfs:
     >>>     # Get the 29th piece of the concatenated file stream
@@ -86,7 +87,7 @@ class TorrentFileStream:
 
     @property
     def max_piece_index(self):
-        """Largest valid piece index (lowest is 0)"""
+        """Largest valid piece index (smallest is always 0)"""
         return math.floor((self._torrent.size - 1) / self._torrent.piece_size)
 
     def get_file_position(self, file):
@@ -163,7 +164,7 @@ class TorrentFileStream:
         files
 
         :param content_path: Path to file or directory (defaults to class
-            argument of the same name, :attr:`~.Torrent.path` or the file paths
+            argument of the same name, :attr:`~.Torrent.path` or the file path
             from the torrent)
         """
         assert first_byte_index <= last_byte_index, (first_byte_index, last_byte_index)
@@ -200,7 +201,7 @@ class TorrentFileStream:
         :param piece_index: Index of the piece; minimum is 0, maximum is the
             torrent's number of pieces minus 1
         :param content_path: Path to file or directory (defaults to class
-            argument of the same name, :attr:`~.Torrent.path` or the file paths
+            argument of the same name, :attr:`~.Torrent.path` or the file path
             from the torrent)
         """
         if piece_index >= 0:
