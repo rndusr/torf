@@ -9,7 +9,10 @@ import pytest
 
 import torf
 
-from . import *  # noqa: F403
+from . import (ComparableException, calc_corruptions, calc_good_pieces,
+               calc_piece_indexes, calc_pieces_done, change_file_size,
+               display_filespecs, file_piece_indexes, file_range, fuzzylist,
+               pos2file, pos2files, random_positions, round_down_to_multiple)
 
 import logging  # isort:skip
 debug = logging.getLogger('test').debug
