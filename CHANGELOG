@@ -4,6 +4,9 @@
     concatenated files.
   - The new attribute Torrent.location provides the file system path without the
     torrent's name.
+  - The new Torrent.reuse() method copies piece hashes from an existing torrent
+    file with the same name and file tree. It can also find a matching torrent
+    in a bunch of directories.
 
 
 2020-10-29 3.1.3

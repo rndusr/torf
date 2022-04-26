@@ -30,6 +30,7 @@ import flatbencode as bencode
 from . import __version__
 from . import _errors as error
 from . import _generate as generate
+from . import _reuse as reuse
 from . import _utils as utils
 
 _PACKAGE_NAME = __name__.split('.')[0]
@@ -1576,6 +1577,110 @@ class Torrent():
         cp = type(self)()
         cp._metainfo = deepcopy(self._metainfo)
         return cp
+
+    def reuse(self, path, callback=None):
+        """
+        Copy ``pieces`` and ``piece length`` from existing torrent
+
+        If `path` is a directory, it is searched recursively for a matching
+        ``.torrent`` file. Otherwise, it is :meth:`read` as a ``.torrent`` file.
+
+        `path` may also be an iterable, in which case each item is treated as
+        described above until a match is found.
+
+        A matching torrent is found by searching for a torrent with the same
+        :attr:`name` and :attr:`files` (file size must also match).  If a match
+        is found, compare three piece hashes per file to reduce the risk of a
+        false positive.
+
+        .. warning:: This should almost always work in practice, but a false
+            positive match is theoretically possible, and there is no way to
+            avoid that.
+
+        .. note:: This will likely change :attr:`infohash` and turn this
+            instance into a new torrent.
+
+        :param path: Path to torrent file or directory or iterable of
+            file/directory paths
+        :param callable callback: Callable to report progress and/or abort
+
+            `callback` must accept 6 positional arguments:
+
+                1. Torrent instance (:class:`Torrent`)
+                2. Torrent file path (:class:`str`) or ``None``
+                3. Number of checked torrent files (:class:`int`)
+                4. Total number of torrent files (:class:`int`)
+                5. Status indicator:
+                     ``True``  - Torrent file is a match
+                     ``False`` - Torrent file is not a match
+                     ``None`` - File trees are identical and we are now
+                                comparing a few piece hashes
+                6. Exception (:class:`TorfError`) or ``None``
+
+            If `callback` returns anything that is not ``None``, stop searching.
+        :raises ReadError: if reading a torrent file fails
+        :raises BdecodeError: if parsing a torrent file fails
+        :raises MetainfoError: if a torrent file contains invalid or
+            insufficient metadata
+
+        :return: `True` if a matching torrent was found, `False` otherwise
+        """
+        if self.path is None:
+            raise RuntimeError('reuse() called with no path specified')
+
+        if isinstance(path, (str, pathlib.PurePath)):
+            paths = [path]
+        elif isinstance(path, abc.Iterable):
+            paths = tuple(path)
+        else:
+            raise ValueError(f'Invalid path argument: {path!r}')
+
+        def maybe_call_callback(torrent_filepath, torrent_files_done, is_match, exception):
+            if callback:
+                return callback(self, torrent_filepath,
+                                torrent_files_done, torrent_files_total,
+                                is_match, exception)
+            elif exception:
+                raise exception
+
+        torrent_file_items = reuse.find_torrent_files(*paths)
+        torrent_files_total = torrent_file_items.total
+        for candidate_path, files_done, exception in torrent_file_items:
+            try:
+                if candidate_path:
+                    candidate = Torrent.read(candidate_path)
+                elif exception:
+                    raise exception
+                else:
+                    raise RuntimeError('Both candidate_path and exception are None?!')
+
+            except (error.ReadError, error.BdecodeError, error.MetainfoError) as e:
+                cancelled = maybe_call_callback(candidate_path, files_done, False, e)
+                if cancelled is not None:
+                    break
+
+            else:
+                assert exception is None
+                if reuse.is_file_match(self, candidate):
+                    cancelled = maybe_call_callback(candidate_path, files_done, None, exception)
+                    if cancelled is not None:
+                        break
+
+                    if reuse.is_content_match(self, candidate):
+                        maybe_call_callback(candidate_path, files_done, True, exception)
+                        reuse.copy(candidate, self)
+                        return True
+                    else:
+                        cancelled = maybe_call_callback(candidate_path, files_done, False, exception)
+                        if cancelled is not None:
+                            break
+
+                else:
+                    cancelled = maybe_call_callback(candidate_path, files_done, False, exception)
+                    if cancelled is not None:
+                        break
+
+        return False
 
     def __repr__(self):
         sig = inspect.signature(self.__init__)

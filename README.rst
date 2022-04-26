@@ -25,6 +25,7 @@ Features
   needs
 - Use multiple CPU cores to compute piece hashes
 - Randomize the info hash to help with cross-seeding
+- Conveniently re-use piece hashes from an existing torrent file
 
 Example
 -------
