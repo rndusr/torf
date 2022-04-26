@@ -17,6 +17,10 @@
    :members:
    :member-order: bysource
 
+.. autoclass:: torf.TorrentFileStream
+   :members:
+   :member-order: bysource
+
 .. autoexception:: torf.TorfError
    :members:
 
