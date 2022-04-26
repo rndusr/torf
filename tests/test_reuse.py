@@ -1,0 +1,528 @@
+import collections
+import copy
+import errno
+import os
+import re
+from types import SimpleNamespace
+from unittest.mock import MagicMock, Mock, call
+
+import pytest
+
+import torf
+
+from . import ComparableException
+
+
+@pytest.fixture(autouse=True)
+def ordered_listdir(mocker):
+    def ordered_listdir(*args, _real_listdir=os.listdir, **kwargs):
+        return sorted(_real_listdir(*args, **kwargs))
+    mocker.patch('os.listdir', ordered_listdir)
+
+
+@pytest.mark.parametrize(
+    argnames='path, exp_find_torrent_files_args, exp_exception',
+    argvalues=(
+        ('a/path', ('a/path',), None),
+        (('a/path', 'another/path'), ('a/path', 'another/path'), None),
+        (iter(('a/path', 'another/path')), ('a/path', 'another/path'), None),
+        (123, (), ValueError('Invalid path argument: 123')),
+    ),
+)
+def test_path_argument(path, exp_find_torrent_files_args, exp_exception, create_file, mocker):
+    find_torrent_files_mock = mocker.patch('torf._reuse.find_torrent_files', MagicMock(
+        __iter__=MagicMock(return_value=()),
+        total=0,
+    ))
+
+    torrent = torf.Torrent(path=create_file('just_a_file', 'foo'))
+
+    if exp_exception:
+        with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+            torrent.reuse(path)
+    else:
+        return_value = torrent.reuse(path)
+        assert return_value is False
+        assert find_torrent_files_mock.call_args_list == [call(*exp_find_torrent_files_args)]
+
+
+@pytest.fixture
+def existing_torrents(create_dir, create_file, tmp_path):
+    class ExistingTorrents:
+        def __init__(self, **torrent_directories):
+            self._torrents = {}
+            for dirname, info in torrent_directories.items():
+                self._torrents[dirname] = self._create_torrents(dirname, *info)
+
+            # Sprinkle in some non-torrent files
+            for dirname in self._torrents:
+                (tmp_path / dirname / 'foo.jpg').write_bytes(b"Ceci n'est pas une JPEG")
+                (tmp_path / dirname / 'foo.txt').write_text('But this looks like text')
+
+        @staticmethod
+        def _create_torrents(directory, *items):
+            torrents_directory = tmp_path / directory
+            torrents_directory.mkdir(exist_ok=True)
+            torrents = []
+            for item in items:
+                torrent_name = item[0]
+                create_args = item[1]
+                torrent_kwargs = item[2]
+                if isinstance(create_args, collections.abc.Sequence) and not isinstance(create_args, str):
+                    content_path = create_dir(torrent_name, *create_args)
+                else:
+                    content_path = create_file(torrent_name, create_args)
+                torrent = torf.Torrent(path=content_path, **torrent_kwargs)
+                torrent_filepath = torrents_directory / f'{torrent_name}.torrent'
+                torrent.generate()
+                torrent.write(torrent_filepath)
+                torrents.append(SimpleNamespace(
+                    torrent=torrent,
+                    torrent_path=torrent_filepath,
+                    content_path=content_path,
+                ))
+                print('created torrent:\n', torrents[-1].torrent_path, '\n', torrents[-1].torrent.metainfo)
+            return torrents
+
+        def __del__(self, *args, **kwargs):
+            # Make sure pytest can delete files and directories
+            for dirname in self._torrents:
+                (tmp_path / dirname).chmod(0o700)
+                for rootdir, dirnames, filenames in os.walk(tmp_path / dirname):
+                    for dirname in dirnames:
+                        os.chmod(os.path.join(rootdir, dirname), 0o700)
+                    for filename in filenames:
+                        os.chmod(os.path.join(rootdir, filename), 0o600)
+
+        def __getattr__(self, name):
+            return self._torrents[name]
+
+        @property
+        def locations(self):
+            return {dirname: (tmp_path / dirname) for dirname in self._torrents}
+
+        @property
+        def location_paths(self):
+            return tuple(tmp_path / dirname for dirname in self._torrents)
+
+        @property
+        def torrent_filepaths(self):
+            return tuple(
+                tmp_path / dirname / info.torrent_path
+                for dirname, infos in self._torrents.items()
+                for info in infos
+            )
+
+    return ExistingTorrents
+
+
+@pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
+def test__singlefile__no_exceptions(with_callback, existing_torrents):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        my_torrents=(
+            ('a', 'foo', {'creation_date': 123}),
+            ('b', 'bar', {'creation_date': 456}),
+            ('c', 'baz', {'creation_date': 789}),
+            ('d', 'arf', {'created_by': 'me!'}),
+            ('e', 'barf', {'source': 'you!'}),
+        ),
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.my_torrents[2]
+    new_torrent = torf.Torrent(
+        path=new_content.content_path,
+        trackers=('http://foo:1000', 'http://foo:2000'),
+        webseeds=('http://bar:1000',),
+        httpseeds=('http://baz:1000',),
+        private=True,
+        comment='This is a custom torrent',
+        creation_date=123000,
+        created_by='CREATOR',
+        source='SRC',
+        piece_size=8 * 1048576,
+        randomize_infohash=True,
+    )
+
+    # Expect the same metainfo, but with "piece length" and "pieces" copied
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+    exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
+    exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+
+    # Reuse existing torrent
+    if with_callback:
+        callback = Mock(return_value=None)
+        return_value = new_torrent.reuse(existing_torrents.location_paths, callback=callback)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo
+        assert callback.call_args_list == [
+            call(new_torrent, str(existing_torrents.my_torrents[0].torrent_path), 1, 5, False, None),
+            call(new_torrent, str(existing_torrents.my_torrents[1].torrent_path), 2, 5, False, None),
+            call(new_torrent, str(existing_torrents.my_torrents[2].torrent_path), 3, 5, None, None),
+            call(new_torrent, str(existing_torrents.my_torrents[2].torrent_path), 3, 5, True, None),
+        ]
+    else:
+        return_value = new_torrent.reuse(existing_torrents.location_paths)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo
+
+
+@pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
+def test__multifile__no_exceptions(with_callback, existing_torrents):
+    # Create and prepare existing torrents with some of them sharing the same
+    # (torrent name, file name, file size) but different file contents
+    existing_torrents = existing_torrents(
+        torrents1=(
+            ('a', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'text data'),
+            ), {'creation_date': 123}),
+            ('b', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'text doto'),
+            ), {'creation_date': 456}),
+            ('c', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'text diti'),
+            ), {'creation_date': 789}),
+        ),
+        torrents2=(
+            ('a', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'more text'),
+            ), {'creation_date': 234}),
+            ('b', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'mare text'),
+            ), {'creation_date': 345}),
+            ('c', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'mire text'),
+            ), {'creation_date': 456}),
+        ),
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.torrents2[1]
+    new_torrent = torf.Torrent(
+        path=new_content.content_path,
+        trackers=('http://foo:1000', 'http://foo:2000'),
+        webseeds=('http://bar:1000',),
+        httpseeds=('http://baz:1000',),
+        private=True,
+        comment='This is a custom torrent',
+        creation_date=123000,
+        created_by='CREATOR',
+        source='SRC',
+        piece_size=1048576,
+        randomize_infohash=True,
+    )
+
+    # Expect the same metainfo, but with "piece length" and "pieces" copied
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+    exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
+    exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+
+    # Reuse existing torrent
+    if with_callback:
+        callback = Mock(return_value=None)
+        return_value = new_torrent.reuse(existing_torrents.location_paths, callback=callback)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo
+        assert callback.call_args_list == [
+            call(new_torrent, str(existing_torrents.torrents1[0].torrent_path), 1, 6, False, None),
+            call(new_torrent, str(existing_torrents.torrents1[1].torrent_path), 2, 6, None, None),
+            call(new_torrent, str(existing_torrents.torrents1[1].torrent_path), 2, 6, False, None),
+            call(new_torrent, str(existing_torrents.torrents1[2].torrent_path), 3, 6, False, None),
+            call(new_torrent, str(existing_torrents.torrents2[0].torrent_path), 4, 6, False, None),
+            call(new_torrent, str(existing_torrents.torrents2[1].torrent_path), 5, 6, None, None),
+            call(new_torrent, str(existing_torrents.torrents2[1].torrent_path), 5, 6, True, None),
+        ]
+
+    else:
+        return_value = new_torrent.reuse(existing_torrents.location_paths)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo
+
+
+@pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
+def test_exceptions(with_callback, existing_torrents):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        readable1=(
+            ('a', 'foo', {'creation_date': 123}),
+            ('b', 'bar', {'creation_date': 456}),
+            ('c', 'baz', {'creation_date': 789}),
+        ),
+        unreadable=(),
+        readable2=(
+            ('d', 'hey', {'private': True}),
+            ('e', 'ho', {'comment': 'yo'}),
+            ('f', 'oh', {'comment': 'oy'}),
+            ('g', 'ohh', {'comment': 'oyy'}),
+        ),
+    )
+    # Unreadable directory
+    existing_torrents.locations['unreadable'].chmod(0o300)
+    # Unreadable torrent file
+    existing_torrents.readable2[1].torrent_path.chmod(0o300)
+    # Nonexisting torrent file
+    nonexisting_torrent_file = 'no/such/path.torrent'
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.readable2[2]
+    new_torrent = torf.Torrent(
+        path=new_content.content_path,
+        trackers=('http://foo:1000', 'http://foo:2000'),
+        webseeds=('http://bar:1000',),
+        httpseeds=('http://baz:1000',),
+        private=True,
+        comment='This is a custom torrent',
+        creation_date=123000,
+        created_by='CREATOR',
+        source='SRC',
+        piece_size=8 * 1048576,
+        randomize_infohash=True,
+    )
+
+    # Reuse existing torrent
+    if with_callback:
+        # Expect the same metainfo, but with "piece length" and "pieces" copied
+        exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+        exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
+        exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+
+        callback = Mock(return_value=None)
+        location_paths = (nonexisting_torrent_file,) + existing_torrents.location_paths
+        return_value = new_torrent.reuse(location_paths, callback=callback)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo
+        assert callback.call_args_list == [
+            call(
+                new_torrent, nonexisting_torrent_file,
+                1, 8, False,
+                ComparableException(
+                    torf.ReadError(errno.ENOENT, nonexisting_torrent_file),
+                ),
+            ),
+            call(new_torrent, str(existing_torrents.readable1[0].torrent_path), 2, 8, False, None),
+            call(new_torrent, str(existing_torrents.readable1[1].torrent_path), 3, 8, False, None),
+            call(new_torrent, str(existing_torrents.readable1[2].torrent_path), 4, 8, False, None),
+            call(
+                new_torrent,
+                None,
+                4, 8, False,
+                ComparableException(
+                    torf.ReadError(errno.EACCES, str(existing_torrents.locations['unreadable'])),
+                ),
+            ),
+            call(new_torrent, str(existing_torrents.readable2[0].torrent_path), 5, 8, False, None),
+            call(
+                new_torrent,
+                str(existing_torrents.readable2[1].torrent_path),
+                6, 8, False,
+                ComparableException(
+                    torf.ReadError(errno.EACCES, str(existing_torrents.readable2[1].torrent_path)),
+                ),
+            ),
+            call(new_torrent, str(existing_torrents.readable2[2].torrent_path), 7, 8, None, None),
+            call(new_torrent, str(existing_torrents.readable2[2].torrent_path), 7, 8, True, None),
+        ]
+    else:
+        # Expect identical metainfo
+        exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+
+        exp_exception = torf.ReadError(errno.EACCES, str(existing_torrents.locations['unreadable']))
+        with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+            new_torrent.reuse(existing_torrents.location_paths)
+
+        # Confirm everything happened as expected
+        assert new_torrent.metainfo == exp_joined_metainfo
+
+
+@pytest.mark.parametrize(
+    argnames='cancel_condition, exp_callback_calls_count',
+    argvalues=(
+        # cancel_condition gets torrent_filepath and is_match and returns True
+        # for cancelling, False otherwise.
+        pytest.param(
+            lambda tfp, is_match: is_match is False,
+            1,
+            id='mismatch',
+        ),
+        pytest.param(
+            lambda tfp, is_match: tfp is None,
+            4,
+            id='unreadable directory',
+        ),
+        pytest.param(
+            lambda tfp, is_match: os.path.basename(tfp or '') == 'e.torrent',
+            6,
+            id='unreadable torrent file',
+        ),
+        pytest.param(
+            lambda tfp, is_match: os.path.basename(tfp or '') == 'f.torrent',
+            7,
+            id='invalid bencoded data',
+        ),
+        pytest.param(
+            lambda tfp, is_match: os.path.basename(tfp or '') == 'g.torrent',
+            8,
+            id='invalid metainfo',
+        ),
+        pytest.param(
+            lambda tfp, is_match: is_match is None,
+            9,
+            id='verification',
+        ),
+    ),
+)
+def test_callback_cancels_when_handling(cancel_condition, exp_callback_calls_count, existing_torrents, create_file):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        readable1=(
+            ('a', 'foo', {'creation_date': 123}),
+            ('b', 'bar', {'creation_date': 456}),
+            ('c', 'baz', {'creation_date': 789}),
+        ),
+        # Unreadable directory
+        unreadable=(),
+        readable2=(
+            ('d', 'hey', {'private': True}),
+            ('e', 'ho', {'comment': 'yo'}),
+            ('f', 'oh', {'comment': 'oy'}),
+            ('g', 'ohh', {'comment': 'oyy'}),
+            ('h', 'ohy', {'comment': 'hoyo'}),
+        ),
+    )
+    # ReadError (directory)
+    existing_torrents.locations['unreadable'].chmod(0o300)
+    # ReadError (torrent file)
+    existing_torrents.readable2[1].torrent_path.chmod(0o300)
+    # BdecodeError
+    data = bytearray(existing_torrents.readable2[2].torrent_path.read_bytes())
+    data[0] = ord('x')
+    existing_torrents.readable2[2].torrent_path.write_bytes(data)
+    # MetainfoError
+    del existing_torrents.readable2[3].torrent.metainfo['info']['piece length']
+    existing_torrents.readable2[3].torrent.write(
+        existing_torrents.readable2[3].torrent_path,
+        validate=False, overwrite=True,
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.readable2[4].content_path
+    new_torrent = torf.Torrent(path=new_content)
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+
+    def callback(torrent, torrent_path, done, total, is_match, exception):
+        if cancel_condition(torrent_path, is_match):
+            return 'cancel'
+
+    callback_wrapper = Mock(side_effect=callback)
+
+    # Reuse existing torrent
+    return_value = new_torrent.reuse(existing_torrents.location_paths, callback=callback_wrapper)
+
+    # Confirm everything happened as expected
+    assert return_value is False
+    assert new_torrent.metainfo == exp_joined_metainfo
+
+    all_callback_calls = [
+        call(new_torrent, str(existing_torrents.readable1[0].torrent_path), 1, 8, False, None),
+        call(new_torrent, str(existing_torrents.readable1[1].torrent_path), 2, 8, False, None),
+        call(new_torrent, str(existing_torrents.readable1[2].torrent_path), 3, 8, False, None),
+        call(
+            new_torrent,
+            None,
+            3, 8, False,
+            ComparableException(
+                torf.ReadError(errno.EACCES, str(existing_torrents.locations['unreadable'])),
+            ),
+        ),
+        call(new_torrent, str(existing_torrents.readable2[0].torrent_path), 4, 8, False, None),
+        call(
+            new_torrent,
+            str(existing_torrents.readable2[1].torrent_path),
+            5, 8, False,
+            ComparableException(
+                torf.ReadError(errno.EACCES, str(existing_torrents.readable2[1].torrent_path)),
+            ),
+        ),
+        call(
+            new_torrent,
+            str(existing_torrents.readable2[2].torrent_path),
+            6, 8, False,
+            ComparableException(
+                torf.BdecodeError(str(existing_torrents.readable2[2].torrent_path)),
+            ),
+        ),
+        call(
+            new_torrent,
+            str(existing_torrents.readable2[3].torrent_path),
+            7, 8, False,
+            ComparableException(
+                torf.MetainfoError("Missing 'piece length' in ['info']"),
+            ),
+        ),
+        call(new_torrent, str(existing_torrents.readable2[4].torrent_path), 8, 8, None, None),
+        call(new_torrent, str(existing_torrents.readable2[4].torrent_path), 8, 8, False, None),
+    ]
+    assert callback_wrapper.call_args_list == all_callback_calls[:exp_callback_calls_count]
+
+
+
+
+
+@pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
+def test_handling_of_nonexisting_path(with_callback, existing_torrents):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        my_torrents=(
+            ('a', 'foo', {'creation_date': 123}),
+            ('b', 'bar', {'creation_date': 456}),
+            ('c', 'baz', {'creation_date': 789}),
+        ),
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.my_torrents[0]
+    new_torrent = torf.Torrent(path=new_content.content_path)
+
+    # Expect identical metainfo
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+
+    # Reuse existing torrent
+    reuse_torrent_path = 'path/to/nonexisting/directory'
+    if with_callback:
+        callback = Mock(return_value=None)
+        return_value = new_torrent.reuse(reuse_torrent_path, callback=callback)
+
+        # Confirm everything happened as expected
+        assert return_value is False
+        assert new_torrent.metainfo == exp_joined_metainfo
+        assert callback.call_args_list == [
+            call(
+                new_torrent, None,
+                0, 0, False,
+                ComparableException(
+                    torf.ReadError(errno.ENOENT, reuse_torrent_path),
+                ),
+            ),
+        ]
+
+    else:
+        exp_exception = torf.ReadError(errno.ENOENT, reuse_torrent_path)
+        with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+            new_torrent.reuse(reuse_torrent_path)
