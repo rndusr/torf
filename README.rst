@@ -21,8 +21,6 @@ Features
   <https://en.wikipedia.org/wiki/Magnet_URI_scheme>`_ from a ``.torrent`` file
   (the reverse is also possible but the resulting torrent is incomplete due to
   the lack of information in magnet URIs)
-- Check if a file system path contains everything an existing ``.torrent`` file
-  needs
 - Use multiple CPU cores to compute piece hashes
 - Randomize the info hash to help with cross-seeding
 - Conveniently re-use piece hashes from an existing torrent file
