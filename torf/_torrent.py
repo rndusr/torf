@@ -589,13 +589,13 @@ class Torrent():
         Length of each piece in bytes
 
         If set to ``None`` and :attr:`size` is larger than 0, use the return
-        value of :attr:`calculate_piece_size`.
+        value of :attr:`calculate_piece_size`.  If set to ``None`` and
+        :attr:`size` is smaller than 1, remove
+        :attr:`metainfo`\\ ``['info']``\\ ``['piece length']`` .
 
         Setting this property sets or removes ``piece length`` in
         :attr:`metainfo`\\ ``['info']``.
         """
-        if 'piece length' not in self.metainfo['info']:
-            self.piece_size = None  # Calculate piece size
         return self.metainfo['info'].get('piece length', 0)
 
     @piece_size.setter
