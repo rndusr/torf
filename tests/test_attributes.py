@@ -807,6 +807,7 @@ def test_calculate_piece_size(monkeypatch):
         (55, 8, 7),
         (56, 8, 7),
         (57, 8, 8),
+        (123, 0, 0),
     ),
 )
 def test_pieces(length, piece_size_, exp_pieces, create_torrent, mocker):
