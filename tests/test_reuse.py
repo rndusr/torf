@@ -523,3 +523,34 @@ def test_handling_of_nonexisting_path(with_callback, existing_torrents):
         exp_exception = torf.ReadError(errno.ENOENT, reuse_torrent_path)
         with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
             new_torrent.reuse(reuse_torrent_path)
+        assert new_torrent.metainfo == exp_joined_metainfo
+
+
+@pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
+def test_reuse_with_empty_file_list(with_callback, existing_torrents, create_file):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        my_torrents=(
+            ('a.jpg', 'foo', {'creation_date': 123}),
+            ('b.txt', 'bar', {'creation_date': 456}),
+            ('c.mp4', 'baz', {'creation_date': 789}),
+        ),
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_torrent = torf.Torrent(
+        path=create_file('just_a_file.jpg', 'foo'),
+        exclude_globs=['*.jpg'],
+    )
+
+    # Expect identical metainfo
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+
+    exp_exception = RuntimeError('reuse() called while file list is empty')
+    with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+        if with_callback:
+            new_torrent.reuse(existing_torrents.location_paths, callback=Mock())
+        else:
+            new_torrent.reuse(existing_torrents.location_paths)
+
+    assert new_torrent.metainfo == exp_joined_metainfo

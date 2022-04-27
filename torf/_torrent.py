@@ -1626,8 +1626,10 @@ class Torrent():
 
         :return: `True` if a matching torrent was found, `False` otherwise
         """
-        if self.path is None:
+        if not self.path:
             raise RuntimeError('reuse() called with no path specified')
+        elif not self.files:
+            raise RuntimeError('reuse() called while file list is empty')
 
         if isinstance(path, (str, pathlib.PurePath)):
             paths = [path]
