@@ -482,9 +482,6 @@ def test_callback_cancels_when_handling(cancel_condition, exp_callback_calls_cou
     assert callback_wrapper.call_args_list == all_callback_calls[:exp_callback_calls_count]
 
 
-
-
-
 @pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
 def test_handling_of_nonexisting_path(with_callback, existing_torrents):
     # Create and prepare existing torrents
