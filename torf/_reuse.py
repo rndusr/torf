@@ -3,6 +3,7 @@ import os
 
 from . import _errors as error
 from . import _stream as stream
+from . import _generate as generate
 
 
 class find_torrent_files:
@@ -131,3 +132,29 @@ def copy(from_torrent, to_torrent):
     source_info = from_torrent.metainfo['info']
     to_torrent.metainfo['info']['pieces'] = source_info['pieces']
     to_torrent.metainfo['info']['piece length'] = source_info['piece length']
+
+
+class ReuseCallback(generate._IntervaledCallback):
+    def __init__(self, *args, torrent, torrent_files_total, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._torrent = torrent
+        self._torrent_files_total = torrent_files_total
+
+    def __call__(self, torrent_filepath, torrent_files_done, is_match, exception):
+        if self._callback:
+            force = bool(
+                exception
+                or is_match
+                or torrent_files_done >= self._torrent_files_total
+            )
+            return super().__call__(
+                self._torrent,
+                torrent_filepath,
+                torrent_files_done,
+                self._torrent_files_total,
+                is_match,
+                exception,
+                force=force,
+            )
+        elif exception:
+            raise exception

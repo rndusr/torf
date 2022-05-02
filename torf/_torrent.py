@@ -1579,7 +1579,7 @@ class Torrent():
         cp._metainfo = deepcopy(self._metainfo)
         return cp
 
-    def reuse(self, path, callback=None):
+    def reuse(self, path, callback=None, interval=0):
         """
         Copy ``pieces`` and ``piece length`` from existing torrent
 
@@ -1619,6 +1619,10 @@ class Torrent():
                 6. Exception (:class:`TorfError`) or ``None``
 
             If `callback` returns anything that is not ``None``, stop searching.
+        :param float interval: Minimum number of seconds between calls to
+            `callback`; if 0, `callback` is called for each torrent file;
+            `callback` is always called if `exception` is not ``None``
+
         :raises ReadError: if reading a torrent file fails
         :raises BdecodeError: if parsing a torrent file fails
         :raises MetainfoError: if a torrent file contains invalid or
@@ -1638,16 +1642,14 @@ class Torrent():
         else:
             raise ValueError(f'Invalid path argument: {path!r}')
 
-        def maybe_call_callback(torrent_filepath, torrent_files_done, is_match, exception):
-            if callback:
-                return callback(self, torrent_filepath,
-                                torrent_files_done, torrent_files_total,
-                                is_match, exception)
-            elif exception:
-                raise exception
-
         torrent_file_items = reuse.find_torrent_files(*paths)
-        torrent_files_total = torrent_file_items.total
+        maybe_call_callback = reuse.ReuseCallback(
+            callback=callback,
+            interval=interval,
+            torrent=self,
+            torrent_files_total=torrent_file_items.total,
+        )
+
         for candidate_path, files_done, exception in torrent_file_items:
             try:
                 if candidate_path:
