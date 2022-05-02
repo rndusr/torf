@@ -143,8 +143,11 @@ class ReuseCallback(generate._IntervaledCallback):
     def __call__(self, torrent_filepath, torrent_files_done, is_match, exception):
         if self._callback:
             force = bool(
+                # Call callback if there is an error, e.g. "Permission denied"
                 exception
-                or is_match
+                # Call callback if we found a match of if we are verifying file contents
+                or is_match in (True, None)
+                # Call callback if this is the last torrent file
                 or torrent_files_done >= self._torrent_files_total
             )
             return super().__call__(
