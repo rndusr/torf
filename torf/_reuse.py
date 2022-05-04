@@ -110,7 +110,7 @@ def is_content_match(torrent, candidate):
     # Compare some piece hashes for each file
     with stream.TorrentFileStream(candidate, content_path=torrent.path) as tfs:
         check_piece_indexes = set()
-        for file in candidate.files:
+        for file in torrent.files:
             all_file_piece_indexes = tfs.get_piece_indexes_of_file(file)
             middle_piece_index = int(len(all_file_piece_indexes) / 2)
             some_file_piece_indexes = (
