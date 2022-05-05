@@ -2,8 +2,8 @@ import errno
 import os
 
 from . import _errors as error
-from . import _stream as stream
 from . import _generate as generate
+from . import _stream as stream
 
 
 class find_torrent_files:
