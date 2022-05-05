@@ -1642,7 +1642,7 @@ class Torrent():
         else:
             raise ValueError(f'Invalid path argument: {path!r}')
 
-        torrent_file_items = reuse.find_torrent_files(*paths)
+        torrent_file_items = reuse.find_torrent_files(*paths, max_file_size=self.MAX_TORRENT_FILE_SIZE)
         maybe_call_callback = reuse.ReuseCallback(
             callback=callback,
             interval=interval,

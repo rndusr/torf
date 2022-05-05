@@ -43,7 +43,45 @@ def test_path_argument(path, exp_find_torrent_files_args, exp_exception, create_
     else:
         return_value = torrent.reuse(path)
         assert return_value is False
-        assert find_torrent_files_mock.call_args_list == [call(*exp_find_torrent_files_args)]
+        assert find_torrent_files_mock.call_args_list == [call(
+            *exp_find_torrent_files_args,
+            max_file_size=torf.Torrent.MAX_TORRENT_FILE_SIZE,
+        )]
+
+
+def test_max_torrent_file_size(create_file, existing_torrents, mocker):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        subpath1=(
+            ('a', 'foo', {'creation_date': 123}),
+            ('b', 'bar', {'creation_date': 456}),
+            ('c', 'baz', {'creation_date': 789}),
+        ),
+        subpath2=(
+            ('d', 'hey', {'private': True}),
+            ('e', 'ho', {'comment': 'yo'}),
+            ('f', 'oh', {'comment': 'oy'}),
+            ('g', 'ohh', {'comment': 'oyy'}),
+        ),
+    )
+    # Make some torrents really big
+    with open(existing_torrents.torrent_filepaths[1], 'wb') as f:
+        f.truncate(20 * 1048576)
+    with open(existing_torrents.torrent_filepaths[3], 'wb') as f:
+        f.truncate(30 * 1048576)
+
+    callback = Mock(return_value=None)
+    new_torrent = torf.Torrent(path=create_file('just_a_file', 'foo'))
+    return_value = new_torrent.reuse(existing_torrents.location_paths, callback=callback)
+
+    assert return_value is False
+    assert callback.call_args_list == [
+        call(new_torrent, str(existing_torrents.subpath1[0].torrent_path), 1, 5, False, None),
+        call(new_torrent, str(existing_torrents.subpath1[2].torrent_path), 2, 5, False, None),
+        call(new_torrent, str(existing_torrents.subpath2[1].torrent_path), 3, 5, False, None),
+        call(new_torrent, str(existing_torrents.subpath2[2].torrent_path), 4, 5, False, None),
+        call(new_torrent, str(existing_torrents.subpath2[3].torrent_path), 5, 5, False, None),
+    ]
 
 
 @pytest.fixture
@@ -308,6 +346,9 @@ def test_exceptions(with_callback, existing_torrents):
         # Confirm everything happened as expected
         assert return_value is True
         assert new_torrent.metainfo == exp_joined_metainfo
+        for c in callback.call_args_list:
+            print(c)
+
         assert callback.call_args_list == [
             call(
                 new_torrent, nonexisting_torrent_file,

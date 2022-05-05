@@ -7,9 +7,10 @@ from . import _generate as generate
 
 
 class find_torrent_files:
-    def __init__(self, *paths):
+    def __init__(self, *paths, max_file_size=float('inf')):
         self._paths = paths
         self._counter = 0
+        self._max_file_size = max_file_size
 
     def __iter__(self):
         """
@@ -32,8 +33,15 @@ class find_torrent_files:
                 yield None, self._counter, error.ReadError(e.errno, str(path))
 
         elif os.path.basename(path).lower().endswith('.torrent'):
-            self._counter += 1
-            yield path, self._counter, None
+            try:
+                file_size = os.path.getsize(path)
+            except OSError:
+                self._counter += 1
+                yield path, self._counter, error.ReadError(errno.ENOENT, str(path))
+            else:
+                if file_size <= self._max_file_size:
+                    self._counter += 1
+                    yield path, self._counter, None
 
         elif not os.path.exists(path):
             yield None, self._counter, error.ReadError(errno.ENOENT, str(path))
@@ -42,7 +50,7 @@ class find_torrent_files:
     def total(self):
         """Total number of torrents beneath all paths"""
         # Get a sequence of all torrents without changing self._counter.
-        items = tuple(type(self)(*self._paths))
+        items = tuple(type(self)(*self._paths, max_file_size=self._max_file_size))
         if items:
             # Last item should contain the number of torrents found.
             return items[-1][1]
