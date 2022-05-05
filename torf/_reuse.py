@@ -7,6 +7,8 @@ from . import _stream as stream
 
 
 class find_torrent_files:
+    """Iterator over ``(torrent_file, torrent_file_counter, exception)`` tuples"""
+
     def __init__(self, *paths, max_file_size=float('inf')):
         self._paths = paths
         self._counter = 0
