@@ -1,5 +1,5 @@
-2022-??-?? 4.0.0
-  - Torrent.verify(): The "skip_on_error" argument for was removed.
+2022-05-05 4.0.0
+  - Torrent.verify(): The "skip_on_error" argument was removed.
   - The new TorrentFileStream class lets you operate on a torrent's stream of
     concatenated files.
   - The new attribute Torrent.location provides the file system path without the
