@@ -277,6 +277,7 @@ class MonitoredList(collections.abc.MutableSequence):
 
 class File(os.PathLike):
     """Path-like that also stores the file size"""
+
     def __fspath__(self):
         return str(self._path)
 
@@ -352,6 +353,7 @@ class File(os.PathLike):
 
     def __repr__(self):
         return f'{type(self).__name__}({repr(str(self._path))}, size={self._size})'
+
 
 class Files(MonitoredList):
     """Deduplicated list of :class:`Files` objects"""
