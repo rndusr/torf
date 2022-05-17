@@ -17,6 +17,7 @@ import collections
 import contextlib
 import errno
 import fnmatch
+import functools
 import http.client
 import itertools
 import math
@@ -278,6 +279,20 @@ class File(os.PathLike):
     """Path-like that also stores the file size"""
     def __fspath__(self):
         return str(self._path)
+
+    def __reduce__(self):
+        # __reduce__() is needed to properly pickle File objects
+        state = (
+            # Preserve positional and keyword arguments
+            functools.partial(
+                self.__class__,
+                os.path.join(*self._path.parts),
+                size=self._size,
+            ),
+            # Mandatory positional args (already preserved by partial())
+            (),
+        )
+        return state
 
     def __init__(self, path, size):
         if isinstance(path, str):

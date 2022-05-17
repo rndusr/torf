@@ -1,4 +1,5 @@
 import os
+import pickle
 import re
 from collections import OrderedDict
 from pathlib import Path
@@ -273,6 +274,13 @@ def test_encoding():
         }
     }
     assert utils.encode_dict(decoded) == encoded
+
+
+def test_File_is_picklable():
+    file_original = utils.File('the/path/of/mine', 123456)
+    file_pickled = pickle.dumps(file_original)
+    file_unpickled = pickle.loads(file_pickled)
+    assert file_unpickled == file_original
 
 
 def test_Filepath_is_equal_to_absolute_path():
