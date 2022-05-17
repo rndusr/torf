@@ -1,5 +1,7 @@
+import copy
 import glob
 import os
+import pickle
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1238,7 +1240,6 @@ def test_copy_when_ready(singlefile_content):
     assert t1 is not t2
 
 def test_copy_with_copy_module(singlefile_content):
-    import copy
     t1 = torf.Torrent(singlefile_content.path, comment='Asdf.',
                       randomize_infohash=True, webseeds=['http://foo'])
     t1.generate()
@@ -1250,3 +1251,23 @@ def test_copy_with_copy_module(singlefile_content):
     t2 = copy.deepcopy(t1)
     assert t1 == t2
     assert t1 is not t2
+
+
+def test_Torrent_object_is_picklable(generated_multifile_torrent):
+    t1 = generated_multifile_torrent
+    t1.path = None
+    t1.trackers = ['http://localhost:123']
+    t1.webseeds = ['http://localhost:234']
+    t1.httpseeds = ['http://localhost:345']
+    t1.private = True
+    t1.comment = 'Foo'
+    t1.source = 'ASDF'
+    t1.creation_date = 123456
+    t1.created_by = 'ME!'
+    t1.piece_size = 1048576
+    t1.randomize_infohash = True
+    t1_metainfo = copy.deepcopy(t1.metainfo.copy())
+
+    t2 = pickle.loads(pickle.dumps(t1))
+    t2_metainfo = copy.deepcopy(t2.metainfo.copy())
+    assert t2_metainfo == t1_metainfo
