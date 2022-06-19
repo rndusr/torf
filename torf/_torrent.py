@@ -391,14 +391,14 @@ class Torrent():
 
         Patterns are matched against paths in :attr:`files`.
 
-        ======== ============================
-        Wildcard Description
-        ======== ============================
-        \\*      matches everything
-        ?        matches any single character
-        [SEQ]    matches any character in SEQ
-        [!SEQ]   matches any char not in SEQ
-        ======== ============================
+        ========== ================================
+        Wildcard   Description
+        ========== ================================
+        ``*``      matches everything
+        ``?``      matches any single character
+        ``[SEQ]``  matches any character in ``SEQ``
+        ``[!SEQ]`` matches any char not in ``SEQ``
+        ========== ================================
         """
         return self._exclude['globs']
 
@@ -1612,10 +1612,13 @@ class Torrent():
                 3. Number of checked torrent files (:class:`int`)
                 4. Total number of torrent files (:class:`int`)
                 5. Status indicator:
-                     ``True``  - Torrent file is a match
-                     ``False`` - Torrent file is not a match
-                     ``None`` - File trees are identical and we are now
-                                comparing a few piece hashes
+
+                   ``True``  - Torrent file is a match
+
+                   ``False`` - Torrent file is not a match
+
+                   ``None``  - Files are identical, comparing piece hashes
+
                 6. Exception (:class:`TorfError`) or ``None``
 
             If `callback` returns anything that is not ``None``, stop searching.
