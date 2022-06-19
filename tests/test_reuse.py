@@ -595,3 +595,50 @@ def test_reuse_with_empty_file_list(with_callback, existing_torrents, create_fil
             new_torrent.reuse(existing_torrents.location_paths)
 
     assert new_torrent.metainfo == exp_joined_metainfo
+
+
+def test_reuse_considers_piece_size_max(existing_torrents):
+    # Create and prepare existing torrents
+    existing_torrents = existing_torrents(
+        big=(
+            ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
+            ('b.txt', 'bar', {'piece_size': 1048576 * 4}),
+            ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
+        ),
+        medium=(
+            ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
+            ('b.txt', 'bar', {'piece_size': 1048576 * 2}),
+            ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
+        ),
+        small=(
+            ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
+            ('b.txt', 'bar', {'piece_size': 1048576 * 1}),
+            ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
+        ),
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.medium[1]
+    new_torrent = torf.Torrent(path=new_content.content_path)
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+
+    # Set maximum piece size to 2 MiB
+    new_torrent.piece_size_max = 1048576 * 2
+    exp_joined_metainfo['info']['piece length'] = 1048576 * 2
+    exp_joined_metainfo['info']['pieces'] = existing_torrents.medium[1].torrent.metainfo['info']['pieces']
+    new_torrent.reuse(existing_torrents.location_paths)
+    assert new_torrent.metainfo == exp_joined_metainfo
+
+    # Set maximum piece size to 4 MiB
+    new_torrent.piece_size_max = 1048576 * 4
+    exp_joined_metainfo['info']['piece length'] = 1048576 * 4
+    exp_joined_metainfo['info']['pieces'] = existing_torrents.big[1].torrent.metainfo['info']['pieces']
+    new_torrent.reuse(existing_torrents.location_paths)
+    assert new_torrent.metainfo == exp_joined_metainfo
+
+    # Set maximum piece size to 1 MiB
+    new_torrent.piece_size_max = 1048576 * 1
+    exp_joined_metainfo['info']['piece length'] = 1048576 * 1
+    exp_joined_metainfo['info']['pieces'] = existing_torrents.small[1].torrent.metainfo['info']['pieces']
+    new_torrent.reuse(existing_torrents.location_paths)
+    assert new_torrent.metainfo == exp_joined_metainfo

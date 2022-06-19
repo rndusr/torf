@@ -67,16 +67,21 @@ def is_file_match(torrent, candidate):
     Both arugments are :class:`~.Torrent` objects.
 
     The torrents match if they both share the same ``name`` and ``files`` or
-    ``length`` fields in their :attr:`~.Torrent.metainfo`.
+    ``name`` and ``length`` fields in their :attr:`~.Torrent.metainfo`.
+    `candidate`'s :attr:`~.Torrent.piece_size` of must also not exceed
+    `torrent`'s :attr:`~.Torrent.piece_size_max`.
 
     This is a quick check that doesn't require any system calls.
     """
     # Compare relative file paths and file sizes.
-    # Order is important.
+    # Order of files is important.
     torrent_info, candidate_info = torrent.metainfo['info'], candidate.metainfo['info']
     torrent_id = _get_filepaths_and_sizes(torrent_info)
     candidate_id = _get_filepaths_and_sizes(candidate_info)
-    return torrent_id == candidate_id
+    if torrent_id == candidate_id:
+        if candidate.piece_size <= torrent.piece_size_max:
+            return True
+    return False
 
 def _get_filepaths_and_sizes(info):
     name = info['name']
