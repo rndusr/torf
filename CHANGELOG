@@ -1,3 +1,8 @@
+2022-06-19 4.0.2
+  - Bugfix: Don't reuse a torrent that has a bigger piece_size than
+    piece_size_max.
+
+
 2022-05-17 4.0.1
   - Bugfix: RecursionError when pickling File objects
 
