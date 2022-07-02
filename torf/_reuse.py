@@ -76,6 +76,11 @@ def is_file_match(torrent, candidate):
     # Compare relative file paths and file sizes.
     # Order of files is important.
     torrent_info, candidate_info = torrent.metainfo['info'], candidate.metainfo['info']
+
+    # Don't bother doing anything else if the names are different
+    if torrent_info['name'] != candidate_info['name']:
+        return False
+
     torrent_id = _get_filepaths_and_sizes(torrent_info)
     candidate_id = _get_filepaths_and_sizes(candidate_info)
     if torrent_id == candidate_id:
