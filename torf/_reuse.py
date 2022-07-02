@@ -103,7 +103,7 @@ def _get_filepaths_and_sizes(info):
         return sorted(files_and_sizes)
 
     else:
-        raise RuntimeError(f'Unable to find file sizes in {info!r}')
+        raise RuntimeError(f'Unable to find files: {info!r}')
 
 
 def is_content_match(torrent, candidate):
