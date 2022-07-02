@@ -183,7 +183,7 @@ def test__singlefile__no_exceptions(with_callback, existing_torrents):
         randomize_infohash=True,
     )
 
-    # Expect the same metainfo, but with "piece length" and "pieces" copied
+    # Expect the same metainfo, but with important parts copied
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
     exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
     exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
@@ -261,7 +261,7 @@ def test__multifile__no_exceptions(with_callback, existing_torrents):
         randomize_infohash=True,
     )
 
-    # Expect the same metainfo, but with "piece length" and "pieces" copied
+    # Expect the same metainfo, but with important parts copied
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
     exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
     exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
@@ -334,7 +334,7 @@ def test_exceptions(with_callback, existing_torrents):
 
     # Reuse existing torrent
     if with_callback:
-        # Expect the same metainfo, but with "piece length" and "pieces" copied
+        # Expect the same metainfo, but with important parts copied
         exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
         exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
         exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
