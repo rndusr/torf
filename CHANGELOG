@@ -1,3 +1,7 @@
+2022-07-02 4.0.3
+  - Bugfix: Copy file order from reused torrent.
+
+
 2022-06-19 4.0.2
   - Bugfix: Don't reuse a torrent that has a bigger piece_size than
     piece_size_max.

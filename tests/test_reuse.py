@@ -265,6 +265,7 @@ def test__multifile__no_exceptions(with_callback, existing_torrents):
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
     exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
     exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+    exp_joined_metainfo['info']['files'] = new_content.torrent.metainfo['info']['files']
 
     # Reuse existing torrent
     if with_callback:
@@ -642,3 +643,61 @@ def test_reuse_considers_piece_size_max(existing_torrents):
     exp_joined_metainfo['info']['pieces'] = existing_torrents.small[1].torrent.metainfo['info']['pieces']
     new_torrent.reuse(existing_torrents.location_paths)
     assert new_torrent.metainfo == exp_joined_metainfo
+
+
+@pytest.mark.parametrize('with_callback', (True, False), ids=('with_callback', 'without_callback'))
+def test_reuse_copies_file_order(with_callback, existing_torrents):
+    # Create and prepare existing torrents with some of them sharing the same
+    # (torrent name, file name, file size) but different file contents
+    existing_torrents = existing_torrents(
+        my_torrents=(
+            ('a', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'text data'),
+            ), {'creation_date': 123}),
+            ('b', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'text doto'),
+            ), {'creation_date': 456}),
+            ('c', (
+                ('this.jpg', 16380 * 30),
+                ('that.txt', 'text diti'),
+            ), {'creation_date': 789}),
+        ),
+    )
+
+    # Create and prepare the torrent we want to generate
+    new_content = existing_torrents.my_torrents[1]
+    new_torrent = torf.Torrent(new_content.content_path)
+
+    # Differing file order shouldn't matter, the new torrent should have the
+    # same order as the reused torrent
+    new_torrent.metainfo['info']['files'][0], new_torrent.metainfo['info']['files'][1] = \
+        new_torrent.metainfo['info']['files'][1], new_torrent.metainfo['info']['files'][0]
+
+    # Expect the same metainfo, but with important parts copied
+    exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
+    exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
+    exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+    exp_joined_metainfo['info']['files'] = new_content.torrent.metainfo['info']['files']
+
+    # Reuse existing torrent
+    if with_callback:
+        callback = Mock(return_value=None)
+        return_value = new_torrent.reuse(existing_torrents.location_paths, callback=callback)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo
+        assert callback.call_args_list == [
+            call(new_torrent, str(existing_torrents.my_torrents[0].torrent_path), 1, 3, False, None),
+            call(new_torrent, str(existing_torrents.my_torrents[1].torrent_path), 2, 3, None, None),
+            call(new_torrent, str(existing_torrents.my_torrents[1].torrent_path), 2, 3, True, None),
+        ]
+
+    else:
+        return_value = new_torrent.reuse(existing_torrents.location_paths)
+
+        # Confirm everything happened as expected
+        assert return_value is True
+        assert new_torrent.metainfo == exp_joined_metainfo

@@ -147,6 +147,16 @@ def copy(from_torrent, to_torrent):
     source_info = from_torrent.metainfo['info']
     to_torrent.metainfo['info']['pieces'] = source_info['pieces']
     to_torrent.metainfo['info']['piece length'] = source_info['piece length']
+    if 'files' in from_torrent.metainfo['info']:
+        # Confirm both file lists are identical while ignoring order
+        def make_sortable(files):
+            return [tuple(f.items()) for f in files]
+
+        assert sorted(make_sortable(to_torrent.metainfo['info']['files'])) \
+            == sorted(make_sortable(source_info['files']))
+
+        # Copy file order from `source_info`
+        to_torrent.metainfo['info']['files'] = source_info['files']
 
 
 class ReuseCallback(generate._IntervaledCallback):
