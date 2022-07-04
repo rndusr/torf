@@ -664,7 +664,7 @@ class Torrent():
     :class:`PieceSizeError`.
     """
 
-    piece_size_max = 16 * 1024 * 1024  # 16 MiB
+    piece_size_max = 32 * 1024 * 1024  # 32 MiB
     """
     Greatest allowed piece size
 
