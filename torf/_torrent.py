@@ -1613,11 +1613,11 @@ class Torrent():
                 4. Total number of torrent files (:class:`int`)
                 5. Status indicator:
 
-                   ``True``  - Torrent file is a match
+                   ``False`` - File name or size does not match
 
-                   ``False`` - Torrent file is not a match
+                   ``True``  - File name and size matches
 
-                   ``None``  - Files are identical, comparing piece hashes
+                   ``None``  - Hashing file and comparing piece hashes
 
                 6. Exception (:class:`TorfError`) or ``None``
 
