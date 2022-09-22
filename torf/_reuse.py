@@ -148,6 +148,8 @@ def is_content_match(torrent, candidate):
 
 def copy(from_torrent, to_torrent):
     """
+    Copy ``pieces``, ``piece length`` and ``files`` from `from_torrent` to
+    `to_torrent`
     """
     source_info = from_torrent.metainfo['info']
     to_torrent.metainfo['info']['pieces'] = source_info['pieces']
