@@ -168,9 +168,9 @@ def test__singlefile__no_exceptions(with_callback, existing_torrents):
     )
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.my_torrents[2]
+    reused = existing_torrents.my_torrents[2]
     new_torrent = torf.Torrent(
-        path=new_content.content_path,
+        path=reused.content_path,
         trackers=('http://foo:1000', 'http://foo:2000'),
         webseeds=('http://bar:1000',),
         httpseeds=('http://baz:1000',),
@@ -185,8 +185,8 @@ def test__singlefile__no_exceptions(with_callback, existing_torrents):
 
     # Expect the same metainfo, but with important parts copied
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
-    exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
-    exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+    exp_joined_metainfo['info']['piece length'] = reused.torrent.metainfo['info']['piece length']
+    exp_joined_metainfo['info']['pieces'] = reused.torrent.metainfo['info']['pieces']
 
     # Reuse existing torrent
     if with_callback:
@@ -246,9 +246,9 @@ def test__multifile__no_exceptions(with_callback, existing_torrents):
     )
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.torrents2[1]
+    reused = existing_torrents.torrents2[1]
     new_torrent = torf.Torrent(
-        path=new_content.content_path,
+        path=reused.content_path,
         trackers=('http://foo:1000', 'http://foo:2000'),
         webseeds=('http://bar:1000',),
         httpseeds=('http://baz:1000',),
@@ -263,9 +263,12 @@ def test__multifile__no_exceptions(with_callback, existing_torrents):
 
     # Expect the same metainfo, but with important parts copied
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
-    exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
-    exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
-    exp_joined_metainfo['info']['files'] = new_content.torrent.metainfo['info']['files']
+    exp_joined_metainfo['info']['piece length'] = reused.torrent.metainfo['info']['piece length']
+    exp_joined_metainfo['info']['pieces'] = reused.torrent.metainfo['info']['pieces']
+    exp_joined_metainfo['info']['files'] = [
+        {'length': f['length'], 'path': f['path']}
+        for f in reused.torrent.metainfo['info']['files']
+    ]
 
     # Reuse existing torrent
     if with_callback:
@@ -281,8 +284,8 @@ def test__multifile__no_exceptions(with_callback, existing_torrents):
             call(new_torrent, str(existing_torrents.torrents1[1].torrent_path), 2, 6, False, None),
             call(new_torrent, str(existing_torrents.torrents1[2].torrent_path), 3, 6, False, None),
             call(new_torrent, str(existing_torrents.torrents2[0].torrent_path), 4, 6, False, None),
-            call(new_torrent, str(existing_torrents.torrents2[1].torrent_path), 5, 6, None, None),
-            call(new_torrent, str(existing_torrents.torrents2[1].torrent_path), 5, 6, True, None),
+            call(new_torrent, str(reused.torrent_path), 5, 6, None, None),
+            call(new_torrent, str(reused.torrent_path), 5, 6, True, None),
         ]
 
     else:
@@ -318,9 +321,9 @@ def test_exceptions(with_callback, existing_torrents):
     nonexisting_torrent_file = 'no/such/path.torrent'
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.readable2[2]
+    reused = existing_torrents.readable2[2]
     new_torrent = torf.Torrent(
-        path=new_content.content_path,
+        path=reused.content_path,
         trackers=('http://foo:1000', 'http://foo:2000'),
         webseeds=('http://bar:1000',),
         httpseeds=('http://baz:1000',),
@@ -337,8 +340,8 @@ def test_exceptions(with_callback, existing_torrents):
     if with_callback:
         # Expect the same metainfo, but with important parts copied
         exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
-        exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
-        exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
+        exp_joined_metainfo['info']['piece length'] = reused.torrent.metainfo['info']['piece length']
+        exp_joined_metainfo['info']['pieces'] = reused.torrent.metainfo['info']['pieces']
 
         callback = Mock(return_value=None)
         location_paths = (nonexisting_torrent_file,) + existing_torrents.location_paths
@@ -464,8 +467,8 @@ def test_callback_cancels_when_handling(cancel_condition, exp_callback_calls_cou
     )
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.readable2[4].content_path
-    new_torrent = torf.Torrent(path=new_content)
+    reused = existing_torrents.readable2[4]
+    new_torrent = torf.Torrent(path=reused.content_path)
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
 
     def callback(torrent, torrent_path, done, total, is_match, exception):
@@ -536,8 +539,8 @@ def test_handling_of_nonexisting_path(with_callback, existing_torrents):
     )
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.my_torrents[0]
-    new_torrent = torf.Torrent(path=new_content.content_path)
+    reused = existing_torrents.my_torrents[0]
+    new_torrent = torf.Torrent(path=reused.content_path)
 
     # Expect identical metainfo
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
@@ -619,8 +622,8 @@ def test_reuse_considers_piece_size_max(existing_torrents):
     )
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.medium[1]
-    new_torrent = torf.Torrent(path=new_content.content_path)
+    reused = existing_torrents.medium[1]
+    new_torrent = torf.Torrent(path=reused.content_path)
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
 
     # Set maximum piece size to 2 MiB
@@ -667,8 +670,8 @@ def test_reuse_copies_file_order(with_callback, existing_torrents):
     )
 
     # Create and prepare the torrent we want to generate
-    new_content = existing_torrents.my_torrents[1]
-    new_torrent = torf.Torrent(new_content.content_path)
+    reused = existing_torrents.my_torrents[1]
+    new_torrent = torf.Torrent(reused.content_path)
 
     # Differing file order shouldn't matter, the new torrent should have the
     # same order as the reused torrent
@@ -677,9 +680,12 @@ def test_reuse_copies_file_order(with_callback, existing_torrents):
 
     # Expect the same metainfo, but with important parts copied
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
-    exp_joined_metainfo['info']['piece length'] = new_content.torrent.metainfo['info']['piece length']
-    exp_joined_metainfo['info']['pieces'] = new_content.torrent.metainfo['info']['pieces']
-    exp_joined_metainfo['info']['files'] = new_content.torrent.metainfo['info']['files']
+    exp_joined_metainfo['info']['piece length'] = reused.torrent.metainfo['info']['piece length']
+    exp_joined_metainfo['info']['pieces'] = reused.torrent.metainfo['info']['pieces']
+    exp_joined_metainfo['info']['files'] = [
+        {'length': f['length'], 'path': f['path']}
+        for f in reused.torrent.metainfo['info']['files']
+    ]
 
     # Reuse existing torrent
     if with_callback:
