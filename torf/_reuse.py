@@ -159,11 +159,17 @@ def copy(from_torrent, to_torrent):
         def make_sortable(files):
             return [tuple(f.items()) for f in files]
 
+        # Only include "length" and "files" fields
+        source_files = [
+            {'length': file['length'], 'path': file['path']}
+            for file in source_info['files']
+        ]
+
         assert sorted(make_sortable(to_torrent.metainfo['info']['files'])) \
-            == sorted(make_sortable(source_info['files']))
+            == sorted(make_sortable(source_files))
 
         # Copy file order from `source_info`
-        to_torrent.metainfo['info']['files'] = source_info['files']
+        to_torrent.metainfo['info']['files'] = source_files
 
 
 class ReuseCallback(generate._IntervaledCallback):

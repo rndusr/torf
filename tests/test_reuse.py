@@ -48,6 +48,10 @@ def existing_torrents(create_dir, create_file, tmp_path):
                     content_path = create_file(torrent_name, create_args)
                 torrent = torf.Torrent(path=content_path, **torrent_kwargs)
                 torrent_filepath = torrents_directory / f'{torrent_name}.torrent'
+                # Add some non-standard fields into each file list
+                if 'files' in torrent.metainfo['info']:
+                    for i in range(len(torrent.metainfo['info']['files'])):
+                        torrent.metainfo['info']['files'][i]['foohash'] = 'This could be your MD5 sum'
                 torrent.generate()
                 torrent.write(torrent_filepath)
                 torrents.append(SimpleNamespace(
