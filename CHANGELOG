@@ -1,3 +1,8 @@
+2022-09-22 4.0.4
+  - Bugfix: Expect non-standard fields (e.g. "md5sum") in file list when reusing
+    torrent.
+
+
 2022-07-02 4.0.3
   - Bugfix: Copy file order from reused torrent.
 
