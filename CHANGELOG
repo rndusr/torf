@@ -1,3 +1,9 @@
+2022-11-09 4.1.0
+  - Torrent now accepts piece_size_min and piece_size_max arguments.
+  - Bugfix: Don't reuse a torrent that has a smaller piece_size than
+    piece_size_min.
+
+
 2022-09-22 4.0.4
   - Bugfix: Expect non-standard fields (e.g. "md5sum") in file list when reusing
     torrent.
