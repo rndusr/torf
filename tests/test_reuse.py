@@ -605,9 +605,14 @@ def test_reuse_with_empty_file_list(with_callback, existing_torrents, create_fil
     assert new_torrent.metainfo == exp_joined_metainfo
 
 
-def test_reuse_considers_piece_size_max(existing_torrents):
+def test_reuse_considers_piece_size_min_max(existing_torrents):
     # Create and prepare existing torrents
     existing_torrents = existing_torrents(
+        small=(
+            ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
+            ('b.txt', 'bar', {'piece_size': 1048576 * 1}),
+            ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
+        ),
         big=(
             ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
             ('b.txt', 'bar', {'piece_size': 1048576 * 4}),
@@ -618,9 +623,14 @@ def test_reuse_considers_piece_size_max(existing_torrents):
             ('b.txt', 'bar', {'piece_size': 1048576 * 2}),
             ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
         ),
-        small=(
+        large=(
             ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
-            ('b.txt', 'bar', {'piece_size': 1048576 * 1}),
+            ('b.txt', 'bar', {'piece_size': 1048576 * 8}),
+            ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
+        ),
+        giant=(
+            ('a.jpg', 'foo', {'piece_size': 1048576 / 2}),
+            ('b.txt', 'bar', {'piece_size': 1048576 * 16}),
             ('c.mp4', 'baz', {'piece_size': 1048576 / 2}),
         ),
     )
@@ -630,23 +640,35 @@ def test_reuse_considers_piece_size_max(existing_torrents):
     new_torrent = torf.Torrent(path=reused.content_path)
     exp_joined_metainfo = copy.deepcopy(new_torrent.metainfo)
 
-    # Set maximum piece size to 2 MiB
-    new_torrent.piece_size_max = 1048576 * 2
-    exp_joined_metainfo['info']['piece length'] = 1048576 * 2
+    # Limit piece size to 1 - 2 MiB
+    new_torrent.piece_size_min = 1 * 1048576
+    new_torrent.piece_size_max = 2 * 1048576
+    exp_joined_metainfo['info']['piece length'] = 1048576 * 1
     exp_joined_metainfo['info']['pieces'] = existing_torrents.medium[1].torrent.metainfo['info']['pieces']
     new_torrent.reuse(existing_torrents.location_paths)
     assert new_torrent.metainfo == exp_joined_metainfo
 
-    # Set maximum piece size to 4 MiB
-    new_torrent.piece_size_max = 1048576 * 4
+    # Limit piece size to 2 - 4 MiB
+    new_torrent.piece_size_min = 2 * 1048576
+    new_torrent.piece_size_max = 4 * 1048576
+    exp_joined_metainfo['info']['piece length'] = 1048576 * 4
+    exp_joined_metainfo['info']['pieces'] = existing_torrents.small[1].torrent.metainfo['info']['pieces']
+    new_torrent.reuse(existing_torrents.location_paths)
+    assert new_torrent.metainfo == exp_joined_metainfo
+
+
+    # Limit piece size to 4 - 8 MiB
+    new_torrent.piece_size_min = 4 * 1048576
+    new_torrent.piece_size_max = 8 * 1048576
     exp_joined_metainfo['info']['piece length'] = 1048576 * 4
     exp_joined_metainfo['info']['pieces'] = existing_torrents.big[1].torrent.metainfo['info']['pieces']
     new_torrent.reuse(existing_torrents.location_paths)
     assert new_torrent.metainfo == exp_joined_metainfo
 
-    # Set maximum piece size to 1 MiB
-    new_torrent.piece_size_max = 1048576 * 1
-    exp_joined_metainfo['info']['piece length'] = 1048576 * 1
+    # Limit piece size to 8 - 16 MiB
+    new_torrent.piece_size_min = 8 * 1048576
+    new_torrent.piece_size_max = 16 * 1048576
+    exp_joined_metainfo['info']['piece length'] = 1048576 * 8
     exp_joined_metainfo['info']['pieces'] = existing_torrents.small[1].torrent.metainfo['info']['pieces']
     new_torrent.reuse(existing_torrents.location_paths)
     assert new_torrent.metainfo == exp_joined_metainfo

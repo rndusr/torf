@@ -84,8 +84,9 @@ def is_file_match(torrent, candidate):
     torrent_id = _get_filepaths_and_sizes(torrent_info)
     candidate_id = _get_filepaths_and_sizes(candidate_info)
     if torrent_id == candidate_id:
-        if candidate.piece_size <= torrent.piece_size_max:
+        if torrent.piece_size_min <= candidate.piece_size <= torrent.piece_size_max:
             return True
+
     return False
 
 def _get_filepaths_and_sizes(info):
