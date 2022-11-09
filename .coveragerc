@@ -1,0 +1,12 @@
+[run]
+source = torf
+command_line = -m pytest
+branch = True
+concurrency = multiprocessing
+
+[report]
+show_missing = True
+skip_covered = False
+
+[html]
+directory = /tmp/htmlcov
