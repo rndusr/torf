@@ -2,6 +2,7 @@ import copy
 import glob
 import os
 import pickle
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -749,21 +750,54 @@ def test_piece_size_is_set_manually_to_not_power_of_two(create_torrent):
         torrent.piece_size = 123 * 1000
     assert str(excinfo.value) == 'Piece size must be a power of 2: 123000'
 
-def test_piece_size_min_and_piece_size_max(create_torrent):
-    torrent = create_torrent()
-    with patch.multiple(torf.Torrent, piece_size_min=16, piece_size_max=128):
-        with pytest.raises(torf.PieceSizeError) as excinfo:
-            torrent.piece_size = 8
-        assert str(excinfo.value) == 'Piece size must be between 16 and 128: 8'
-        with pytest.raises(torf.PieceSizeError) as excinfo:
-            torrent.piece_size = 256
-        assert str(excinfo.value) == 'Piece size must be between 16 and 128: 256'
-
 def test_piece_size_can_be_invalid_in_metainfo(create_torrent):
     torrent = create_torrent()
     torrent.metainfo['info']['piece length'] = 123
     torrent.metainfo['info']['piece length'] = 'foo'
     torrent.metainfo['info']['piece length'] = -12
+
+
+DEFAULT_PIECE_SIZE_MIN = torf.Torrent.piece_size_min
+
+@pytest.mark.parametrize(
+    argnames='piece_size_min, exp_piece_size_min',
+    argvalues=(
+        (None, DEFAULT_PIECE_SIZE_MIN),
+        (1024, 1024),
+        (123, errors.PieceSizeError(123)),
+    ),
+    ids=lambda v: repr(v),
+)
+def test_piece_size_min(piece_size_min, exp_piece_size_min, create_torrent):
+
+    if isinstance(exp_piece_size_min, Exception):
+        with pytest.raises(type(exp_piece_size_min), match=rf'^{re.escape(str(exp_piece_size_min))}$'):
+            create_torrent(piece_size_min=piece_size_min)
+    else:
+        torrent = create_torrent(piece_size_min=piece_size_min)
+        assert torrent.piece_size_min == exp_piece_size_min
+
+
+DEFAULT_PIECE_SIZE_MAX = torf.Torrent.piece_size_max
+
+@pytest.mark.parametrize(
+    argnames='piece_size_max, exp_piece_size_max',
+    argvalues=(
+        (None, DEFAULT_PIECE_SIZE_MAX),
+        (1024, 1024),
+        (123, errors.PieceSizeError(123)),
+    ),
+    ids=lambda v: repr(v),
+)
+def test_piece_size_max(piece_size_max, exp_piece_size_max, create_torrent):
+
+    if isinstance(exp_piece_size_max, Exception):
+        with pytest.raises(type(exp_piece_size_max), match=rf'^{re.escape(str(exp_piece_size_max))}$'):
+            create_torrent(piece_size_max=piece_size_max)
+    else:
+        torrent = create_torrent(piece_size_max=piece_size_max)
+        assert torrent.piece_size_max == exp_piece_size_max
+
 
 def test_calculate_piece_size(monkeypatch):
     monkeypatch.setattr(torf.Torrent, 'piece_size_min', 1024)

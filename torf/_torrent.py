@@ -103,7 +103,8 @@ class Torrent():
                  trackers=None, webseeds=None, httpseeds=None,
                  private=None, comment=None, source=None, creation_date=None,
                  created_by='%s %s' % (_PACKAGE_NAME, __version__),
-                 piece_size=None, randomize_infohash=False):
+                 piece_size=None, piece_size_min=None, piece_size_max=None,
+                 randomize_infohash=False):
         self._path = None
         self._metainfo = {}
         self._exclude = {'globs'  : utils.MonitoredList(callback=self._filters_changed, type=str),
@@ -124,11 +125,24 @@ class Torrent():
         self.include_globs = include_globs
         self.include_regexs = include_regexs
         self.path = path
+
         # Values that are implicitly changed by setting self.path
         if piece_size is not None:
             self.piece_size = piece_size
         if name is not None:
             self.name = name
+
+        # Overload class attributes
+        if piece_size_min is not None:
+            if not utils.is_power_of_2(piece_size_min):
+                raise error.PieceSizeError(piece_size_min)
+            else:
+                self.piece_size_min = int(piece_size_min)
+        if piece_size_max is not None:
+            if not utils.is_power_of_2(piece_size_max):
+                raise error.PieceSizeError(piece_size_max)
+            else:
+                self.piece_size_max = int(piece_size_max)
 
     @property
     def metainfo(self):
@@ -1697,8 +1711,15 @@ class Torrent():
             value = getattr(self, param.name)
             default = param.default
             if default is param.empty:
+                # Positional argument
                 args.append(repr(value))
-            elif value and default != value:
+            elif (
+                value
+                # Keyword argument value is different from default?
+                and default != value
+                # Keyword argument value is different from class attribute
+                and value != getattr(type(self), param.name)
+            ):
                 args.append(f'{param.name}={value!r}')
         return type(self).__name__ + '(' + ', '.join(args) + ')'
 
