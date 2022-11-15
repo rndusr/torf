@@ -898,10 +898,13 @@ class Torrent():
             self.metainfo['creation date'] = datetime.fromtimestamp(value)
         elif isinstance(value, datetime):
             self.metainfo['creation date'] = value
-        elif value is None:
+        elif not value:
             self.metainfo.pop('creation date', None)
         else:
-            raise ValueError(f'Must be None, int or datetime object, not {value!r}')
+            raise ValueError(
+                'Must be None, int or datetime object, '
+                f'not {type(value).__name__}: {value!r}'
+            )
 
     @property
     def created_by(self):

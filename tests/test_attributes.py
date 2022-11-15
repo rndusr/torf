@@ -5,6 +5,7 @@ import pickle
 import re
 from pathlib import Path
 from unittest.mock import patch
+from datetime import datetime
 
 import pytest
 
@@ -1138,25 +1139,32 @@ def test_source(create_torrent):
     assert 'source' not in torrent.metainfo['info']
 
 
-def test_creation_date(create_torrent):
-    from datetime import datetime
-
+@pytest.mark.parametrize(
+    argnames='date, exp_date',
+    argvalues=(
+        (1234, datetime.fromtimestamp(1234)),
+        (datetime.fromtimestamp(4567), datetime.fromtimestamp(4567)),
+        (None, None),
+        ('', None),
+        (b'', None),
+        ([1, 2, 3], ValueError('Must be None, int or datetime object, not list: [1, 2, 3]')),
+    ),
+    ids=lambda v: repr(v),
+)
+def test_creation_date(date, exp_date, create_torrent):
     torrent = create_torrent()
-    torrent.creation_date = 1234
-    assert isinstance(torrent.creation_date, datetime)
-    assert isinstance(torrent.metainfo['creation date'], datetime)
 
-    now = datetime.now()
-    torrent.creation_date = now
-    assert torrent.creation_date is now
-    assert torrent.metainfo['creation date'] is now
+    if isinstance(exp_date, Exception):
+        with pytest.raises(type(exp_date), match=rf'^{re.escape(str(exp_date))}$'):
+            torrent.creation_date = date
 
-    torrent.creation_date = None
-    assert torrent.creation_date is None
-    assert 'creation date' not in torrent.metainfo
-
-    with pytest.raises(ValueError):
-        torrent.creation_date = [1, 2, 3]
+    else:
+        torrent.creation_date = date
+        assert torrent.creation_date == exp_date
+        if torrent.creation_date is None:
+            assert 'creation date' not in torrent.metainfo
+        else:
+            assert torrent.creation_date is torrent.metainfo['creation date']
 
 
 def test_created_by(create_torrent):

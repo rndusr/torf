@@ -1,3 +1,8 @@
+2022-??-?? 4.1.1
+  - Bugfix: Don't crash if "creation date" is something weird like an empty
+    string.
+
+
 2022-11-09 4.1.0
   - Torrent now accepts piece_size_min and piece_size_max arguments.
   - Bugfix: Don't reuse a torrent that has a smaller piece_size than
