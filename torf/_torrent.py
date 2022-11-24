@@ -633,8 +633,25 @@ class Torrent():
                                            max=self.piece_size_max)
             self.metainfo['info']['piece length'] = piece_length
 
+
+    piece_size_min_default = 16 * 1024  # 16 KiB
+    """
+    Smallest allowed piece size (default value)
+
+    Setting :attr:`piece_size` to a smaller value raises
+    :class:`PieceSizeError`.
+    """
+
+    piece_size_max_default = 16 * 1024 * 1024  # 16 MiB
+    """
+    Greatest allowed piece size (default value)
+
+    Setting :attr:`piece_size` to a greater value raises
+    :class:`PieceSizeError`.
+    """
+
     @classmethod
-    def calculate_piece_size(cls, size):
+    def calculate_piece_size(cls, size, min_size=None, max_size=None):
         """
         Return the piece size for a total torrent size of ``size`` bytes
 
@@ -646,6 +663,11 @@ class Torrent():
         necessary.
 
         It is safe to override this method to implement a custom algorithm.
+
+        :param int min_size: Minimum piece size; defaults to
+            :attr:`Torrent.piece_size_min`
+        :param int max_size: Maximum piece size; defaults to
+            :attr:`Torrent.piece_size_max`
 
         :return: calculated piece size
         """
@@ -665,10 +687,15 @@ class Torrent():
             pieces = size / 8192
         else:
             pieces = size / 10240
+
+        if min_size is None:
+            min_size = cls.piece_size_min_default
+        if max_size is None:
+            max_size = cls.piece_size_max_default
+
         # Math is magic!
-        return int(min(max(1 << max(0, math.ceil(math.log(pieces, 2))),
-                           cls.piece_size_min),
-                       cls.piece_size_max))
+        piece_size = 1 << max(0, math.ceil(math.log(pieces, 2)))
+        return int(min(max(piece_size, min_size), max_size))
 
     piece_size_min = 16 * 1024  # 16 KiB
     """

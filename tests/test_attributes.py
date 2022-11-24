@@ -1,4 +1,5 @@
 import copy
+import functools
 import glob
 import os
 import pickle
@@ -800,10 +801,21 @@ def test_piece_size_max(piece_size_max, exp_piece_size_max, create_torrent):
         assert torrent.piece_size_max == exp_piece_size_max
 
 
-def test_calculate_piece_size(monkeypatch):
-    monkeypatch.setattr(torf.Torrent, 'piece_size_min', 1024)
-    monkeypatch.setattr(torf.Torrent, 'piece_size_max', 256 * 2**20)
-    calc = torf.Torrent.calculate_piece_size
+@pytest.mark.parametrize(
+    argnames='kwargs, cls_attrs',
+    argvalues=(
+        ({'min_size': 1024, 'max_size': 256 * 2**20}, {}),
+        ({}, {'piece_size_min_default': 1024, 'piece_size_max_default': 256 * 2**20}),
+        ({'min_size': 1024, 'max_size': 256 * 2**20}, {'piece_size_min_default': 1048576, 'piece_size_max_default': 1048576 * 2}),
+    ),
+)
+def test_calculate_piece_size(kwargs, cls_attrs, monkeypatch):
+    for name, value in cls_attrs.items():
+        monkeypatch.setattr(torf.Torrent, name, value)
+
+    torrent = torf.Torrent()
+    calc = functools.partial(torrent.calculate_piece_size, **kwargs)
+
     for size in (1, 10, 100):
         assert calc(size) == 1024
     assert calc(100 * 2**20) == 128 * 1024      # noqa: E201,E222
