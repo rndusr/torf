@@ -111,6 +111,10 @@ class Torrent():
                          'regexs' : utils.MonitoredList(callback=self._filters_changed, type=re.compile)}
         self._include = {'globs'  : utils.MonitoredList(callback=self._filters_changed, type=str),
                          'regexs' : utils.MonitoredList(callback=self._filters_changed, type=re.compile)}
+
+        self.piece_size_min = piece_size_min
+        self.piece_size_max = piece_size_max
+
         self.trackers = trackers
         self.webseeds = webseeds
         self.httpseeds = httpseeds
@@ -120,6 +124,7 @@ class Torrent():
         self.created_by = created_by
         self.source = source
         self.randomize_infohash = randomize_infohash
+
         self.exclude_globs = exclude_globs
         self.exclude_regexs = exclude_regexs
         self.include_globs = include_globs
@@ -131,18 +136,6 @@ class Torrent():
             self.piece_size = piece_size
         if name is not None:
             self.name = name
-
-        # Overload class attributes
-        if piece_size_min is not None:
-            if not utils.is_power_of_2(piece_size_min):
-                raise error.PieceSizeError(piece_size_min)
-            else:
-                self.piece_size_min = int(piece_size_min)
-        if piece_size_max is not None:
-            if not utils.is_power_of_2(piece_size_max):
-                raise error.PieceSizeError(piece_size_max)
-            else:
-                self.piece_size_max = int(piece_size_max)
 
     @property
     def metainfo(self):
@@ -619,7 +612,12 @@ class Torrent():
                 self.metainfo['info'].pop('piece length', None)
                 return
             else:
-                value = self.calculate_piece_size(self.size)
+                value = self.calculate_piece_size(
+                    self.size,
+                    min_size=self.piece_size_min,
+                    max_size=self.piece_size_max,
+                )
+
         try:
             piece_length = int(value)
         except (TypeError, ValueError):
@@ -633,6 +631,43 @@ class Torrent():
                                            max=self.piece_size_max)
             self.metainfo['info']['piece length'] = piece_length
 
+    @property
+    def piece_size_min(self):
+        """
+        Smallest allowed piece size
+
+        Setting :attr:`piece_size` to a smaller value raises
+        :class:`PieceSizeError`.
+        """
+        return self._piece_size_min
+
+    @piece_size_min.setter
+    def piece_size_min(self, piece_size_min):
+        if piece_size_min is None:
+            self._piece_size_min = type(self).piece_size_min_default
+        elif not utils.is_power_of_2(piece_size_min):
+            raise error.PieceSizeError(piece_size_min)
+        else:
+            self._piece_size_min = int(piece_size_min)
+
+    @property
+    def piece_size_max(self):
+        """
+        Smallest allowed piece size
+
+        Setting :attr:`piece_size` to a smaller value raises
+        :class:`PieceSizeError`.
+        """
+        return self._piece_size_max
+
+    @piece_size_max.setter
+    def piece_size_max(self, piece_size_max):
+        if piece_size_max is None:
+            self._piece_size_max = type(self).piece_size_max_default
+        elif not utils.is_power_of_2(piece_size_max):
+            raise error.PieceSizeError(piece_size_max)
+        else:
+            self._piece_size_max = int(piece_size_max)
 
     piece_size_min_default = 16 * 1024  # 16 KiB
     """
@@ -696,22 +731,6 @@ class Torrent():
         # Math is magic!
         piece_size = 1 << max(0, math.ceil(math.log(pieces, 2)))
         return int(min(max(piece_size, min_size), max_size))
-
-    piece_size_min = 16 * 1024  # 16 KiB
-    """
-    Smallest allowed piece size
-
-    Setting :attr:`piece_size` to a smaller value raises
-    :class:`PieceSizeError`.
-    """
-
-    piece_size_max = 16 * 1024 * 1024  # 16 MiB
-    """
-    Greatest allowed piece size
-
-    Setting :attr:`piece_size` to a greater value raises
-    :class:`PieceSizeError`.
-    """
 
     @property
     def pieces(self):
@@ -1737,6 +1756,13 @@ class Torrent():
     def __repr__(self):
         sig = inspect.signature(self.__init__)
         args = []
+
+        def get_class_default(name):
+            if hasattr(type(self), f'{param.name}_default'):
+                return getattr(type(self), f'{param.name}_default')
+            elif hasattr(type(self), param.name):
+                return getattr(type(self), param.name)
+
         for param in sig.parameters.values():
             value = getattr(self, param.name)
             default = param.default
@@ -1747,8 +1773,8 @@ class Torrent():
                 value
                 # Keyword argument value is different from default?
                 and default != value
-                # Keyword argument value is different from class attribute
-                and value != getattr(type(self), param.name)
+                # Keyword argument value is different from class default
+                and value != get_class_default(param.name)
             ):
                 args.append(f'{param.name}={value!r}')
         return type(self).__name__ + '(' + ', '.join(args) + ')'

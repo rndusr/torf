@@ -729,7 +729,7 @@ def test_piece_size_defaults_to_return_value_of_calculate_piece_size(create_torr
     torrent = create_torrent(path=multifile_content.path)
     assert torrent.piece_size != 4 * 2**20
     assert torrent.metainfo['info']['piece length'] != 4 * 2**20
-    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size: 4 * 2**20):
+    with patch.object(torf.Torrent, 'calculate_piece_size', lambda self, size, min_size, max_size: 4 * 2**20):
         torrent.piece_size = None
     assert torrent.piece_size == 4 * 2**20
     assert torrent.metainfo['info']['piece length'] == 4 * 2**20
@@ -759,46 +759,99 @@ def test_piece_size_can_be_invalid_in_metainfo(create_torrent):
     torrent.metainfo['info']['piece length'] = -12
 
 
-DEFAULT_PIECE_SIZE_MIN = torf.Torrent.piece_size_min
+PIECE_SIZE_MIN_DEFAULT = torf.Torrent.piece_size_min_default
+PIECE_SIZE_MAX_DEFAULT = torf.Torrent.piece_size_max_default
 
+# "piece_size_" because "piece_size" is already used for --piece-size
+# (see conftest.py)
+@pytest.mark.parametrize('with_path', (True, False), ids=['with path', 'without path'])
 @pytest.mark.parametrize(
-    argnames='piece_size_min, exp_piece_size_min',
+    argnames='piece_size_, piece_size_min, piece_size_max, exp_piece_size_min, exp_piece_size_max, exp_exception',
     argvalues=(
-        (None, DEFAULT_PIECE_SIZE_MIN),
-        (1024, 1024),
-        (123, errors.PieceSizeError(123)),
+        pytest.param(
+            None, None, None,
+            PIECE_SIZE_MIN_DEFAULT, PIECE_SIZE_MAX_DEFAULT,
+            None,
+            id='All default values',
+        ),
+        pytest.param(
+            None, 262144, 1048576,
+            262144, 1048576,
+            None,
+            id='Custom min/max values',
+        ),
+        pytest.param(
+            PIECE_SIZE_MIN_DEFAULT / 2, None, None,
+            None, None,
+            errors.PieceSizeError(int(PIECE_SIZE_MIN_DEFAULT / 2), min=PIECE_SIZE_MIN_DEFAULT, max=PIECE_SIZE_MAX_DEFAULT),
+            id='Custom piece size smaller than Torrent.piece_size_min_default',
+        ),
+        pytest.param(
+            PIECE_SIZE_MAX_DEFAULT * 2, None, None,
+            None, None,
+            errors.PieceSizeError(int(PIECE_SIZE_MAX_DEFAULT * 2), min=PIECE_SIZE_MIN_DEFAULT, max=PIECE_SIZE_MAX_DEFAULT),
+            id='Custom piece size bigger than Torrent.piece_size_max_default',
+        ),
+        pytest.param(
+            16384, 262144, 524288,
+            None, None,
+            errors.PieceSizeError(16384, min=262144, max=524288),
+            id='Custom piece size smaller than custom piece_size_min',
+        ),
+        pytest.param(
+            1048576, 262144, 524288,
+            None, None,
+            errors.PieceSizeError(1048576, min=262144, max=524288),
+            id='Custom piece size bigger than custom piece_size_max',
+        ),
+        pytest.param(
+            PIECE_SIZE_MIN_DEFAULT - 1, None, None,
+            None, None,
+            errors.PieceSizeError(PIECE_SIZE_MIN_DEFAULT - 1),
+            id='Invalid custom piece_size',
+        ),
+        pytest.param(
+            None, 123, None,
+            None, None,
+            errors.PieceSizeError(123),
+            id='Invalid custom piece_size_min',
+        ),
+        pytest.param(
+            None, None, 456,
+            None, None,
+            errors.PieceSizeError(456),
+            id='Invalid custom piece_size_max',
+        ),
     ),
     ids=lambda v: repr(v),
 )
-def test_piece_size_min(piece_size_min, exp_piece_size_min, create_torrent):
-
-    if isinstance(exp_piece_size_min, Exception):
-        with pytest.raises(type(exp_piece_size_min), match=rf'^{re.escape(str(exp_piece_size_min))}$'):
-            create_torrent(piece_size_min=piece_size_min)
+def test_piece_size_min_max(piece_size_, piece_size_min, piece_size_max,
+                            exp_piece_size_max, exp_piece_size_min, exp_exception,
+                            with_path, singlefile_content):
+    if exp_exception:
+        with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+            torf.Torrent(
+                path=singlefile_content.path if with_path else None,
+                piece_size=piece_size_,
+                piece_size_min=piece_size_min,
+                piece_size_max=piece_size_max,
+            )
     else:
-        torrent = create_torrent(piece_size_min=piece_size_min)
+        torrent = torf.Torrent(
+            path=singlefile_content.path if with_path else None,
+            piece_size=piece_size_,
+            piece_size_min=piece_size_min,
+            piece_size_max=piece_size_max,
+        )
+        if with_path:
+            assert torrent.piece_size not in (0, None)
+        else:
+            assert torrent.piece_size == 0
+
         assert torrent.piece_size_min == exp_piece_size_min
-
-
-DEFAULT_PIECE_SIZE_MAX = torf.Torrent.piece_size_max
-
-@pytest.mark.parametrize(
-    argnames='piece_size_max, exp_piece_size_max',
-    argvalues=(
-        (None, DEFAULT_PIECE_SIZE_MAX),
-        (1024, 1024),
-        (123, errors.PieceSizeError(123)),
-    ),
-    ids=lambda v: repr(v),
-)
-def test_piece_size_max(piece_size_max, exp_piece_size_max, create_torrent):
-
-    if isinstance(exp_piece_size_max, Exception):
-        with pytest.raises(type(exp_piece_size_max), match=rf'^{re.escape(str(exp_piece_size_max))}$'):
-            create_torrent(piece_size_max=piece_size_max)
-    else:
-        torrent = create_torrent(piece_size_max=piece_size_max)
         assert torrent.piece_size_max == exp_piece_size_max
+        assert torrent.piece_size_min_default == PIECE_SIZE_MIN_DEFAULT
+        assert torrent.piece_size_max_default == PIECE_SIZE_MAX_DEFAULT
 
 
 @pytest.mark.parametrize(
