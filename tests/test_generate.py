@@ -93,7 +93,7 @@ def test_unreadable_file_in_multifile_torrent(create_dir):
 
 def test_metainfo_with_singlefile_torrent(create_file, random_seed):
     with random_seed(0):
-        content_path = create_file('file.jpg', torf.Torrent.piece_size_min * 10.123)
+        content_path = create_file('file.jpg', torf.Torrent.piece_size_min_default * 10.123)
     # exp_* values come from these commands:
     # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_metainfo_with_singlefile_current/file.jpg
     # $ btcheck -i file.jpg.torrent -n | grep Hash
@@ -109,9 +109,9 @@ def test_metainfo_with_singlefile_torrent(create_file, random_seed):
 def test_metainfo_with_multifile_torrent(create_dir, random_seed):
     with random_seed(0):
         content_path = create_dir('content',
-                                  ('a.jpg', torf.Torrent.piece_size_min * 1.123),
-                                  ('b.jpg', torf.Torrent.piece_size_min * 2.456),
-                                  ('c.jpg', torf.Torrent.piece_size_min * 3.789))
+                                  ('a.jpg', torf.Torrent.piece_size_min_default * 1.123),
+                                  ('b.jpg', torf.Torrent.piece_size_min_default * 2.456),
+                                  ('c.jpg', torf.Torrent.piece_size_min_default * 3.789))
     # exp_* values come from these commands:
     # $ mktorrent -l 15 /tmp/pytest-of-*/pytest-current/test_metainfo_with_multifile_tcurrent/content/
     # $ btcheck -i content.torrent -n | grep Hash
