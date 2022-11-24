@@ -1,3 +1,13 @@
+2022-11-24 4.1.2
+  - Bugfix: Torrent's piece_size_min and piece_size_max arguments are no longer
+    ignored.
+  - Torrent.piece_size_min and Torrent.piece_size_max are now properties. They
+    default to the new class attributes piece_size_min_default and
+    piece_size_max_default.
+  - Torrent.calculate_piece_size(): New arguments: min_size, max_size specify
+    the minimum and maximum piece size.
+
+
 2022-11-15 4.1.1
   - Bugfix: Don't crash if "creation date" is something weird like an empty
     string.
