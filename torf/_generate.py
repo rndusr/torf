@@ -43,13 +43,13 @@ class Worker:
     thread when joined
     """
 
-    def __init__(self, name, worker, start=True):
+    def __init__(self, name, worker, start=True, fail_ok=False):
         self._exception = None
         self._name = str(name)
         self._worker = worker
         self._thread = threading.Thread(name=self._name, target=self._run_and_catch_exceptions)
         if start:
-            self.start()
+            self.start(fail_ok=fail_ok)
 
     @property
     def exception(self):
@@ -69,9 +69,18 @@ class Worker:
         except BaseException as e:
             self._exception = e
 
-    def start(self):
+    def start(self, fail_ok=False):
         if not self._thread.is_alive():
-            self._thread.start()
+            try:
+                self._thread.start()
+            except RuntimeError as e:
+                if fail_ok:
+                    _debug(f'{self.name}: Failed to start thread: {e!r} - but that\'s ok')
+                else:
+                    _debug(f'{self.name}: Failed to start thread: {e!r}')
+                    raise
+            else:
+                _debug(f'{self.name}: Started')
 
     def join(self, *args, **kwargs):
         self._thread.join(*args, **kwargs)
