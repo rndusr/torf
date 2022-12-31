@@ -83,7 +83,8 @@ class Worker:
                 _debug(f'{self.name}: Started')
 
     def join(self, *args, **kwargs):
-        self._thread.join(*args, **kwargs)
+        if self.is_running:
+            self._thread.join(*args, **kwargs)
         if self._exception:
             raise self._exception
 
