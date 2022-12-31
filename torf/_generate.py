@@ -163,10 +163,20 @@ class HasherPool:
         # Don't start hashers before they are all created, or there can be a
         # race condition where _close_hash_queue() is called before
         # self._hashers exists
-        self._hashers = [Worker(f'hasher{i}', self._read_from_piece_queue, start=False)
-                         for i in range(1, hasher_threads + 1)]
-        for hasher in self._hashers:
-            hasher.start()
+        self._hashers = [
+            Worker(
+                name=f'hasher{i}',
+                worker=self._read_from_piece_queue,
+                start=False,
+            )
+            for i in range(1, hasher_threads + 1)
+        ]
+
+        # Threads are allowed to fail (because of OS restraints), but we need at
+        # least one hasher thread
+        self._hashers[0].start(fail_ok=False)
+        for hasher in self._hashers[1:]:
+            hasher.start(fail_ok=True)
 
     def _read_from_piece_queue(self):
         piece_queue = self._piece_queue
