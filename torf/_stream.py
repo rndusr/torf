@@ -504,8 +504,12 @@ class TorrentFileStream:
                         yield piece
                     else:
                         break  # EOF
+
             except OSError as e:
                 raise error.ReadError(e.errno, fh.name)
+
+            except MemoryError as e:
+                raise MemoryError(f'Out of memory while reading from {fh.name} at position {fh.tell()}')
 
         return iter_pieces(fh, prepend), skip_bytes
 
