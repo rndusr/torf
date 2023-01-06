@@ -100,13 +100,15 @@ class Reader(Worker):
         self._path = path
         self._piece_queue = queue.Queue(maxsize=queue_size)
         self._stop = False
+        self._memory_error_timestamp = -1
         super().__init__(name='reader', worker=self._push_pieces)
 
     def _push_pieces(self):
         stream = TorrentFileStream(self._torrent)
         try:
-            iter_pieces = stream.iter_pieces(self._path)
+            iter_pieces = stream.iter_pieces(self._path, MemoryError_callback=self._handle_MemoryError)
             for piece_index, (piece, filepath, exceptions) in enumerate(iter_pieces):
+                # _debug(f'{_thread_name()}: Readed #{piece_index}')
                 if self._stop:
                     _debug(f'{_thread_name()}: Stopped reading')
                     break
@@ -118,6 +120,8 @@ class Reader(Worker):
                     # `piece` is None because of missing file, and the exception
                     # was already sent for the first `piece_index` of that file
                     self._push_piece(piece_index=piece_index, filepath=filepath)
+
+                # _debug(f'{_thread_name()}: {self._piece_queue.qsize()} pieces queued')
 
         except BaseException as e:
             _debug(f'{_thread_name()}: Exception while reading: {e!r}')
@@ -131,6 +135,20 @@ class Reader(Worker):
     def _push_piece(self, *, piece_index, filepath, piece=None, exceptions=()):
         # _debug(f'{_thread_name()}: Pushing #{piece_index}: {filepath}: {_pretty_bytes(piece)}, {exceptions!r}')
         self._piece_queue.put((piece_index, filepath, piece, exceptions))
+
+    def _handle_MemoryError(self, exception):
+        # Reduce piece_queue.maxsize by 1 every 100ms until the MemoryErrors stop
+        now = time_monotonic()
+        time_diff = now - self._memory_error_timestamp
+        if time_diff >= 0.1:
+            old_maxsize = self._piece_queue.maxsize
+            new_maxsize = max(1, int(old_maxsize * 0.9))
+            if new_maxsize != old_maxsize:
+                _debug(f'{_thread_name()}: Reducing piece_queue.maxsize from to {new_maxsize}')
+                self._piece_queue.maxsize = new_maxsize
+                self._memory_error_timestamp = now
+            else:
+                raise exception
 
     def stop(self):
         """Stop reading and close the piece queue"""
