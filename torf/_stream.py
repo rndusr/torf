@@ -384,7 +384,7 @@ class TorrentFileStream:
                 raise error.ReadError(e.errno, filepath)
         return self._open_files.get(filepath, None)
 
-    def iter_pieces(self, content_path=None):
+    def iter_pieces(self, content_path=None, MemoryError_callback=None):
         """
         Iterate over `(piece, filepath, (exception1, exception2, ...))`
 
@@ -411,6 +411,16 @@ class TorrentFileStream:
         :param content_path: Path to file or directory to read pieces from
             (defaults to class argument of the same name or
             :attr:`~.Torrent.path`)
+        :param MemoryError_callback: Callable that gets :class:`MemoryError`
+            instance
+
+            Between calls to `MemoryError_callback`, the piece that caused the
+            exception is read again and again until it fits into memory. This
+            callback offers a way to free more memory. If it fails, it is up to
+            the callback to raise the exception or deal with it in some other
+            way.
+
+            If this is `None`, :class:`MemoryError` is raised normally.
 
         :raise ReadError: if file exists but is not readable
         :raise VerifyFileSizeError: if file has unexpected size
@@ -445,6 +455,7 @@ class TorrentFileStream:
                     fh,
                     prepend=trailing_bytes,
                     skip_bytes=skip_bytes,
+                    MemoryError_callback=MemoryError_callback,
                 )
                 trailing_bytes = b''
                 piece_size = self._torrent.piece_size
@@ -468,7 +479,7 @@ class TorrentFileStream:
         if trailing_bytes:
             yield (trailing_bytes, filepath, ())
 
-    def _iter_from_file_handle(self, fh, prepend, skip_bytes):
+    def _iter_from_file_handle(self, fh, prepend, skip_bytes, MemoryError_callback):
         # Read pieces from from file handle.
         # `prepend` is the incomplete piece from the previous file, i.e. the
         # leading bytes of the next piece.
@@ -494,12 +505,20 @@ class TorrentFileStream:
             try:
                 # Fill incomplete piece with first bytes from `fh`
                 if piece:
-                    piece += fh.read(piece_size - len(piece))
+                    piece += self._read_from_fh(
+                        fh=fh,
+                        size=piece_size - len(piece),
+                        MemoryError_callback=MemoryError_callback,
+                    )
                     yield piece
 
                 # Iterate over `piece_size`ed chunks from `fh`
                 while True:
-                    piece = fh.read(piece_size)
+                    piece = self._read_from_fh(
+                        fh=fh,
+                        size=piece_size,
+                        MemoryError_callback=MemoryError_callback,
+                    )
                     if piece:
                         yield piece
                     else:
@@ -508,10 +527,18 @@ class TorrentFileStream:
             except OSError as e:
                 raise error.ReadError(e.errno, fh.name)
 
-            except MemoryError as e:
-                raise MemoryError(f'Out of memory while reading from {fh.name} at position {fh.tell()}')
-
         return iter_pieces(fh, prepend), skip_bytes
+
+    def _read_from_fh(self, fh, size, MemoryError_callback):
+        while True:
+            try:
+                return fh.read(size)
+            except MemoryError:
+                e = MemoryError(f'Out of memory while reading from {fh.name} at position {fh.tell()}')
+                if MemoryError_callback is None:
+                    raise e
+                else:
+                    MemoryError_callback(e)
 
     def get_piece_hash(self, piece_index, content_path=None):
         """
