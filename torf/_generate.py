@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with torf.  If not, see <https://www.gnu.org/licenses/>.
 
+import errno
 import logging
 import os
 import queue
@@ -148,7 +149,7 @@ class Reader(Worker):
                 self._piece_queue.maxsize = new_maxsize
                 self._memory_error_timestamp = now
             else:
-                raise exception
+                raise errors.ReadError(errno.ENOMEM, exception)
 
     def stop(self):
         """Stop reading and close the piece queue"""
