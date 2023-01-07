@@ -6,7 +6,7 @@ from unittest.mock import Mock, PropertyMock, call
 
 import pytest
 
-from torf import ReadError, TorrentFileStream, VerifyFileSizeError
+from torf import MemoryError, ReadError, TorrentFileStream, VerifyFileSizeError
 
 from . import ComparableException
 
@@ -49,6 +49,7 @@ class File(str):
         return f'{type(self).__name__}({str(self)}, {len(self.content)})'
 
     def write_at(self, directory, content=None):
+        (directory / self).parent.mkdir(parents=True, exist_ok=True)
         if content is not None:
             (directory / self).write_bytes(content)
         else:
@@ -1616,6 +1617,84 @@ def test_iter_pieces_with_missing_files(chunk_size, files, missing_files, exp_ch
         compare(i, 2)
 
     assert chunks == exp_chunks_fixed
+
+
+class OOMCallback:
+    def __init__(self, attempts):
+        self._attempts = int(attempts)
+
+    def __call__(self, exception):
+        try:
+            if self._attempts <= 0:
+                print('Raising', repr(exception))
+                raise exception
+            else:
+                print('Ignoring', repr(exception))
+        finally:
+            self._attempts -= 1
+
+@pytest.mark.parametrize(
+    argnames='oom_callback, read_results, exp_result, exp_oom_callback_calls',
+    argvalues=(
+        (
+            None,
+            [b'abc', b'def', b'ghi'],
+            b'abc',
+            [],
+        ),
+        (
+            None,
+            [MemoryError('one'), MemoryError('two'), b'ghi'],
+            MemoryError('Out of memory while reading from path/to/file at position 1'),
+            [],
+        ),
+        (
+            OOMCallback(attempts=0),
+            [MemoryError('one'), MemoryError('two'), b'ghi'],
+            MemoryError('Out of memory while reading from path/to/file at position 1'),
+            [call(MemoryError('Out of memory while reading from path/to/file at position 1')),],
+        ),
+        (
+            OOMCallback(attempts=1),
+            [MemoryError('one'), MemoryError('two'), b'ghi'],
+            MemoryError('Out of memory while reading from path/to/file at position 2'),
+            [
+                call(MemoryError('Out of memory while reading from path/to/file at position 1')),
+                call(MemoryError('Out of memory while reading from path/to/file at position 2')),
+            ],
+        ),
+        (
+            OOMCallback(attempts=3),
+            [MemoryError('one'), MemoryError('two'), b'ghi'],
+            b'ghi',
+            [
+                call(MemoryError('Out of memory while reading from path/to/file at position 1')),
+                call(MemoryError('Out of memory while reading from path/to/file at position 2')),
+            ],
+        ),
+    ),
+    ids=lambda v: repr(v),
+)
+def test_read_from_fh(oom_callback, read_results, exp_result, exp_oom_callback_calls, mocker):
+    files = [
+        File('A', b'abc'),
+        File('A', b'def'),
+        File('A', b'ghi'),
+    ]
+    size = 123
+    fh = Mock(read=Mock(side_effect=read_results))
+    fh.tell.side_effect = [int(n) for n in '1234567890']
+    fh.configure_mock(name='path/to/file')
+
+    torrent = Torrent(piece_size=size, files=files)
+    tfs = TorrentFileStream(torrent)
+
+    if isinstance(exp_result, Exception):
+        with pytest.raises(type(exp_result), match=rf'^{re.escape(str(exp_result))}$'):
+            print(tfs._read_from_fh(fh, size, oom_callback))
+    else:
+        return_value = tfs._read_from_fh(fh, size, oom_callback)
+        assert return_value is exp_result
 
 
 def test_get_piece_hash_from_readable_piece(mocker):
