@@ -276,6 +276,14 @@ class ReadError(TorfError):
         return self._errno
 
 
+class MemoryError(TorfError, MemoryError):
+    """
+    Out of memory
+
+    See also :class:`MemoryError`.
+    """
+
+
 class WriteError(TorfError):
     """Unwritable file or stream"""
     def __init__(self, errno, path=None):
