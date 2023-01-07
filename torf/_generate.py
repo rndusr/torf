@@ -107,7 +107,7 @@ class Reader(Worker):
     def _push_pieces(self):
         stream = TorrentFileStream(self._torrent)
         try:
-            iter_pieces = stream.iter_pieces(self._path, MemoryError_callback=self._handle_MemoryError)
+            iter_pieces = stream.iter_pieces(self._path, oom_callback=self._handle_oom)
             for piece_index, (piece, filepath, exceptions) in enumerate(iter_pieces):
                 # _debug(f'{_thread_name()}: Readed #{piece_index}')
                 if self._stop:
@@ -137,7 +137,7 @@ class Reader(Worker):
         # _debug(f'{_thread_name()}: Pushing #{piece_index}: {filepath}: {_pretty_bytes(piece)}, {exceptions!r}')
         self._piece_queue.put((piece_index, filepath, piece, exceptions))
 
-    def _handle_MemoryError(self, exception):
+    def _handle_oom(self, exception):
         # Reduce piece_queue.maxsize by 1 every 100ms until the MemoryErrors stop
         now = time_monotonic()
         time_diff = now - self._memory_error_timestamp

@@ -384,7 +384,7 @@ class TorrentFileStream:
                 raise error.ReadError(e.errno, filepath)
         return self._open_files.get(filepath, None)
 
-    def iter_pieces(self, content_path=None, MemoryError_callback=None):
+    def iter_pieces(self, content_path=None, oom_callback=None):
         """
         Iterate over `(piece, filepath, (exception1, exception2, ...))`
 
@@ -411,16 +411,15 @@ class TorrentFileStream:
         :param content_path: Path to file or directory to read pieces from
             (defaults to class argument of the same name or
             :attr:`~.Torrent.path`)
-        :param MemoryError_callback: Callable that gets :class:`MemoryError`
+        :param oom_callback: Callable that gets :class:`~.errors.MemoryError`
             instance
 
-            Between calls to `MemoryError_callback`, the piece that caused the
-            exception is read again and again until it fits into memory. This
-            callback offers a way to free more memory. If it fails, it is up to
-            the callback to raise the exception or deal with it in some other
-            way.
+            Between calls to `oom_callback`, the piece that caused the exception
+            is read again and again until it fits into memory. This callback
+            offers a way to free more memory. If it fails, it is up to the
+            callback to raise the exception or deal with it in some other way.
 
-            If this is `None`, :class:`MemoryError` is raised normally.
+            If this is `None`, :class:`~.errors.MemoryError` is raised normally.
 
         :raise ReadError: if file exists but is not readable
         :raise VerifyFileSizeError: if file has unexpected size
@@ -455,7 +454,7 @@ class TorrentFileStream:
                     fh,
                     prepend=trailing_bytes,
                     skip_bytes=skip_bytes,
-                    MemoryError_callback=MemoryError_callback,
+                    oom_callback=oom_callback,
                 )
                 trailing_bytes = b''
                 piece_size = self._torrent.piece_size
@@ -479,7 +478,7 @@ class TorrentFileStream:
         if trailing_bytes:
             yield (trailing_bytes, filepath, ())
 
-    def _iter_from_file_handle(self, fh, prepend, skip_bytes, MemoryError_callback):
+    def _iter_from_file_handle(self, fh, prepend, skip_bytes, oom_callback):
         # Read pieces from from file handle.
         # `prepend` is the incomplete piece from the previous file, i.e. the
         # leading bytes of the next piece.
@@ -508,7 +507,7 @@ class TorrentFileStream:
                     piece += self._read_from_fh(
                         fh=fh,
                         size=piece_size - len(piece),
-                        MemoryError_callback=MemoryError_callback,
+                        oom_callback=oom_callback,
                     )
                     yield piece
 
@@ -517,7 +516,7 @@ class TorrentFileStream:
                     piece = self._read_from_fh(
                         fh=fh,
                         size=piece_size,
-                        MemoryError_callback=MemoryError_callback,
+                        oom_callback=oom_callback,
                     )
                     if piece:
                         yield piece
@@ -529,16 +528,16 @@ class TorrentFileStream:
 
         return iter_pieces(fh, prepend), skip_bytes
 
-    def _read_from_fh(self, fh, size, MemoryError_callback):
+    def _read_from_fh(self, fh, size, oom_callback):
         while True:
             try:
                 return fh.read(size)
-            except MemoryError:
-                e = MemoryError(f'Out of memory while reading from {fh.name} at position {fh.tell()}')
-                if MemoryError_callback is None:
+            except MemoryError as e:
+                e = error.MemoryError(f'Out of memory while reading from {fh.name} at position {fh.tell()}')
+                if oom_callback is None:
                     raise e
                 else:
-                    MemoryError_callback(e)
+                    oom_callback(e)
 
     def get_piece_hash(self, piece_index, content_path=None):
         """
