@@ -109,7 +109,7 @@ class Reader(Worker):
         try:
             iter_pieces = stream.iter_pieces(self._path, oom_callback=self._handle_oom)
             for piece_index, (piece, filepath, exceptions) in enumerate(iter_pieces):
-                # _debug(f'{_thread_name()}: Readed #{piece_index}')
+                # _debug(f'{_thread_name()}: Read #{piece_index}')
                 if self._stop:
                     _debug(f'{_thread_name()}: Stopped reading')
                     break
@@ -145,7 +145,7 @@ class Reader(Worker):
             old_maxsize = self._piece_queue.maxsize
             new_maxsize = max(1, int(old_maxsize * 0.9))
             if new_maxsize != old_maxsize:
-                _debug(f'{_thread_name()}: Reducing piece_queue.maxsize from to {new_maxsize}')
+                _debug(f'{_thread_name()}: Reducing piece_queue.maxsize to {new_maxsize}')
                 self._piece_queue.maxsize = new_maxsize
                 self._memory_error_timestamp = now
             else:
