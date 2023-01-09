@@ -176,49 +176,70 @@ class HasherPool:
     def __init__(self, hasher_threads, piece_queue):
         self._piece_queue = piece_queue
         self._hash_queue = queue.Queue()
-        self._hash_queue_closer_lock = threading.Lock()
-        self._hash_queue_closer = None
+        self._finalize_event = threading.Event()
 
-        # Don't start hashers before they are all created, or there can be a
-        # race condition where _close_hash_queue() is called before
-        # self._hashers exists
+        # Janitor takes care of closing the hash queue, removing idle hashers, etc
+        self._janitor = Worker(
+            name='janitor',
+            worker=self._janitor_thread,
+            start=False,
+        )
+
+        # Hashers read from piece_queue and push to hash_queue
         self._hashers = [
             Worker(
-                name=f'hasher{i}',
-                worker=self._read_from_piece_queue,
+                name='hasher1',
+                # One hasher is vital an may not die from boredom
+                worker=lambda: self._hasher_thread(is_vital=True),
                 start=False,
-            )
-            for i in range(1, hasher_threads + 1)
+            ),
         ]
+        for i in range(2, hasher_threads + 1):
+            self._hashers.append(
+                Worker(
+                    name=f'hasher{i}',
+                    # All other hashers should die if they are bored
+                    worker=lambda: self._hasher_thread(is_vital=False),
+                    start=False,
+                )
+            )
 
-        # Threads are allowed to fail (because of OS restraints), but we need at
-        # least one hasher thread
+        # Start threads manually after they were created to prevent race
+        # conditions and make sure all required threads are running
+        self._janitor.start(fail_ok=False)
+
+        # Hashers are allowed to fail (e.g. because of OS limits), but we need
+        # at least one to start successfully
         self._hashers[0].start(fail_ok=False)
         for hasher in self._hashers[1:]:
             hasher.start(fail_ok=True)
 
-    def _read_from_piece_queue(self):
+    def _hasher_thread(self, is_vital=True):
         piece_queue = self._piece_queue
         handle_piece = self._handle_piece
-        try:
-            while True:
-                # _debug(f'{_thread_name()}: Waiting for next task')
-                task = piece_queue.get()
+        while True:
+            # _debug(f'{_thread_name()}: Waiting for next task')
+            try:
+                task = piece_queue.get(timeout=0.5)
+            except queue.Empty:
+                if not is_vital:
+                    _debug(f'{_thread_name()}: I am bored, byeee!')
+                    break
+                else:
+                    _debug(f'{_thread_name()}: I am bored, but needed.')
+            else:
                 if task is QUEUE_CLOSED:
-                    _debug(f'{_thread_name()}: {piece_queue} is closed')
-                    # Unblock sibling thread and forward QUEUE_CLOSED sentinel
+                    _debug(f'{_thread_name()}: piece_queue is closed')
+                    # Repeat QUEUE_CLOSED to the next sibling. This ensures
+                    # there is always one more QUEUE_CLOSED queued than running
+                    # threads. Otherwise, one thread might consume multiple
+                    # QUEUE_CLOSED and leave other threads running forvever.
                     piece_queue.put(QUEUE_CLOSED)
+                    # Signal janitor to initiate shutdown procedure
+                    self._finalize_event.set()
                     break
                 else:
                     handle_piece(*task)
-
-        finally:
-            # The first hasher thread that gets the QUEUE_CLOSED sentinel
-            # creates new thread that waits for threads in self._hashers before
-            # closing self._hash_queue
-            with self._hash_queue_closer_lock:
-                if not self._hash_queue_closer:
-                    self._hash_queue_closer = Worker('queue closer', self._close_hash_queue)
 
     def _handle_piece(self, piece_index, filepath, piece, exceptions):
         if exceptions:
@@ -234,13 +255,30 @@ class HasherPool:
             # _debug(f'{_thread_name()}: Nothing to hash for #{piece_index}: {piece!r}')
             self._hash_queue.put((piece_index, filepath, None, ()))
 
-    def _close_hash_queue(self):
-        # Wait for all hasher threads to terminate (i.e. push all their pieces),
-        # then close the hash queue
+    def _janitor_thread(self):
         while True:
-            if all(not w.is_running for w in self._hashers):
+            _debug(f'{_thread_name()}: Waiting for finalize event')
+            finalization_initiated = self._finalize_event.wait(timeout=1.0)
+            if finalization_initiated:
+                self._wait_for_hashers()
                 _debug(f'{_thread_name()}: Closing hash queue')
                 self._hash_queue.put(QUEUE_CLOSED)
+                break
+
+            else:
+                # Remove terminated idle hashers
+                for hasher in tuple(self._hashers):
+                    if not hasher.is_running:
+                        _debug(f'{_thread_name()}: Pruning {hasher.name}')
+                        self._hashers.remove(hasher)
+
+        _debug(f'{_thread_name()}: Terminating')
+
+    def _wait_for_hashers(self):
+        while True:
+            # _debug(f'{_thread_name()}: Hashers running: {[h.name for h in self._hashers if h.is_running]}')
+            if all(not h.is_running for h in self._hashers):
+                _debug(f'{_thread_name()}: All hashers terminated')
                 break
 
     def join(self):
@@ -250,9 +288,9 @@ class HasherPool:
             hasher.join()
         _debug(f'{_thread_name()}: Joined all hashers')
 
-        _debug(f'{_thread_name()}: Joining {self._hash_queue_closer.name}')
-        self._hash_queue_closer.join()
-        _debug(f'{_thread_name()}: Joined {self._hash_queue_closer.name}')
+        _debug(f'{_thread_name()}: Joining {self._janitor.name}')
+        self._janitor.join()
+        _debug(f'{_thread_name()}: Joined {self._janitor.name}')
 
     @property
     def hash_queue(self):
