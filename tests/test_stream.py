@@ -1634,7 +1634,7 @@ class OOMCallback:
             self._attempts -= 1
 
 @pytest.mark.parametrize(
-    argnames='oom_callback, read_results, exp_result, exp_oom_callback_calls',
+    argnames='oom_callback_kwargs, read_results, exp_result, exp_oom_callback_calls',
     argvalues=(
         (
             None,
@@ -1649,13 +1649,13 @@ class OOMCallback:
             [],
         ),
         (
-            OOMCallback(attempts=0),
+            {'attempts': 0},
             [MemoryError('one'), MemoryError('two'), b'ghi'],
             MemoryError('Out of memory while reading from path/to/file at position 1'),
             [call(MemoryError('Out of memory while reading from path/to/file at position 1')),],
         ),
         (
-            OOMCallback(attempts=1),
+            {'attempts': 1},
             [MemoryError('one'), MemoryError('two'), b'ghi'],
             MemoryError('Out of memory while reading from path/to/file at position 2'),
             [
@@ -1664,7 +1664,7 @@ class OOMCallback:
             ],
         ),
         (
-            OOMCallback(attempts=3),
+            {'attempts': 3},
             [MemoryError('one'), MemoryError('two'), b'ghi'],
             b'ghi',
             [
@@ -1675,7 +1675,7 @@ class OOMCallback:
     ),
     ids=lambda v: repr(v),
 )
-def test_read_from_fh(oom_callback, read_results, exp_result, exp_oom_callback_calls, mocker):
+def test_read_from_fh(oom_callback_kwargs, read_results, exp_result, exp_oom_callback_calls, mocker):
     files = [
         File('A', b'abc'),
         File('A', b'def'),
@@ -1688,6 +1688,10 @@ def test_read_from_fh(oom_callback, read_results, exp_result, exp_oom_callback_c
 
     torrent = Torrent(piece_size=size, files=files)
     tfs = TorrentFileStream(torrent)
+    if oom_callback_kwargs is None:
+        oom_callback = None
+    else:
+        oom_callback = OOMCallback(**oom_callback_kwargs)
 
     if isinstance(exp_result, Exception):
         with pytest.raises(type(exp_result), match=rf'^{re.escape(str(exp_result))}$'):
