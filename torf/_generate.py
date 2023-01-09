@@ -384,7 +384,7 @@ class Collector:
         self._reader.join()
         _debug(f'{_thread_name()}: Joining {self._hashers}')
         self._hashers.join()
-        _debug(f'collector: hash_queue has {self._hashers.hash_queue.qsize()} items left')
+        _debug(f'{_thread_name()}: hash_queue has {self._hashers.hash_queue.qsize()} items left')
 
     @property
     def hashes(self):
