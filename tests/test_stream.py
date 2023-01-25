@@ -1124,6 +1124,39 @@ def test_get_open_file_opens_file_only_once(mocker):
         assert tfs._get_open_file('foo/path/b') == fh1
     assert open_mock.call_args_list == [call('foo/path/b', 'rb')]
 
+def test_get_open_file_respects_max_open_files(mocker):
+    max_open_files = 3
+    open_files = {
+        f'path/to/file{i}': Mock(name=f'mock file object {i}')
+        for i in range(max_open_files + 1)
+    }
+
+
+    torrent = Torrent(piece_size=123, files=(File('a', 1), File('b', 2), File('c', 3)))
+    tfs = TorrentFileStream(torrent)
+
+    mocker.patch.object(tfs, 'max_open_files', max_open_files)
+    tfs._open_files = open_files.copy()
+    open_mock = mocker.patch('builtins.open', return_value=Mock(name='freshly opened file'))
+
+    fh = tfs._get_open_file('another/path')
+    assert fh is open_mock.return_value
+    assert open_mock.call_args_list == [call('another/path', 'rb')]
+    print(open_files)
+    print(tfs._open_files)
+
+    assert open_files['path/to/file0'].close.call_args_list == [call()]
+    for path, fh in tuple(open_files.items())[1:]:
+        assert fh.close.call_args_list == []
+
+    exp_open_files = {
+        'path/to/file1': open_files['path/to/file1'],
+        'path/to/file2': open_files['path/to/file2'],
+        'path/to/file3': open_files['path/to/file3'],
+        'another/path': open_mock.return_value,
+    }
+    assert tfs._open_files == exp_open_files
+
 
 @pytest.mark.parametrize(
     argnames='chunk_size, files, exp_chunks',

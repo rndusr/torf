@@ -1,4 +1,5 @@
 import errno
+import functools
 import hashlib
 import itertools
 import math
@@ -376,12 +377,22 @@ class TorrentFileStream:
             except OSError:
                 pass
 
+    # Maximum number of open files (1024 seems to be a common maximum)
+    max_open_files = 10
+
     def _get_open_file(self, filepath):
         if filepath not in self._open_files:
+            # Prevent "Too many open files" (EMFILE)
+            while len(self._open_files) > self.max_open_files:
+                old_filepath = tuple(self._open_files)[0]
+                self._open_files[old_filepath].close()
+                del self._open_files[old_filepath]
+
             try:
                 self._open_files[filepath] = open(filepath, 'rb')
             except OSError as e:
                 raise error.ReadError(e.errno, filepath)
+
         return self._open_files.get(filepath, None)
 
     def iter_pieces(self, content_path=None, oom_callback=None):
