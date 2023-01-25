@@ -1,3 +1,8 @@
+2023-??-?? 4.1.4
+  - Fix "Too many open files" error when creating a torrent with loads of small
+    files.
+
+
 2023-01-09 4.1.3
   - Try to reduce memory usage before being out of memory.
   - Terminate piece hashing threads if they are idle for more than
