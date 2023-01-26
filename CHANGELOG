@@ -1,4 +1,4 @@
-2023-??-?? 4.1.4
+2023-01-26 4.1.4
   - Fix "Too many open files" error when creating a torrent with loads of small
     files.
 
