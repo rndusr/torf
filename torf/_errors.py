@@ -45,7 +45,7 @@ class PieceSizeError(TorfError):
             super().__init__(f'Piece size must be between {min} and {max}: {size}',
                              size, min=min, max=max)
         else:
-            super().__init__(f'Piece size must be a power of 2: {size}',
+            super().__init__(f'Piece size must be divisible by 16 KiB: {size}',
                              size)
 
     @property

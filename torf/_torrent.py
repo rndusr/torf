@@ -623,7 +623,7 @@ class Torrent():
         except (TypeError, ValueError):
             raise ValueError(f'piece_size must be int, not {type(value).__name__}: {value!r}')
         else:
-            if not utils.is_power_of_2(piece_length):
+            if not utils.is_divisible_by_16_kib(piece_length):
                 raise error.PieceSizeError(piece_length)
             elif not self.piece_size_min <= piece_length <= self.piece_size_max:
                 raise error.PieceSizeError(piece_length,
@@ -645,7 +645,7 @@ class Torrent():
     def piece_size_min(self, piece_size_min):
         if piece_size_min is None:
             self._piece_size_min = type(self).piece_size_min_default
-        elif not utils.is_power_of_2(piece_size_min):
+        elif not utils.is_divisible_by_16_kib(piece_size_min):
             raise error.PieceSizeError(piece_size_min)
         else:
             self._piece_size_min = int(piece_size_min)
@@ -664,7 +664,7 @@ class Torrent():
     def piece_size_max(self, piece_size_max):
         if piece_size_max is None:
             self._piece_size_max = type(self).piece_size_max_default
-        elif not utils.is_power_of_2(piece_size_max):
+        elif not utils.is_divisible_by_16_kib(piece_size_max):
             raise error.PieceSizeError(piece_size_max)
         else:
             self._piece_size_max = int(piece_size_max)
@@ -1354,7 +1354,7 @@ class Torrent():
         utils.assert_type(md, ('info',), (dict,), must_exist=True)
         utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True,
-                          check=utils.is_power_of_2)
+                          check=utils.is_divisible_by_16_kib)
         utils.assert_type(md, ('info', 'pieces'), (abc.ByteString,), must_exist=True)
         utils.assert_type(md, ('info', 'private'), (bool, int), must_exist=False)
         utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)

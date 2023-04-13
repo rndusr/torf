@@ -35,12 +35,11 @@ from urllib.parse import quote_plus as urlquote  # noqa: F401
 from . import _errors as error
 
 
-def is_power_of_2(num):
-    """Return whether `num` is a power of two"""
-    if num == 0:
+def is_divisible_by_16_kib(num):
+    """Return whether `num` is divisible by 16384 and positive"""
+    if num <= 0:
         return False
-    log = math.log2(abs(num))
-    return int(log) == float(log)
+    return num % 16384 == 0
 
 def iterable_startswith(a, b):
     a_len = len(a)

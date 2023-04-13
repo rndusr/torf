@@ -116,7 +116,7 @@ def test_validate_info_not_a_dictionary():
 
 def test_validate_missing_pieces():
     data = OrderedDict([(b'info', {b'name': b'Foo',
-                                   b'piece length': 1024})])
+                                   b'piece length': 16384})])
     fo = io.BytesIO(bencode.encode(data))
     with pytest.raises(torf.MetainfoError) as excinfo:
         torf.Torrent.read_stream(fo, validate=True)

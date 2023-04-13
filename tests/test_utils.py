@@ -12,13 +12,29 @@ from torf import _errors as errors
 from torf import _utils as utils
 
 
-def test_is_power_of_2():
-    assert utils.is_power_of_2(0) is False
-    for n in range(1, 30):
-        assert utils.is_power_of_2(2**n) is True
-        assert utils.is_power_of_2(-2**n) is True
-        assert utils.is_power_of_2(3**n) is False
-        assert utils.is_power_of_2(-5**n) is False
+@pytest.mark.parametrize(
+    argnames='num, exp_return_value',
+    argvalues=(
+        (-16 * 3 * 1024 + 1, False),
+        (-16 * 3 * 1024 + 0, False),
+        (-16 * 3 * 1024 - 1, False),
+        (-16 * 1 * 1024 + 1, False),
+        (-16 * 1 * 1024 + 0, False),
+        (-16 * 1 * 1024 - 1, False),
+        (-1, False),
+        (0, False),
+        (1, False),
+        (16 * 1 * 1024 + 1, False),
+        (16 * 1 * 1024 + 0, True),
+        (16 * 1 * 1024 - 1, False),
+        (16 * 3 * 1024 + 1, False),
+        (16 * 3 * 1024 + 0, True),
+        (16 * 3 * 1024 - 1, False),
+
+    ),
+)
+def test_is_divisible_by_16_kib(num, exp_return_value):
+    assert utils.is_divisible_by_16_kib(num) is exp_return_value
 
 
 def test_iterable_startswith():
@@ -246,7 +262,7 @@ def test_decoding():
     assert utils.decode_dict(encoded) == decoded
 
 def test_decoding_invalid_unicode():
-    assert utils.decode_value(b'\xed') == b'\xed'
+    assert utils.decode_value(b'\xed') == '\uFFFD'  # REPLACEMENT CHARACTER: �'
 
 
 def test_encoding():

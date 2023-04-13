@@ -746,11 +746,12 @@ def test_piece_size_is_set_to_wrong_type(create_torrent):
         torrent.piece_size = 'hello'
     assert str(excinfo.value) == "piece_size must be int, not str: 'hello'"
 
-def test_piece_size_is_set_manually_to_not_power_of_two(create_torrent):
+@pytest.mark.parametrize('piece_size_', (-1, 0, 16385))
+def test_piece_size_is_set_manually_to_number_not_divisible_by_16_kib(piece_size_, create_torrent):
     torrent = create_torrent()
     with pytest.raises(torf.PieceSizeError) as excinfo:
-        torrent.piece_size = 123 * 1000
-    assert str(excinfo.value) == 'Piece size must be a power of 2: 123000'
+        torrent.piece_size = piece_size_
+    assert str(excinfo.value) == f'Piece size must be divisible by 16 KiB: {piece_size_}'
 
 def test_piece_size_can_be_invalid_in_metainfo(create_torrent):
     torrent = create_torrent()
@@ -759,8 +760,8 @@ def test_piece_size_can_be_invalid_in_metainfo(create_torrent):
     torrent.metainfo['info']['piece length'] = -12
 
 
-PIECE_SIZE_MIN_DEFAULT = torf.Torrent.piece_size_min_default
-PIECE_SIZE_MAX_DEFAULT = torf.Torrent.piece_size_max_default
+PIECE_SIZE_MIN_DEFAULT = 32768
+PIECE_SIZE_MAX_DEFAULT = 163840
 
 # "piece_size_" because "piece_size" is already used for --piece-size
 # (see conftest.py)
@@ -827,7 +828,10 @@ PIECE_SIZE_MAX_DEFAULT = torf.Torrent.piece_size_max_default
 )
 def test_piece_size_min_max(piece_size_, piece_size_min, piece_size_max,
                             exp_piece_size_max, exp_piece_size_min, exp_exception,
-                            with_path, singlefile_content):
+                            with_path, singlefile_content, mocker):
+    mocker.patch.object(torf.Torrent, 'piece_size_min_default', PIECE_SIZE_MIN_DEFAULT)
+    mocker.patch.object(torf.Torrent, 'piece_size_max_default', PIECE_SIZE_MAX_DEFAULT)
+
     if exp_exception:
         with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
             torf.Torrent(

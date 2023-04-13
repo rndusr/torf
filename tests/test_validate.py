@@ -38,12 +38,20 @@ def test_wrong_piece_length_type(generated_singlefile_torrent):
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['piece length'] "
                                   "must be int, not list: [700]")
 
-def test_piece_length_not_power_of_two(generated_singlefile_torrent):
+@pytest.mark.parametrize(
+    argnames='piece_length, exp_exception',
+    argvalues=(
+        (-1, torf.MetainfoError("['info']['piece length'] is invalid: -1")),
+        (0, torf.MetainfoError("['info']['piece length'] is invalid: 0")),
+        (16385, torf.MetainfoError("['info']['piece length'] is invalid: 16385")),
+    ),
+)
+def test_piece_length_not_divisible_by_16_kib(piece_length, exp_exception, generated_singlefile_torrent):
     t = generated_singlefile_torrent
-    t.metainfo['info']['piece length'] = 1023
-    with pytest.raises(torf.MetainfoError) as excinfo:
+    t.metainfo['info']['piece length'] = piece_length
+    with pytest.raises(type(exp_exception)) as excinfo:
         t.validate()
-    assert str(excinfo.value) == "Invalid metainfo: ['info']['piece length'] is invalid: 1023"
+    assert str(excinfo.value) == str(exp_exception)
 
 def test_wrong_pieces_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
