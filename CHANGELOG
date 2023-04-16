@@ -1,4 +1,8 @@
-2023-??-?? 4.2.0
+2023-04-16 4.2.0
+  - When reading torrent files, strings are now always decoded as UTF-8 (except
+    for ["info"]["pieces"]). This makes it harder to store binary data in
+    non-standard fields, but it also means ["info"]["name"] is always a unicode
+    string.
   - Allow any piece "piece length" that is divisible by 16 KiB.
     Previously power of 2 was required.
 
