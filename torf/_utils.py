@@ -730,12 +730,9 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
 
 def decode_value(value):
     if isinstance(value, collections.abc.ByteString):
-        # Torrents can contain binary data in non-standard fields. There is no
-        # way to tell if a field is supposed to be decoded as a string or not.
-        try:
-            return bytes.decode(value, encoding='utf-8', errors='strict')
-        except UnicodeDecodeError:
-            return value
+        # WARNING: Torrents can contain binary data (e.g. "pieces" field). You
+        #          should handle and remove those separately beforehand.
+        return bytes.decode(value, encoding='utf-8', errors='replace')
     elif isinstance(value, collections.abc.Sequence):
         return decode_list(value)
     elif isinstance(value, collections.abc.Mapping):
