@@ -17,6 +17,13 @@ from . import (ComparableException, calc_corruptions, calc_good_pieces,
 import logging  # isort:skip
 debug = logging.getLogger('test').debug
 
+
+# Allow arbitrary small piece sizes to make debugging easier.
+@pytest.fixture(autouse=True)
+def ignore_piece_size_check(mocker):
+    mocker.patch('torf._utils.is_divisible_by_16_kib', return_value=True)
+
+
 class CollectingCallback():
     """Collect call arguments and make basic assertions"""
     def __init__(self, torrent):
