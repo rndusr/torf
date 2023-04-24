@@ -653,9 +653,9 @@ class Torrent():
     @property
     def piece_size_max(self):
         """
-        Smallest allowed piece size
+        Largest allowed piece size
 
-        Setting :attr:`piece_size` to a smaller value raises
+        Setting :attr:`piece_size` to a bigger value raises
         :class:`PieceSizeError`.
         """
         return self._piece_size_max
