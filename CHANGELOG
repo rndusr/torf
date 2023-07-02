@@ -1,3 +1,8 @@
+2023-07-02 4.2.1
+  - Setting Torrent.piece_size_min/max now also sets Torrent.piece_size if it is
+    too small/big.
+
+
 2023-04-16 4.2.0
   - When reading torrent files, strings are now always decoded as UTF-8 (except
     for ["info"]["pieces"]). This makes it harder to store binary data in

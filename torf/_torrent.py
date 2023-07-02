@@ -636,8 +636,8 @@ class Torrent():
         """
         Smallest allowed piece size
 
-        Setting :attr:`piece_size` to a smaller value raises
-        :class:`PieceSizeError`.
+        Setting this property also sets :attr:`piece_size` to the same value if
+        it is smaller.
         """
         return self._piece_size_min
 
@@ -649,14 +649,17 @@ class Torrent():
             raise error.PieceSizeError(piece_size_min)
         else:
             self._piece_size_min = int(piece_size_min)
+            # If a piece size is set, silently limit it to new minimum
+            if self.piece_size:
+                self.piece_size = max(self.piece_size_min, self.piece_size)
 
     @property
     def piece_size_max(self):
         """
         Largest allowed piece size
 
-        Setting :attr:`piece_size` to a bigger value raises
-        :class:`PieceSizeError`.
+        Setting this property also sets :attr:`piece_size` to the same value if
+        it is bigger.
         """
         return self._piece_size_max
 
@@ -668,6 +671,9 @@ class Torrent():
             raise error.PieceSizeError(piece_size_max)
         else:
             self._piece_size_max = int(piece_size_max)
+            # If a piece size is set, silently limit it to new maximum
+            if self.piece_size:
+                self.piece_size = min(self.piece_size_max, self.piece_size)
 
     piece_size_min_default = 16 * 1024  # 16 KiB
     """

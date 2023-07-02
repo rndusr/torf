@@ -826,9 +826,9 @@ PIECE_SIZE_MAX_DEFAULT = 163840
     ),
     ids=lambda v: repr(v),
 )
-def test_piece_size_min_max(piece_size_, piece_size_min, piece_size_max,
-                            exp_piece_size_max, exp_piece_size_min, exp_exception,
-                            with_path, singlefile_content, mocker):
+def test_piece_size_min_max_arguments(piece_size_, piece_size_min, piece_size_max,
+                                      exp_piece_size_max, exp_piece_size_min, exp_exception,
+                                      with_path, singlefile_content, mocker):
     mocker.patch.object(torf.Torrent, 'piece_size_min_default', PIECE_SIZE_MIN_DEFAULT)
     mocker.patch.object(torf.Torrent, 'piece_size_max_default', PIECE_SIZE_MAX_DEFAULT)
 
@@ -856,6 +856,123 @@ def test_piece_size_min_max(piece_size_, piece_size_min, piece_size_max,
         assert torrent.piece_size_max == exp_piece_size_max
         assert torrent.piece_size_min_default == PIECE_SIZE_MIN_DEFAULT
         assert torrent.piece_size_max_default == PIECE_SIZE_MAX_DEFAULT
+
+
+@pytest.mark.parametrize(
+    argnames=(
+        'old_piece_size, new_piece_size, piece_size_min, piece_size_max, order,'
+        'exp_piece_size, exp_piece_size_min, exp_piece_size_max, exp_exception'
+    ),
+    argvalues=(
+        pytest.param(
+            0, 524288, 131072, 1048576, 'piece_size_is_set_first',
+            524288, 131072, 1048576,
+            None,
+            id='old_piece_size=0; new_piece_size between min/max; piece_size_is_set_first',
+        ),
+        pytest.param(
+            0, 524288, 131072, 1048576, 'min_max_is_set_first',
+            524288, 131072, 1048576,
+            None,
+            id='old_piece_size=0; new_piece_size between min/max; min_max_is_set_first',
+        ),
+
+        pytest.param(
+            0, 65536, 131072, 1048576, 'piece_size_is_set_first',
+            131072, 131072, 1048576,
+            None,
+            id='old_piece_size=0; new_piece_size < min; piece_size_is_set_first',
+        ),
+        pytest.param(
+            0, 65536, 131072, 1048576, 'min_max_is_set_first',
+            0, 131072, 1048576,
+            errors.PieceSizeError(65536, min=131072, max=1048576),
+            id='old_piece_size=0; new_piece_size < min; min_max_is_set_first',
+        ),
+
+        pytest.param(
+            0, 1048576 * 2, 131072, 1048576, 'piece_size_is_set_first',
+            1048576, 131072, 1048576,
+            None,
+            id='old_piece_size=0; new_piece_size > max; piece_size_is_set_first',
+        ),
+        pytest.param(
+            0, 1048576 * 2, 131072, 1048576, 'min_max_is_set_first',
+            0, 131072, 1048576,
+            errors.PieceSizeError(1048576 * 2, min=131072, max=1048576),
+            id='old_piece_size=0; new_piece_size > max; min_max_is_set_first',
+        ),
+
+        pytest.param(
+            262144, 524288, 131072, 1048576, 'piece_size_is_set_first',
+            524288, 131072, 1048576,
+            None,
+            id='old_piece_size=262144; new_piece_size between min/max; piece_size_is_set_first',
+        ),
+        pytest.param(
+            262144, 524288, 131072, 1048576, 'min_max_is_set_first',
+            524288, 131072, 1048576,
+            None,
+            id='old_piece_size=262144; new_piece_size between min/max; min_max_is_set_first',
+        ),
+
+        pytest.param(
+            262144, 65536, 131072, 1048576, 'piece_size_is_set_first',
+            131072, 131072, 1048576,
+            None,
+            id='old_piece_size=262144; new_piece_size < min; piece_size_is_set_first',
+        ),
+        pytest.param(
+            262144, 65536, 131072, 1048576, 'min_max_is_set_first',
+            262144, 131072, 1048576,
+            errors.PieceSizeError(65536, min=131072, max=1048576),
+            id='old_piece_size=262144; new_piece_size < min; min_max_is_set_first',
+        ),
+
+        pytest.param(
+            262144, 1048576 * 2, 131072, 1048576, 'piece_size_is_set_first',
+            1048576, 131072, 1048576,
+            None,
+            id='old_piece_size=262144; new_piece_size > max; piece_size_is_set_first',
+        ),
+        pytest.param(
+            262144, 1048576 * 2, 131072, 1048576, 'min_max_is_set_first',
+            262144, 131072, 1048576,
+            errors.PieceSizeError(1048576 * 2, min=131072, max=1048576),
+            id='old_piece_size=262144; new_piece_size > max; min_max_is_set_first',
+        ),
+    ),
+    ids=lambda v: repr(v),
+)
+def test_piece_size_min_max_attributes(old_piece_size, new_piece_size, piece_size_min, piece_size_max, order,
+                                       exp_piece_size, exp_piece_size_min, exp_piece_size_max, exp_exception,
+                                       singlefile_content, mocker):
+    mocker.patch.object(torf.Torrent, 'piece_size_min_default', 0)
+    mocker.patch.object(torf.Torrent, 'piece_size_max_default', float('inf'))
+
+    torrent = torf.Torrent()
+    torrent.metainfo['info']['piece length'] = old_piece_size
+    assert torrent.piece_size == old_piece_size
+
+    def do_test():
+        if order == 'piece_size_is_set_first':
+            torrent.piece_size = new_piece_size
+            torrent.piece_size_min = piece_size_min
+            torrent.piece_size_max = piece_size_max
+        else:
+            torrent.piece_size_min = piece_size_min
+            torrent.piece_size_max = piece_size_max
+            torrent.piece_size = new_piece_size
+
+    if exp_exception:
+        with pytest.raises(type(exp_exception), match=rf'^{re.escape(str(exp_exception))}$'):
+            do_test()
+    else:
+        do_test()
+
+    assert torrent.piece_size == exp_piece_size
+    assert torrent.piece_size_min == exp_piece_size_min
+    assert torrent.piece_size_max == exp_piece_size_max
 
 
 @pytest.mark.parametrize(
