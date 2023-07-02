@@ -290,8 +290,8 @@ class Magnet():
             return hasattr(self, '_info')
 
         torrent_urls = []
-        if self.xs: torrent_urls.append(self.xs)
-        if self.as_: torrent_urls.append(self.as_)
+        if self.xs: torrent_urls.append(self.xs)  # noqa: E701
+        if self.as_: torrent_urls.append(self.as_)  # noqa: E701
         torrent_urls.extend((url.rstrip('/') + '.torrent' for url in self.ws))
         # I couldn't find any documentation for the "/file?info_hash=..." GET request, but
         # it seems to work for HTTP trackers.

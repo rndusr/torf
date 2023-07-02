@@ -392,15 +392,15 @@ def test_Filepaths_treats_relative_paths_as_equal_to_their_absolute_versions(tmp
 def test_Filepaths_handles_directories(tmp_path):
     # Create directory with 2 files
     content = tmp_path / 'content' ; content.mkdir()  # noqa: E702
-    for f in ('a', 'b'): (content / f).write_text('<data>')
+    for f in ('a', 'b'): (content / f).write_text('<data>')  # noqa: E701
     fps = utils.Filepaths((content,))
     assert fps == (content / 'a', content / 'b')
 
     # Replace one file with multilevel subdirectory
     subdir = content / 'b' ; subdir.unlink() ; subdir.mkdir()  # noqa: E702
-    for f in ('c', 'd'): (subdir / f).write_text('<subdata>')
+    for f in ('c', 'd'): (subdir / f).write_text('<subdata>')  # noqa: E701
     subsubdir = subdir / 'subsubdir' ; subsubdir.mkdir()  # noqa: E702
-    for f in ('e', 'f'): (subsubdir / f).write_text('<subdata>')
+    for f in ('e', 'f'): (subsubdir / f).write_text('<subdata>')  # noqa: E701
     fps[1] = content / 'b'
     assert fps == (content / 'a', subdir / 'c', subdir / 'd', subsubdir / 'e', subsubdir / 'f')
 

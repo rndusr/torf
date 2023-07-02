@@ -240,7 +240,7 @@ def test_files_only_accepts_relative_paths(create_torrent, tmp_path):
 
 def test_files_needs_common_path(create_torrent, tmp_path):
     content = tmp_path / 'asdf' ; content.mkdir()  # noqa: E702
-    for i in range(1, 3): (content / f'file{i}').write_text('<data>')
+    for i in range(1, 3): (content / f'file{i}').write_text('<data>')  # noqa: E701
     torrent = create_torrent(path=content)
     torrent.generate()
     with pytest.raises(torf.CommonPathError) as excinfo:
@@ -257,7 +257,7 @@ def test_files_needs_common_path(create_torrent, tmp_path):
 
 def test_files_updates_metainfo_when_manipulated(create_torrent, tmp_path):
     content = tmp_path / 'bar' ; content.mkdir()  # noqa: E702
-    for i in range(1, 3): (content / f'file{i}').write_text('<data>')
+    for i in range(1, 3): (content / f'file{i}').write_text('<data>')  # noqa: E701
     torrent = create_torrent(path=content)
     torrent.generate()
     assert torrent.metainfo['info']['name'] == 'bar'

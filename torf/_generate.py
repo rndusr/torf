@@ -248,7 +248,8 @@ class HasherPool:
 
         elif piece:
             piece_hash = sha1(piece).digest()
-            # _debug(f'{_thread_name()}: Hashed #{piece_index}: {_pretty_bytes(piece)} [{len(piece)} bytes] -> {piece_hash}')
+            # _debug(f'{_thread_name()}: Hashed #{piece_index}: '
+            #        f'{_pretty_bytes(piece)} [{len(piece)} bytes] -> {piece_hash}')
             self._hash_queue.put((piece_index, filepath, piece_hash, ()))
 
         else:
