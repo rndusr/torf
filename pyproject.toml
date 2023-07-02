@@ -1,0 +1,63 @@
+[project]
+name = "torf"
+description = "Python 3 module for creating and parsing torrent files and magnet URIs"
+readme = "README.rst"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+  { name="Random User", email="rndusr@posteo.de" },
+]
+keywords = ["bittorrent", "torrent", "magnet"]
+dynamic = ["version"]  # Get version from PROJECT/__version__
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "flatbencode==0.2.*",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-xdist",
+    "pytest-httpserver",
+    "pytest-mock",
+
+    "tox",
+
+    "coverage",
+    "pytest-cov",
+
+    "ruff",
+    "flake8",
+    "isort",
+]
+
+[project.urls]
+Repository = "https://github.com/rndusr/torf"
+Documentation = "https://torf.readthedocs.io/"
+"Bug Tracker" = "https://github.com/rndusr/torf/issues"
+Changelog = "https://raw.githubusercontent.com/rndusr/torf/master/CHANGELOG"
+
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+# For some unknown reason, we need to specify explicity to scan the project
+# directory with default parameters or setuptools gets confused about
+# directories like "docs" or "venv".
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools.dynamic]
+version = {attr = "torf.__version__"}
