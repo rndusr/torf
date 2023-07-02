@@ -20,7 +20,6 @@ import fnmatch
 import functools
 import http.client
 import itertools
-import math
 import os
 import pathlib
 import re

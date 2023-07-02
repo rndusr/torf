@@ -1,5 +1,4 @@
 import errno
-import functools
 import hashlib
 import itertools
 import math
@@ -543,7 +542,7 @@ class TorrentFileStream:
         while True:
             try:
                 return fh.read(size)
-            except MemoryError as e:
+            except MemoryError:
                 e = error.MemoryError(f'Out of memory while reading from {fh.name} at position {fh.tell()}')
                 if oom_callback is None:
                     raise e
