@@ -1,0 +1,17 @@
+line-length = 120
+
+select = [
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "I",   # isort
+]
+
+[per-file-ignores]
+"__init__.py" = [
+    # <module> imported but unused
+    "F401",
+]
+"tests/*" = [
+    # Line too long
+    "E501",
+]
