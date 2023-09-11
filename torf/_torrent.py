@@ -217,12 +217,25 @@ class Torrent():
         """
         info = self.metainfo['info']
         if self.mode == 'singlefile':
-            files = (utils.File(info.get('name', DEFAULT_TORRENT_NAME), size=self.size),)
+            files = (
+                utils.File(
+                    utils.force_as_string(
+                        info.get('name', DEFAULT_TORRENT_NAME)
+                    ),
+                    size=self.size,
+                ),
+            )
         elif self.mode == 'multifile':
-            basedir = info.get('name', DEFAULT_TORRENT_NAME)
-            files = (utils.File(os.path.join(basedir, *fileinfo['path']),
-                                size=fileinfo['length'])
-                     for fileinfo in info['files'])
+            basedir = utils.force_as_string(
+                info.get('name', DEFAULT_TORRENT_NAME)
+            )
+            files = (
+                utils.File(
+                    os.path.join(basedir, *(utils.force_as_string(p) for p in fileinfo['path'])),
+                    size=fileinfo['length'],
+                )
+                for fileinfo in info['files']
+            )
         else:
             files = ()
         return utils.Files(files, callback=self._files_changed)
@@ -523,7 +536,9 @@ class Torrent():
         """
         if 'name' not in self.metainfo['info'] and self.path is not None:
             self.metainfo['info']['name'] = self.path.name
-        return self.metainfo['info'].get('name', None)
+        return utils.force_as_string(
+            self.metainfo['info'].get('name', None)
+        )
 
     @name.setter
     def name(self, value):
@@ -922,7 +937,9 @@ class Torrent():
 
         Setting this property sets or removes :attr:`metainfo`\\ ``['comment']``.
         """
-        return self.metainfo.get('comment', None)
+        return utils.force_as_string(
+            self.metainfo.get('comment', None)
+        )
 
     @comment.setter
     def comment(self, value):
@@ -966,7 +983,9 @@ class Torrent():
         Setting this property sets or removes
         :attr:`metainfo`\\ ``['created by']``.
         """
-        return self.metainfo.get('created by', None)
+        return utils.force_as_string(
+            self.metainfo.get('created by', None)
+        )
 
     @created_by.setter
     def created_by(self, value):
@@ -983,7 +1002,9 @@ class Torrent():
         Setting this property sets or removes
         :attr:`metainfo`\\ ``['info']``\\ ``['created by']``.
         """
-        return self.metainfo['info'].get('source', None)
+        return utils.force_as_string(
+            self.metainfo['info'].get('source', None)
+        )
 
     @source.setter
     def source(self, value):
@@ -1358,7 +1379,7 @@ class Torrent():
 
         # Check values shared by singlefile and multifile torrents
         utils.assert_type(md, ('info',), (dict,), must_exist=True)
-        utils.assert_type(md, ('info', 'name'), (str,), must_exist=True)
+        utils.assert_type(md, ('info', 'name'), (str, bytes), must_exist=True)
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True,
                           check=utils.is_divisible_by_16_kib)
         utils.assert_type(md, ('info', 'pieces'), (abc.ByteString,), must_exist=True)
@@ -1410,7 +1431,7 @@ class Torrent():
                 utils.assert_type(md, ('info', 'files', i, 'path'), (utils.Iterable,), must_exist=True)
                 utils.assert_type(md, ('info', 'files', i, 'md5sum'), (str,), must_exist=False, check=utils.is_md5sum)
                 for j,item in enumerate(fileinfo['path']):
-                    utils.assert_type(md, ('info', 'files', i, 'path', j), (str,))
+                    utils.assert_type(md, ('info', 'files', i, 'path', j), (str, bytes))
 
             # - validate() should ensure that ['info']['pieces'] is math.ceil(self.size /
             #   self.piece_size) bytes long.

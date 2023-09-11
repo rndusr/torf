@@ -8,6 +8,7 @@ import flatbencode as bencode
 import pytest
 
 import torf
+from torf import _utils
 
 
 def test_non_bencoded_data():
@@ -220,3 +221,32 @@ def test_read_from_torrent_file_with_empty_path_components(valid_multifile_metai
     t = torf.Torrent.read(str(f))
     exp_path = f'{valid_multifile_metainfo[b"info"][b"name"].decode()}/foo/bar'
     assert exp_path in tuple(str(f) for f in t.files)
+
+
+def test_read_nonutf8_encoded_metainfo(valid_multifile_metainfo, tmp_path):
+    valid_multifile_metainfo[b'comment'] = 'A çommقnt'.encode('CP1256')
+    valid_multifile_metainfo[b'created by'] = 'bДd ЗncodeЯ'.encode('CP866')
+    valid_multifile_metainfo[b'info'][b'name'] = 'Thê ñãme'.encode('CP860')
+    valid_multifile_metainfo[b'info'][b'source'] = 'Þhe ßource'.encode('CP861')
+    valid_multifile_metainfo[b'info'][b'files'] = [
+        {
+            b'path': [
+                'FΩO'.encode('ISO8859-7'),
+                'BAΓ'.encode('ISO8859-7'),
+                'βAZ'.encode('ISO8859-7'),
+            ],
+            b'length': 124,
+        },
+    ]
+
+    f = (tmp_path / 'test.torrent')
+    f.write_bytes(bencode.encode(valid_multifile_metainfo))
+
+    t = torf.Torrent.read(str(f))
+    assert t.name == 'Th� ��me'
+    assert t.comment == 'A �omm�nt'
+    assert t.created_by == 'b�d �ncode�'
+    assert t.source == '�he �ource'
+    assert t.files == [
+        _utils.File('Th� ��me/F�O/BA�/�AZ', size=124),
+    ]

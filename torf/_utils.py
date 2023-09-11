@@ -727,11 +727,33 @@ def assert_type(obj, keys, exp_types, must_exist=True, check=None):
         raise error.MetainfoError(f"{keychain_str}[{key!r}] is invalid: {obj[key]!r}")
 
 
+def force_as_string(value):
+    """
+    Return `value` as string, replace non-UTF8 characters with "�"
+    """
+    if isinstance(value, bytes):
+        return value.decode('utf8', errors='replace')
+    elif isinstance(value, str) or value is None:
+        return value
+    else:
+        return str(value)
+
+
 def decode_value(value):
     if isinstance(value, collections.abc.ByteString):
-        # WARNING: Torrents can contain binary data (e.g. "pieces" field). You
-        #          should handle and remove those separately beforehand.
-        return bytes.decode(value, encoding='utf-8', errors='replace')
+        # Try to decode `value` as UTF8, but return it as-is if that fails
+        # because we don't want to change the infohash. Non-UTF8-encoded strings
+        # (torrent name, files, etc) should be stored as bytes and decoded on
+        # demand by the relevant Torrent attributes.
+        #
+        # TODO: We should store the metainfo as bytes so it can be used to
+        #       create a byte-for-byte identical torrent, regardless of encoding
+        #       or weird stuff stored in the original torrent. But that's a lot
+        #       of work.
+        try:
+            return bytes.decode(value, encoding='utf8', errors='strict')
+        except UnicodeDecodeError:
+            return value
     elif isinstance(value, collections.abc.Sequence):
         return decode_list(value)
     elif isinstance(value, collections.abc.Mapping):

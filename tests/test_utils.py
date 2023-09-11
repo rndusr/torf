@@ -262,7 +262,7 @@ def test_decoding():
     assert utils.decode_dict(encoded) == decoded
 
 def test_decoding_invalid_unicode():
-    assert utils.decode_value(b'\xed') == '\uFFFD'  # REPLACEMENT CHARACTER: �'
+    assert utils.decode_value(b'\xed') == b'\xed'
 
 
 def test_encoding():

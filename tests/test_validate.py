@@ -28,7 +28,7 @@ def test_wrong_name_type(generated_singlefile_torrent):
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['name'] "
-                                  "must be str, not int: 123")
+                                  "must be str or bytes, not int: 123")
 
 def test_wrong_piece_length_type(generated_singlefile_torrent):
     t = generated_singlefile_torrent
@@ -276,7 +276,7 @@ def test_multifile_wrong_path_item_type(generated_multifile_torrent):
     with pytest.raises(torf.MetainfoError) as excinfo:
         t.validate()
     assert str(excinfo.value) == ("Invalid metainfo: ['info']['files'][1]['path'][0] "
-                                  "must be str, not int: 17")
+                                  "must be str or bytes, not int: 17")
 
 def test_multifile_wrong_length_type(generated_multifile_torrent):
     t = generated_multifile_torrent
