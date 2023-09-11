@@ -1,3 +1,10 @@
+2023-09-11 4.2.2
+  - Fix a bug that was introduced in 4.2.0. Instead of forcibly decoding all
+    encodings as UTF-8, go back to defaulting to undecoded bytes (like before)
+    and only perform a decode-and-replace-invalid-characters routine on known
+    strings like ["info"]["name"].
+
+
 2023-07-02 4.2.1
   - Setting Torrent.piece_size_min/max now also sets Torrent.piece_size if it is
     too small/big.
