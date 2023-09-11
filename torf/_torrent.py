@@ -1000,7 +1000,7 @@ class Torrent():
         Source string or ``None`` for no source
 
         Setting this property sets or removes
-        :attr:`metainfo`\\ ``['info']``\\ ``['created by']``.
+        :attr:`metainfo`\\ ``['info']``\\ ``['source']``.
         """
         return utils.force_as_string(
             self.metainfo['info'].get('source', None)
