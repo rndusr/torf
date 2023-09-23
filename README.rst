@@ -3,8 +3,8 @@ torf
 
 torf provides a ``Torrent`` and a ``Magnet`` class.
 
-`torf-cli <https://github.com/rndusr/torf-cli>`_ is a command line tool that
-makes use of torf.
+`torf-cli <https://github.com/rndusr/torf-cli>`_ and `torf-gui
+<https://github.com/SavageCore/torf-gui>`_ provide user interfaces for torf.
 
 This project started as a fork of `dottorrent
 <https://github.com/kz26/dottorrent>`_ but turned into a rewrite.
