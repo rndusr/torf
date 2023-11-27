@@ -732,7 +732,7 @@ class Torrent():
         elif size <= 16 * 2**30:   # 16 GiB / 2048 pieces = 8 MiB max
             pieces = size / 2048
         else:
-            pieces = size / 1024   # >16 GiB / 1048 pieces = 16 MiB always
+            pieces = size / 1024   # >16 GiB / 1024 pieces = 16 MiB always
 
         if min_size is None:
             min_size = cls.piece_size_min_default
