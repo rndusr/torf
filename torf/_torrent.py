@@ -729,20 +729,10 @@ class Torrent():
         """
         if size <= 2**30:          # 1 GiB / 1024 pieces = 1 MiB max
             pieces = size / 1024
-        elif size <= 4 * 2**30:    # 4 GiB / 2048 pieces = 2 MiB max
-            pieces = size / 2048
-        elif size <= 6 * 2**30:    # 6 GiB / 3072 pieces = 2 MiB max
-            pieces = size / 3072
-        elif size <= 8 * 2**30:    # 8 GiB / 2048 pieces = 4 MiB max
-            pieces = size / 2048
         elif size <= 16 * 2**30:   # 16 GiB / 2048 pieces = 8 MiB max
             pieces = size / 2048
-        elif size <= 32 * 2**30:   # 32 GiB / 4096 pieces = 8 MiB max
-            pieces = size / 4096
-        elif size <= 64 * 2**30:   # 64 GiB / 8192 pieces = 8 MiB max
-            pieces = size / 8192
         else:
-            pieces = size / 10240
+            pieces = size / 1024   # >16 GiB / 1048 pieces = 16 MiB always
 
         if min_size is None:
             min_size = cls.piece_size_min_default
