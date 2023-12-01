@@ -1378,7 +1378,7 @@ class Torrent():
         utils.assert_type(md, ('info', 'name'), (str, bytes), must_exist=True)
         utils.assert_type(md, ('info', 'piece length'), (int,), must_exist=True,
                           check=utils.is_divisible_by_16_kib)
-        utils.assert_type(md, ('info', 'pieces'), (abc.ByteString,), must_exist=True)
+        utils.assert_type(md, ('info', 'pieces'), (bytes,), must_exist=True)
         utils.assert_type(md, ('info', 'private'), (bool, int), must_exist=False)
         utils.assert_type(md, ('announce',), (str,), must_exist=False, check=utils.is_url)
         utils.assert_type(md, ('announce-list',), (utils.Iterable,), must_exist=False)

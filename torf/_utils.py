@@ -740,7 +740,7 @@ def force_as_string(value):
 
 
 def decode_value(value):
-    if isinstance(value, collections.abc.ByteString):
+    if isinstance(value, bytes):
         # Try to decode `value` as UTF8, but return it as-is if that fails
         # because we don't want to change the infohash. Non-UTF8-encoded strings
         # (torrent name, files, etc) should be stored as bytes and decoded on
@@ -806,7 +806,6 @@ ENCODE_CONVERTERS = {
     str: lambda val: str(val).encode(encoding='utf-8', errors='replace'),
     float: int,
     bool: int,
-    collections.abc.ByteString: bytes,
     collections.abc.Mapping: encode_dict,
     collections.abc.Sequence: encode_list,
     collections.abc.Collection: encode_list,
