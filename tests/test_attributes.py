@@ -1,6 +1,6 @@
 import copy
-import functools
 import glob
+import math
 import os
 import pickle
 import re
@@ -976,45 +976,129 @@ def test_piece_size_min_max_attributes(old_piece_size, new_piece_size, piece_siz
 
 
 @pytest.mark.parametrize(
-    argnames='kwargs, cls_attrs',
+    argnames='kwargs, cls_attrs, exp_min_piece_size, exp_max_piece_size',
     argvalues=(
-        ({'min_size': 1024, 'max_size': 256 * 2**20}, {}),
-        ({}, {'piece_size_min_default': 1024, 'piece_size_max_default': 256 * 2**20}),
-        ({'min_size': 1024, 'max_size': 256 * 2**20}, {'piece_size_min_default': 1048576, 'piece_size_max_default': 1048576 * 2}),
+        # Default min/max piece size
+        (
+            {},
+            {},
+            torf.Torrent.piece_size_min_default,
+            torf.Torrent.piece_size_max_default,
+        ),
+        # Custom min/max piece size provided via keyword arguments
+        (
+            {'min_size': 128 * 2**10},
+            {},
+            128 * 2**10,
+            torf.Torrent.piece_size_max_default,
+        ),
+        (
+            {'max_size': 4 * 2**20},
+            {},
+            torf.Torrent.piece_size_min_default,
+            4 * 2**20,
+        ),
+        (
+            {'min_size': 128 * 2**10, 'max_size': 4 * 2**20},
+            {},
+            128 * 2**10,
+            4 * 2**20,
+        ),
+        # Custom min/max piece size provided via class attributes
+        (
+            {},
+            {'piece_size_min_default': 256 * 2**10},
+            256 * 2**10,
+            torf.Torrent.piece_size_max_default,
+        ),
+        (
+            {},
+            {'piece_size_max_default': 2 * 2**20},
+            torf.Torrent.piece_size_min_default,
+            2 * 2**20,
+        ),
+        (
+            {},
+            {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 2 * 2**20},
+            256 * 2**10,
+            2 * 2**20,
+        ),
+        # Custom min/max piece size provided via keyword arguments and class attributes
+        (
+            {'min_size': 128 * 2**10},
+            {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 2 * 2**20},
+            128 * 2**10,
+            2 * 2**20,
+        ),
+        (
+            {'max_size': 4 * 2**20},
+            {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 2 * 2**20},
+            256 * 2**10,
+            4 * 2**20,
+        ),
     ),
+    ids=lambda v: repr(v),
 )
-def test_calculate_piece_size(kwargs, cls_attrs, monkeypatch):
+@pytest.mark.parametrize(
+    argnames='content_size, exp_unconstrained_piece_size',
+    argvalues=(
+        (   1, 16 * 2**10),  # 1 piece # noqa:E201
+        (  10, 16 * 2**10),  # 1 piece # noqa:E201
+        ( 100, 16 * 2**10),  # 1 piece # noqa:E201
+        (1000, 16 * 2**10),  # 1 piece # noqa:E201
+
+        (   1 * 2**10,  16 * 2**10),  # 1 piece # noqa:E201
+        (  10 * 2**10,  16 * 2**10),  # 1 piece # noqa:E201
+        ( 100 * 2**10,  16 * 2**10),  # 7 pieces # noqa:E201
+        ( 300 * 2**10,  16 * 2**10),  # 19 pieces # noqa:E201
+        ( 600 * 2**10,  16 * 2**10),  # 38 pieces # noqa:E201
+        (1000 * 2**10,  16 * 2**10),  # 63 pieces # noqa:E201
+
+        (   1 * 2**20,  16 * 2**10),  # 64 pieces # noqa:E201
+        (   3 * 2**20,  16 * 2**10),  # 192 pieces # noqa:E201
+        (   6 * 2**20,  16 * 2**10),  # 384 pieces # noqa:E201
+        (  10 * 2**20,  16 * 2**10),  # 640 pieces # noqa:E201
+
+        (  30 * 2**20,  32 * 2**10),  # 960 pieces # noqa: E201
+
+        (  60 * 2**20,  64 * 2**10),  # 960 pieces # noqa:E201
+        ( 100 * 2**20, 128 * 2**10),  # 800 pieces # noqa:E201
+        ( 300 * 2**20, 512 * 2**10),  # 600 pieces # noqa:E201
+        ( 600 * 2**20,   1 * 2**20),  # 600 pieces # noqa:E201
+        (1000 * 2**20,   1 * 2**20),  # 1000 pieces # noqa:E201
+
+        (   1 * 2**30,  1 * 2**20),  # 1024 pieces # noqa:E201
+        (   3 * 2**30,  2 * 2**20),  # 1536 pieces # noqa:E201
+        (   6 * 2**30,  4 * 2**20),  # 1536 pieces # noqa:E201
+        (  10 * 2**30,  8 * 2**20),  # 1280 pieces # noqa:E201
+        (  15 * 2**30,  8 * 2**20),  # 1920 pieces # noqa:E201
+        (  16 * 2**30,  8 * 2**20),  # 2048 pieces # noqa:E201
+        (  17 * 2**30, 16 * 2**20),  # 1088 pieces # noqa:E201
+        ( 100 * 2**30, 16 * 2**20),  # 6400 pieces # noqa:E201
+        (1000 * 2**30, 16 * 2**20),  # 64000 pieces # noqa:E201
+    ),
+    ids=lambda v: repr(v),
+)
+def test_calculate_piece_size(
+        kwargs, cls_attrs, exp_min_piece_size, exp_max_piece_size,
+        content_size, exp_unconstrained_piece_size,
+        monkeypatch,
+):
     for name, value in cls_attrs.items():
         monkeypatch.setattr(torf.Torrent, name, value)
 
-    torrent = torf.Torrent()
-    calc = functools.partial(torrent.calculate_piece_size, **kwargs)
+    exp_piece_size = max(
+        min(
+            exp_unconstrained_piece_size,
+            exp_max_piece_size,
+        ),
+        exp_min_piece_size
+    )
+    print('exp piece size:', exp_piece_size)
 
-    for size in (1, 10, 100):
-        assert calc(size) == 1024
-    assert calc(100 * 2**20) == 128 * 1024      # noqa: E201,E222
-    assert calc(500 * 2**20) == 512 * 1024      # noqa: E201,E222
-    assert calc(  1 * 2**30) ==      2**20      # noqa: E201,E222
-    assert calc(  2 * 2**30) ==      2**20      # noqa: E201,E222
-    assert calc(  3 * 2**30) ==  2 * 2**20      # noqa: E201,E222
-    assert calc(  6 * 2**30) ==  2 * 2**20      # noqa: E201,E222
-    assert calc(  7 * 2**30) ==  4 * 2**20      # noqa: E201,E222
-    assert calc(  8 * 2**30) ==  4 * 2**20      # noqa: E201,E222
-    assert calc(  9 * 2**30) ==  8 * 2**20      # noqa: E201,E222
-    assert calc( 16 * 2**30) ==  8 * 2**20      # noqa: E201,E222
-    assert calc( 32 * 2**30) ==  8 * 2**20      # noqa: E201,E222
-    assert calc( 64 * 2**30) ==  8 * 2**20      # noqa: E201,E222
-    assert calc( 80 * 2**30) ==  8 * 2**20      # noqa: E201,E222
-    assert calc( 81 * 2**30) == 16 * 2**20      # noqa: E201,E222
-    assert calc(160 * 2**30) == 16 * 2**20      # noqa: E201,E222
-    assert calc(165 * 2**30) == 32 * 2**20      # noqa: E201,E222
-    assert calc(200 * 2**30) == 32 * 2**20      # noqa: E201,E222
-    assert calc(300 * 2**30) == 32 * 2**20      # noqa: E201,E222
-    assert calc(400 * 2**30) == 64 * 2**20      # noqa: E201,E222
-    assert calc(1000 * 2**30) == 128 * 2**20    # noqa: E201,E222
-    assert calc(4000 * 2**30) == 256 * 2**20    # noqa: E201,E222
-    assert calc(40000 * 2**30) == 256 * 2**20   # noqa: E201,E222
-    assert calc(400000 * 2**30) == 256 * 2**20  # noqa: E201,E222
+    piece_size = torf.Torrent.calculate_piece_size(content_size, **kwargs)
+    print('piece count:', math.ceil(content_size / piece_size))
+    assert piece_size == exp_piece_size
 
 
 # "piece_size_" because "piece_size" is already used for --piece-size

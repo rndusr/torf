@@ -1,3 +1,8 @@
+2023-??-?? 4.2.3
+  - Torrent.calculate_piece_size() now returns 16 MiB for content sizes bigger
+    than 16 GiB. (Thanks @cannibalChipper)
+
+
 2023-09-11 4.2.2
   - Fix a bug that was introduced in 4.2.0. Instead of forcibly decoding all
     encodings as UTF-8, go back to defaulting to undecoded bytes (like before)

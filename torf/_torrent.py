@@ -727,20 +727,26 @@ class Torrent():
 
         :return: calculated piece size
         """
-        if size <= 2**30:          # 1 GiB / 1024 pieces = 1 MiB max
-            pieces = size / 1024
-        elif size <= 16 * 2**30:   # 16 GiB / 2048 pieces = 8 MiB max
-            pieces = size / 2048
+        if size <= 2**30:
+            # <1 GiB  /  1-1024 pieces  /  16 KiB - 1 MiB per piece
+            max_pieces = 1024
+        elif size <= 16 * 2**30:
+            # 1-16 GiB  /  1024-2048 pieces  /  1-8 MiB per piece
+            max_pieces = 2048
         else:
-            pieces = size / 1024   # >16 GiB / 1024 pieces = 16 MiB always
+            # >16 GiB  /  1024-∞ pieces  /  16 MiB per piece
+            max_pieces = 1024
+
+        # Math is magic!
+        exponent = math.ceil(math.log2(size / max_pieces))
+        exponent = max(14, min(24, exponent))
+        piece_size = int(math.pow(2, exponent))
 
         if min_size is None:
             min_size = cls.piece_size_min_default
         if max_size is None:
             max_size = cls.piece_size_max_default
 
-        # Math is magic!
-        piece_size = 1 << max(0, math.ceil(math.log(pieces, 2)))
         return int(min(max(piece_size, min_size), max_size))
 
     @property
