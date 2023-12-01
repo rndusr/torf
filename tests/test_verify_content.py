@@ -55,7 +55,7 @@ class CollectingCallback():
         self._seen_piece_indexes[path.name].append(piece_index)
         if exc is not None:
             if isinstance(exc, torf.VerifyContentError):
-                assert type(piece_hash) is bytes and len(piece_hash) == 20
+                assert type(piece_hash) is bytes and len(piece_hash) == 20  # noqa: E721
             else:
                 assert piece_hash is None
             self.seen_exceptions.append(ComparableException(exc))  # noqa: F405
@@ -66,7 +66,7 @@ class CollectingCallback():
             debug(f'--- Seeing skipped piece of {path.name}: {piece_index}')
         else:
             assert exc is None
-            assert type(piece_hash) is bytes and len(piece_hash) == 20
+            assert type(piece_hash) is bytes and len(piece_hash) == 20  # noqa: E721
             debug(f'--- Seeing good piece of {path.name}: {piece_index}')
             self._seen_good_pieces[path.name].append(piece_index)
 
