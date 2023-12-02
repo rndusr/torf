@@ -978,63 +978,117 @@ def test_piece_size_min_max_attributes(old_piece_size, new_piece_size, piece_siz
 @pytest.mark.parametrize(
     argnames='kwargs, cls_attrs, exp_min_piece_size, exp_max_piece_size',
     argvalues=(
-        # Default min/max piece size
-        (
+        # Defaults
+        pytest.param(
             {},
             {},
             torf.Torrent.piece_size_min_default,
             torf.Torrent.piece_size_max_default,
+            id='defaults',
         ),
+
         # Custom min/max piece size provided via keyword arguments
-        (
+        pytest.param(
             {'min_size': 128 * 2**10},
             {},
             128 * 2**10,
             torf.Torrent.piece_size_max_default,
+            id='min_size > piece_size_min_default',
         ),
-        (
+        pytest.param(
             {'max_size': 4 * 2**20},
             {},
             torf.Torrent.piece_size_min_default,
             4 * 2**20,
+            id='max_size < piece_size_max_default',
         ),
-        (
+        pytest.param(
+            {'max_size': 64 * 2**20},
+            {},
+            torf.Torrent.piece_size_min_default,
+            64 * 2**20,
+            id='max_size > piece_size_max_default',
+        ),
+        pytest.param(
             {'min_size': 128 * 2**10, 'max_size': 4 * 2**20},
             {},
             128 * 2**10,
             4 * 2**20,
+            id='min_size > piece_size_min_default / max_size < piece_size_max_default',
         ),
+        pytest.param(
+            {'min_size': 128 * 2**10, 'max_size': 64 * 2**20},
+            {},
+            128 * 2**10,
+            64 * 2**20,
+            id='min_size > piece_size_min_default / max_size > piece_size_max_default',
+        ),
+
         # Custom min/max piece size provided via class attributes
-        (
+        pytest.param(
             {},
             {'piece_size_min_default': 256 * 2**10},
             256 * 2**10,
             torf.Torrent.piece_size_max_default,
+            id='increased piece_size_min_default',
         ),
-        (
+        pytest.param(
             {},
             {'piece_size_max_default': 2 * 2**20},
             torf.Torrent.piece_size_min_default,
             2 * 2**20,
+            id='decreased piece_size_max_default',
         ),
-        (
+        pytest.param(
+            {},
+            {'piece_size_max_default': 128 * 2**20},
+            torf.Torrent.piece_size_min_default,
+            128 * 2**20,
+            id='increased piece_size_max_default',
+        ),
+        pytest.param(
             {},
             {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 2 * 2**20},
             256 * 2**10,
             2 * 2**20,
+            id='increased piece_size_min_default / decreased piece_size_max_default',
         ),
-        # Custom min/max piece size provided via keyword arguments and class attributes
-        (
-            {'min_size': 128 * 2**10},
-            {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 2 * 2**20},
-            128 * 2**10,
-            2 * 2**20,
-        ),
-        (
-            {'max_size': 4 * 2**20},
-            {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 2 * 2**20},
+        pytest.param(
+            {},
+            {'piece_size_min_default': 256 * 2**10, 'piece_size_max_default': 128 * 2**20},
             256 * 2**10,
-            4 * 2**20,
+            128 * 2**20,
+            id='increased piece_size_min_default / increased piece_size_max_default',
+        ),
+
+        # Custom min/max piece size provided via keyword arguments and class attributes
+        pytest.param(
+            {'min_size': 128 * 2**10},
+            {'piece_size_min_default': 256 * 2**10},
+            128 * 2**10,
+            torf.Torrent.piece_size_max_default,
+            id='min_size < increased piece_size_min_default',
+        ),
+        pytest.param(
+            {'min_size': 512 * 2**10},
+            {'piece_size_min_default': 256 * 2**10},
+            512 * 2**10,
+            torf.Torrent.piece_size_max_default,
+            id='min_size > increased piece_size_min_default',
+        ),
+        pytest.param(
+            {'max_size': 32 * 2**20},
+            {'piece_size_max_default': 128 * 2**20},
+            torf.Torrent.piece_size_min_default,
+            32 * 2**20,
+            id='max_size < increased piece_size_max_default',
+        ),
+        pytest.param(
+            {'max_size': 256 * 2**20},
+            {'piece_size_max_default': 128 * 2**20},
+            torf.Torrent.piece_size_min_default,
+            256 * 2**20,
+            id='max_size > increased piece_size_max_default',
         ),
     ),
     ids=lambda v: repr(v),
@@ -1057,25 +1111,22 @@ def test_piece_size_min_max_attributes(old_piece_size, new_piece_size, piece_siz
         (   1 * 2**20,  16 * 2**10),  # 64 pieces # noqa:E201
         (   3 * 2**20,  16 * 2**10),  # 192 pieces # noqa:E201
         (   6 * 2**20,  16 * 2**10),  # 384 pieces # noqa:E201
-        (  10 * 2**20,  16 * 2**10),  # 640 pieces # noqa:E201
+        (  10 * 2**20,  32 * 2**10),  # 320 pieces # noqa:E201
+        (  30 * 2**20,  64 * 2**10),  # 480 pieces # noqa: E201
+        (  60 * 2**20, 128 * 2**10),  # 480 pieces # noqa:E201
+        ( 100 * 2**20, 256 * 2**10),  # 400 pieces # noqa:E201
+        ( 300 * 2**20,   1 * 2**20),  # 300 pieces # noqa:E201
+        ( 600 * 2**20,   2 * 2**20),  # 300 pieces # noqa:E201
+        (1000 * 2**20,   2 * 2**20),  # 500 pieces # noqa:E201
 
-        (  30 * 2**20,  32 * 2**10),  # 960 pieces # noqa: E201
-
-        (  60 * 2**20,  64 * 2**10),  # 960 pieces # noqa:E201
-        ( 100 * 2**20, 128 * 2**10),  # 800 pieces # noqa:E201
-        ( 300 * 2**20, 512 * 2**10),  # 600 pieces # noqa:E201
-        ( 600 * 2**20,   1 * 2**20),  # 600 pieces # noqa:E201
-        (1000 * 2**20,   1 * 2**20),  # 1000 pieces # noqa:E201
-
-        (   1 * 2**30,  1 * 2**20),  # 1024 pieces # noqa:E201
-        (   3 * 2**30,  2 * 2**20),  # 1536 pieces # noqa:E201
-        (   6 * 2**30,  4 * 2**20),  # 1536 pieces # noqa:E201
-        (  10 * 2**30,  8 * 2**20),  # 1280 pieces # noqa:E201
-        (  15 * 2**30,  8 * 2**20),  # 1920 pieces # noqa:E201
-        (  16 * 2**30,  8 * 2**20),  # 2048 pieces # noqa:E201
-        (  17 * 2**30, 16 * 2**20),  # 1088 pieces # noqa:E201
-        ( 100 * 2**30, 16 * 2**20),  # 6400 pieces # noqa:E201
-        (1000 * 2**30, 16 * 2**20),  # 64000 pieces # noqa:E201
+        (   1 * 2**30,   2 * 2**20),  # 512 pieces # noqa:E201
+        (   3 * 2**30,   4 * 2**20),  # 768 pieces # noqa:E201
+        (   6 * 2**30,   8 * 2**20),  # 1536 pieces # noqa:E201
+        (  10 * 2**30,   8 * 2**20),  # 1200 pieces # noqa:E201
+        (  30 * 2**30,  16 * 2**20),  # 1920 pieces # noqa:E201
+        (  60 * 2**30,  32 * 2**20),  # 1920 pieces # noqa:E201
+        ( 100 * 2**30,  64 * 2**20),  # 1600 pieces # noqa:E201
+        (1000 * 2**30, 512 * 2**20),  # 2000 pieces # noqa:E201
     ),
     ids=lambda v: repr(v),
 )

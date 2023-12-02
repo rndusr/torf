@@ -711,13 +711,6 @@ class Torrent():
         """
         Return the piece size for a total torrent size of ``size`` bytes
 
-        For torrents up to 1 GiB, the maximum number of pieces is 1024 which
-        means the maximum piece size is 1 MiB.  With increasing torrent size
-        both the number of pieces and the maximum piece size are gradually
-        increased up to 10,240 pieces of 8 MiB.  For torrents larger than 80 GiB
-        the piece size is :attr:`piece_size_max` with as many pieces as
-        necessary.
-
         It is safe to override this method to implement a custom algorithm.
 
         :param int min_size: Minimum piece size; defaults to
@@ -728,18 +721,20 @@ class Torrent():
         :return: calculated piece size
         """
         if size <= 2**30:
-            # <1 GiB  /  1-1024 pieces  /  16 KiB - 1 MiB per piece
+            # <= 1 GiB  /  1 - 512 pieces  /  16 KiB - 2 MiB per piece
+            max_pieces = 512
+        elif size <= 8 * 2**30:
+            # 1 - 8 GiB  /  512 - 1024 pieces  /  2 - 8 MiB per piece
             max_pieces = 1024
         elif size <= 16 * 2**30:
-            # 1-16 GiB  /  1024-2048 pieces  /  1-8 MiB per piece
-            max_pieces = 2048
+            # 8 - 16 GiB  /  up to 1024 + 512 pieces  /  8 - 16 MiB per piece
+            max_pieces = 1536
         else:
-            # >16 GiB  /  1024-∞ pieces  /  16 MiB per piece
-            max_pieces = 1024
+            # > 16 GiB  /  up to 2048 pieces  /  16 MiB - `max_size` per piece
+            max_pieces = 2048
 
         # Math is magic!
         exponent = math.ceil(math.log2(size / max_pieces))
-        exponent = max(14, min(24, exponent))
         piece_size = int(math.pow(2, exponent))
 
         if min_size is None:

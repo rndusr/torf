@@ -1,3 +1,8 @@
+2023-12-02 4.2.4
+  - Bugfix: Remove hardcoded minimum and maximum piece sizes from
+    Torrent.calculate_piece_size().
+
+
 2023-12-01 4.2.3
   - Torrent.calculate_piece_size() now returns 16 MiB for content sizes bigger
     than 16 GiB. (Thanks @cannibalChipper)
