@@ -1,3 +1,7 @@
+2024-03-09 4.2.5
+  - Bugfix: Include symbolic links in the torrent's files.
+
+
 2023-12-04 4.2.4
   - Bugfix: Remove hardcoded minimum and maximum piece sizes from
     Torrent.calculate_piece_size().
