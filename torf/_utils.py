@@ -107,7 +107,7 @@ def list_files(path):
             raise error.ReadError(getattr(exc, 'errno', None),
                                   getattr(exc, 'filename', None))
         filepaths = []
-        for dirpath, dirnames, filenames in os.walk(path, onerror=onerror):
+        for dirpath, dirnames, filenames in os.walk(path, onerror=onerror, followlinks=True):
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
                 assert_readable(filepath)

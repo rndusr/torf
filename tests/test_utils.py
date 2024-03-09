@@ -130,6 +130,7 @@ def testdir(tmp_path):
         (path / '.empty').write_text('')
         (path / 'not_empty').write_text('dummy content')
         (path / '.not_empty').write_text('more dummy content')
+    os.symlink(base / 'foo', base / 'symlink')
     return base
 
 
@@ -144,7 +145,8 @@ def test_list_files_with_directory(testdir):
              for filepath in utils.list_files(testdir)]
     exp = sorted(['base/foo/.empty', 'base/foo/.not_empty', 'base/foo/empty', 'base/foo/not_empty',
                   'base/.bar/.empty', 'base/.bar/.not_empty', 'base/.bar/empty', 'base/.bar/not_empty',
-                  'base/.bar/baz/.empty', 'base/.bar/baz/.not_empty', 'base/.bar/baz/empty', 'base/.bar/baz/not_empty'])
+                  'base/.bar/baz/.empty', 'base/.bar/baz/.not_empty', 'base/.bar/baz/empty', 'base/.bar/baz/not_empty',
+                  'base/symlink/.empty', 'base/symlink/.not_empty', 'base/symlink/empty', 'base/symlink/not_empty'])
     assert files == [Path(p) for p in exp]
 
 def test_list_files_with_unreadable_file(tmp_path):
@@ -220,7 +222,8 @@ def test_filter_files_without_empty_files(testdir):
         os.chdir(testdir.parent)
         assert utils.filter_files(filelist, empty=False) == sorted(['base/foo/.not_empty', 'base/foo/not_empty',
                                                                     'base/.bar/.not_empty', 'base/.bar/not_empty',
-                                                                    'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty'])
+                                                                    'base/.bar/baz/.not_empty', 'base/.bar/baz/not_empty',
+                                                                    'base/symlink/.not_empty', 'base/symlink/not_empty'])
     finally:
         os.chdir(cwd)
 
