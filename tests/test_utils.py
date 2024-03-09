@@ -99,6 +99,21 @@ def test_real_size_of_nonexising_path():
         utils.real_size('path/doesnt/exist')
     assert str(exc_info.value) == 'path/doesnt/exist: No such file or directory'
 
+def test_real_size_of_symbolic_link_to_existing_file(tmp_path):
+    original_path = tmp_path / 'source'
+    original_path.write_bytes(b'source content')
+    symlink_path = tmp_path / 'link'
+    os.symlink(original_path, symlink_path)
+    size = utils.real_size(str(symlink_path))
+    assert size == len(b'source_content')
+
+def test_real_size_of_symbolic_link_to_nonexisting_file(tmp_path):
+    symlink_path = tmp_path / 'link'
+    os.symlink(tmp_path / 'does/not/exist', symlink_path)
+    with pytest.raises(errors.ReadError) as exc_info:
+        utils.real_size(str(symlink_path))
+    assert str(exc_info.value) == f'{symlink_path}: No such file or directory'
+
 
 @pytest.fixture
 def testdir(tmp_path):
