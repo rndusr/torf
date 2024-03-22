@@ -84,6 +84,13 @@ def test_invalid_number_of_bytes_in_pieces(generated_singlefile_torrent):
             assert str(excinfo.value) == ("Invalid metainfo: length of ['info']['pieces'] "
                                           "is not divisible by 20")
 
+def test_wrong_creation_date_type(generated_singlefile_torrent):
+    t = generated_singlefile_torrent
+    t.metainfo['creation date'] = 'hello'
+    with pytest.raises(torf.MetainfoError) as excinfo:
+        t.validate()
+    assert str(excinfo.value) == "Invalid metainfo: ['creation date'] must be int or datetime, not str: 'hello'"
+
 def test_singlefile__unexpected_number_of_bytes_in_pieces(generated_singlefile_torrent):
     t = generated_singlefile_torrent
     t.path = None  # Don't complain about wrong file size

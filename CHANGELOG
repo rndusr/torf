@@ -1,3 +1,7 @@
+2024-??-?? 4.2.3
+  - Validate creation date if it exists.
+
+
 2024-03-09 4.2.5
   - Bugfix: Include symbolic links in the torrent's files.
 
