@@ -950,7 +950,11 @@ class Torrent():
         Setting this property sets or removes
         :attr:`metainfo`\\ ``['creation date']``.
         """
-        return self.metainfo.get('creation date', None)
+        date = self.metainfo.get('creation date', None)
+        if isinstance(date, (float, int)):
+            return datetime.fromtimestamp(date)
+        else:
+            return date
 
     @creation_date.setter
     def creation_date(self, value):
