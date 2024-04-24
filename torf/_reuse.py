@@ -18,9 +18,9 @@ class find_torrent_files:
         """
         Find torrent files recursively beneath each path in `paths`
 
-        Each list item is a 4-tuple that contains the torrent file path or ``None``,
-        a counter that increments for each torrent file, the total number of torrent
-        files and an exception or ``None``.
+        Each list item is a 4-tuple that contains the torrent file path or
+        ``None``, a counter that increments for each torrent file and an
+        exception or ``None``.
         """
         for path in self._paths:
             yield from self._find(path)
