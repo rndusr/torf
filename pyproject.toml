@@ -53,11 +53,8 @@ Changelog = "https://raw.githubusercontent.com/rndusr/torf/master/CHANGELOG"
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-# For some unknown reason, we need to specify explicity to scan the project
-# directory with default parameters or setuptools gets confused about
-# directories like "docs" or "venv".
-[tool.setuptools.packages]
-find = {}
+[tool.setuptools.packages.find]
+include = ["torf"]
 
 [tool.setuptools.dynamic]
 version = {attr = "torf.__version__"}
