@@ -1,3 +1,7 @@
+2024-06-13 4.2.7
+  - Exclude tests from the package.
+
+
 2024-03-25 4.2.6
   - Validate creation date if it exists.
 
