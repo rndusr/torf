@@ -41,6 +41,7 @@ dev = [
     "ruff",
     "flake8",
     "isort",
+    "mypy",
 ]
 
 [project.urls]
@@ -59,3 +60,13 @@ include = ["torf*"]
 
 [tool.setuptools.dynamic]
 version = {attr = "torf.__version__"}
+
+[tool.mypy]
+strict = true
+pretty = true
+exclude = [
+    "torf/_reuse.py", # Not part of the public API
+    "torf/_generate.py", # Not part of the public API
+    "tests/",
+    "docs/",
+]
