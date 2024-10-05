@@ -41,7 +41,7 @@ class Torrent:
         private: bool | None = None,
         comment: str | None = None,
         source: str | None = None,
-        creation_date: int | datetime | None = None,
+        creation_date: int | float | datetime | None = None,
         created_by: str | None = f"{_PACKAGE_NAME} {__version__}",
         piece_size: int | None = None,
         piece_size_min: int | None = None,
@@ -136,7 +136,7 @@ class Torrent:
     @property
     def creation_date(self) -> datetime: ...
     @creation_date.setter
-    def creation_date(self, value: int | float | datetime) -> None: ...
+    def creation_date(self, value: int | float | datetime | None) -> None: ...
     @property
     def created_by(self) -> str | None: ...
     @created_by.setter
