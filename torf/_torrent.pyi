@@ -1,26 +1,17 @@
-import sys
+from collections import OrderedDict
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
+from re import Pattern
 from typing import Any, Callable, Literal, Protocol
 
 from _typeshed import StrPath
+from typing_extensions import Self
 
 from . import __version__
 from ._errors import TorfError
 from ._magnet import Magnet
 from ._utils import File, Filepath, Filepaths, Files, MonitoredList, Trackers, URLs
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-if sys.version_info >= (3, 9):
-    from collections import OrderedDict
-    from collections.abc import Iterable
-    from re import Pattern
-else:
-    from typing import Iterable, OrderedDict, Pattern
 
 class WritableBinaryStream(Protocol):
     def seek(self, offset: int, whence: int = 0) -> int: ...
@@ -30,7 +21,6 @@ class WritableBinaryStream(Protocol):
 
 class ReadableBinaryStream(Protocol):
     def read(self, n: int = -1) -> bytes: ...
-
 
 _PACKAGE_NAME: str = ...
 NCORES: int = ...

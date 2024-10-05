@@ -1,22 +1,13 @@
-import sys
+from collections.abc import Iterable, Iterator
 from types import TracebackType
 from typing import Callable
 
 from _typeshed import StrPath
+from typing_extensions import Self
 
 from ._errors import MemoryError, TorfError
 from ._torrent import Torrent
 from ._utils import File
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-if sys.version_info >= (3, 9):
-    from collections.abc import Iterable, Iterator
-else:
-    from typing import Iterable, Iterator
 
 class TorrentFileStream:
     def __init__(self, torrent: Torrent, content_path: StrPath | None = None) -> None: ...

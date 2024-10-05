@@ -1,21 +1,13 @@
-import sys
+from collections import defaultdict
+from collections.abc import Iterable
+from re import Pattern
 from typing import Any, Callable
+
+from typing_extensions import Self
 
 from ._errors import TorfError
 from ._torrent import Torrent
 from ._utils import URL, MonitoredList
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-if sys.version_info >= (3, 9):
-    from collections import defaultdict as DefaultDict
-    from collections.abc import Iterable
-    from re import Pattern
-else:
-    from typing import DefaultDict, Iterable, Pattern
 
 class Magnet:
     _INFOHASH_REGEX: Pattern[str] = ...
@@ -70,7 +62,7 @@ class Magnet:
     @kt.setter
     def kt(self, value: Iterable[str] | str | None) -> None: ...
     @property
-    def x(self) -> DefaultDict[str, Any]: ...
+    def x(self) -> defaultdict[str, Any]: ...
     def torrent(self) -> Torrent: ...
     def get_info(
         self, validate: bool = True, timeout: int = 60, callback: Callable[[TorfError], None] | None = None

@@ -1,20 +1,12 @@
 import os
 import pathlib
 import sys
+from collections.abc import Iterable, MutableSequence
 from functools import partial
 from typing import Any, Callable, TypeVar, overload
 
 from _typeshed import StrPath
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
-if sys.version_info >= (3, 9):
-    from collections.abc import Iterable, MutableSequence
-else:
-    from typing import Iterable, MutableSequence
+from typing_extensions import Self
 
 T = TypeVar("T")
 
