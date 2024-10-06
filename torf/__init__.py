@@ -25,3 +25,27 @@ from ._magnet import Magnet
 from ._stream import TorrentFileStream
 from ._torrent import Torrent
 from ._utils import File, Filepath
+
+__all__ = (
+    'Magnet',
+    'TorrentFileStream',
+    'Torrent',
+    'File',
+    'Filepath',
+    'TorfError',
+    'URLError',
+    'PieceSizeError',
+    'MetainfoError',
+    'BdecodeError',
+    'MagnetError',
+    'PathError',
+    'CommonPathError',
+    'VerifyIsDirectoryError',
+    'VerifyNotDirectoryError',
+    'VerifyFileSizeError',
+    'VerifyContentError',
+    'ReadError',
+    'MemoryError',
+    'WriteError',
+    'ConnectionError',
+)

@@ -14,11 +14,7 @@
 
 # flake8: noqa
 
-"""
-Create and parse torrent files and magnet URIs
-"""
-
-__version__: str = "4.2.7"
+__version__: str = ...
 
 from ._errors import *
 from ._magnet import Magnet
@@ -26,26 +22,4 @@ from ._stream import TorrentFileStream
 from ._torrent import Torrent
 from ._utils import File, Filepath
 
-__all__: list[str] = [
-    "Magnet",
-    "TorrentFileStream",
-    "Torrent",
-    "File",
-    "Filepath",
-    "TorfError",
-    "URLError",
-    "PieceSizeError",
-    "MetainfoError",
-    "BdecodeError",
-    "MagnetError",
-    "PathError",
-    "CommonPathError",
-    "VerifyIsDirectoryError",
-    "VerifyNotDirectoryError",
-    "VerifyFileSizeError",
-    "VerifyContentError",
-    "ReadError",
-    "MemoryError",
-    "WriteError",
-    "ConnectionError",
-]
+__all__: tuple[str, ...] = ...
