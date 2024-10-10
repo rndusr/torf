@@ -1573,7 +1573,7 @@ class Torrent():
         """
         Read torrent metainfo from file-like object
 
-        :param stream: Readable file-like object (e.g. :class:`io.BytesIO`)
+        :param stream: An instance of :class:`bytes` or a readable file-like object (e.g. :class:`io.BytesIO`)
         :param bool validate: Whether to run :meth:`validate` on the new Torrent
             instance
 
@@ -1590,7 +1590,12 @@ class Torrent():
         :return: New :class:`Torrent` instance
         """
         try:
-            content = stream.read(cls.MAX_TORRENT_FILE_SIZE)
+            if isinstance(stream, bytes):
+                content = stream
+            elif hasattr(stream, "read"):
+                content = stream.read(cls.MAX_TORRENT_FILE_SIZE)
+            else:
+                raise TypeError(f'Expected bytes or a readable file-like object, got {type(stream)}')
         except OSError as e:
             raise error.ReadError(e.errno)
         else:
