@@ -1,12 +1,12 @@
 line-length = 120
 
-select = [
+lint.select = [
   "E",   # pycodestyle
   "F",   # pyflakes
   "I",   # isort
 ]
 
-[per-file-ignores]
+[lint.per-file-ignores]
 "__init__.py" = [
     # <module> imported but unused
     "F401",
