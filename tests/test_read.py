@@ -181,6 +181,38 @@ def test_read_from_proper_torrent_file(valid_multifile_metainfo, tmp_path):
     assert t.private is bool(exp_info[b'private'])
     assert t.piece_size == exp_info[b'piece length']
 
+@pytest.mark.parametrize('bytes_type', (bytes, bytearray), ids=lambda t: t.__name__)
+def test_read_from_bytes(bytes_type, valid_multifile_metainfo, tmp_path):
+    bytes = bytes_type(bencode.encode(valid_multifile_metainfo))
+    t = torf.Torrent.read_stream(bytes)
+    exp_info = valid_multifile_metainfo[b'info']
+    assert t.path is None
+    assert t.files == tuple(Path(str(b'/'.join([exp_info[b'name']] + f[b'path']), encoding='utf-8'))
+                            for f in exp_info[b'files'])
+    assert t.filepaths == ()
+    assert t.name == str(exp_info[b'name'], encoding='utf-8')
+    assert t.size == sum(f[b'length'] for f in exp_info[b'files'])
+    assert t.infohash == sha1(bencode.encode(exp_info)).hexdigest()
+    assert t.comment == str(valid_multifile_metainfo[b'comment'], encoding='utf-8')
+    assert t.creation_date == datetime.fromtimestamp(valid_multifile_metainfo[b'creation date'])
+    assert t.created_by == str(valid_multifile_metainfo[b'created by'], encoding='utf-8')
+    assert t.private is bool(exp_info[b'private'])
+    assert t.piece_size == exp_info[b'piece length']
+
+@pytest.mark.parametrize('bytes_type', (bytes, bytearray), ids=lambda t: t.__name__)
+def test_read_from_too_many_bytes(bytes_type, valid_multifile_metainfo, tmp_path):
+    bytes = bytes_type(b'x' * (torf.Torrent.MAX_TORRENT_FILE_SIZE + 1))
+    with pytest.raises(ValueError, match=(
+            r'^Size of stream exceeds Torrent.MAX_TORRENT_FILE_SIZE: '
+            f'{torf.Torrent.MAX_TORRENT_FILE_SIZE + 1} > {torf.Torrent.MAX_TORRENT_FILE_SIZE}$'
+    )):
+        torf.Torrent.read_stream(bytes)
+
+def test_read_from_invalid_type(valid_multifile_metainfo, tmp_path):
+    obj = 123
+    with pytest.raises(TypeError, match=r'^Expected bytes, bytearray or a readable file-like object, got int$'):
+        torf.Torrent.read_stream(obj)
+
 
 def test_reading_converts_private_flag_to_bool(tmp_path, valid_singlefile_metainfo):
     valid_singlefile_metainfo[b'info'][b'private'] = 1
