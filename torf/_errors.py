@@ -192,7 +192,7 @@ class VerifyContentError(TorfError):
         self._filepath = filepath
         self._piece_index = piece_index
         self._piece_size = piece_size
-        msg = f'Corruption in piece {piece_index+1}'
+        msg = f'Corruption in piece {piece_index + 1}'
 
         if len(file_sizes) < 1:
             raise RuntimeError('file_sizes argument is empty: {file_sizes!r}')

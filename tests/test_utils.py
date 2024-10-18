@@ -57,7 +57,7 @@ def test_iterable_startswith():
 
 
 def test_URL__max_port_number():
-    utils.URL(f'http://foohost:{2**16-1}')
+    utils.URL(f'http://foohost:{2**16 - 1}')
     with pytest.raises(torf.URLError):
         utils.URL(f'http://foohost:{2**16}')
 
