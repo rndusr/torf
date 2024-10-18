@@ -21,5 +21,3 @@ from ._magnet import Magnet
 from ._stream import TorrentFileStream
 from ._torrent import Torrent
 from ._utils import File, Filepath
-
-__all__: tuple[str, ...] = ...
