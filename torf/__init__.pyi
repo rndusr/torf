@@ -17,7 +17,7 @@
 __version__: str = ...
 
 from ._errors import *
-from ._magnet import Magnet
-from ._stream import TorrentFileStream
-from ._torrent import Torrent
-from ._utils import File, Filepath
+from ._magnet import Magnet as Magnet
+from ._stream import TorrentFileStream as TorrentFileStream
+from ._torrent import Torrent as Torrent
+from ._utils import File as File, Filepath as Filepath
