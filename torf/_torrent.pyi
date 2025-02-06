@@ -1,10 +1,9 @@
-import sys
 from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 from re import Pattern
-from typing import Any, Callable, Literal, Protocol
+from typing import Any, Callable, Literal, NotRequired, Protocol, Required, TypedDict
 
 from _typeshed import StrPath
 from typing_extensions import Self
@@ -14,10 +13,6 @@ from ._errors import TorfError
 from ._magnet import Magnet
 from ._utils import File, Filepath, Filepaths, Files, MonitoredList, Trackers, URLs
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired, Required, TypedDict
-else:
-    from typing import NotRequired, Required, TypedDict
 
 class WritableBinaryStream(Protocol):
     def seek(self, offset: int, whence: int = 0) -> int: ...
