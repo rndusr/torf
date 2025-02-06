@@ -1,9 +1,10 @@
+import sys
 from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 from re import Pattern
-from typing import Any, Callable, Literal, Protocol
+from typing import Any, Callable, List, Literal, Protocol
 
 from _typeshed import StrPath
 from typing_extensions import Self
@@ -12,6 +13,11 @@ from . import __version__
 from ._errors import TorfError
 from ._magnet import Magnet
 from ._utils import File, Filepath, Filepaths, Files, MonitoredList, Trackers, URLs
+
+if sys.version_info < (3, 11):
+    from typing_extensions import NotRequired, Required, TypedDict
+else:
+    from typing import NotRequired, Required, TypedDict
 
 class WritableBinaryStream(Protocol):
     def seek(self, offset: int, whence: int = 0) -> int: ...
@@ -25,6 +31,39 @@ class ReadableBinaryStream(Protocol):
 _PACKAGE_NAME: str = ...
 NCORES: int = ...
 DEFAULT_TORRENT_NAME: Literal["UNNAMED TORRENT"] = ...
+
+
+class _FilesDict(TypedDict):
+    length: int
+    path: List[str]
+
+_InfoDict = TypedDict(
+    "_InfoDict",
+    {
+        "name": str,
+        "piece length": int,
+        "pieces": bytes,
+        "length": NotRequired[int],
+        "files": NotRequired[List[_FilesDict]],
+        "private": NotRequired[bool],
+        "source": NotRequired[str]
+    }
+)
+"""See BEP 0003: https://www.bittorrent.org/beps/bep_0003.html"""
+
+_MetaInfo = TypedDict(
+    "_MetaInfo",
+    {
+        "info": Required[_InfoDict],
+        "announce": str,
+        "announce-list": List[List[str]],
+        "comment": str,
+        "created by": str,
+        "creation date": datetime,
+        "url-list": List[str],
+    },
+    total=False
+)
 
 class Torrent:
     def __init__(
@@ -49,7 +88,7 @@ class Torrent:
         randomize_infohash: bool = False,
     ) -> None: ...
     @property
-    def metainfo(self) -> dict[str, Any]: ...
+    def metainfo(self) -> _MetaInfo: ...
     @property
     def path(self) -> Path | None: ...
     @path.setter
