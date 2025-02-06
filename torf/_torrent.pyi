@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
 from re import Pattern
-from typing import Any, Callable, List, Literal, Protocol
+from typing import Any, Callable, Literal, Protocol
 
 from _typeshed import StrPath
 from typing_extensions import Self
@@ -35,7 +35,7 @@ DEFAULT_TORRENT_NAME: Literal["UNNAMED TORRENT"] = ...
 
 class _FilesDict(TypedDict):
     length: int
-    path: List[str]
+    path: list[str]
 
 _InfoDict = TypedDict(
     "_InfoDict",
@@ -44,7 +44,7 @@ _InfoDict = TypedDict(
         "piece length": int,
         "pieces": bytes,
         "length": NotRequired[int],
-        "files": NotRequired[List[_FilesDict]],
+        "files": NotRequired[list[_FilesDict]],
         "private": NotRequired[bool],
         "source": NotRequired[str]
     }
@@ -56,11 +56,11 @@ _MetaInfo = TypedDict(
     {
         "info": Required[_InfoDict],
         "announce": str,
-        "announce-list": List[List[str]],
+        "announce-list": list[list[str]],
         "comment": str,
         "created by": str,
         "creation date": datetime,
-        "url-list": List[str],
+        "url-list": list[str],
     },
     total=False
 )
