@@ -1,7 +1,7 @@
 import os
 import pathlib
 import sys
-from collections.abc import Iterable, MutableSequence
+from collections.abc import Container, Iterable, MutableSequence
 from functools import partial
 from typing import Any, Callable, TypeVar, overload
 
@@ -51,7 +51,8 @@ class File(os.PathLike[str]):
     def __le__(self, other: object) -> bool: ...
     def __repr__(self) -> str: ...
 
-class Files(MonitoredList[File]): ...
+class Files(MonitoredList[File]):
+    def __init__(self, files: str | Iterable[str], callback: Callable[[Self], None] | None = None): ...
 
 # There is special recognition in Mypy for `sys.platform`, not `os.name`
 if sys.platform == "win32":
@@ -91,7 +92,13 @@ class URL(str):
     @property
     def fragment(self) -> str: ...
 
-class URLs(MonitoredList[URL]): ...
+class URLs(MonitoredList[URL]):
+    def __init__(
+        self,
+        urls: str | Iterable[str],
+        callback: Callable[[Self], None] | None = None,
+        _get_known_urls: Callable[[], Container[str]] = lambda: (),
+    ): ...
 
 class Trackers(MutableSequence[URLs]):
     def __init__(self, tiers: str | Iterable[str], callback: Callable[[Self], None] | None = None) -> None: ...
