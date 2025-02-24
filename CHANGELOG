@@ -1,4 +1,4 @@
-2024-??-?? 4.?.?
+2025-02-24 4.3.0
   - Torf.read_stream() can now read `bytes` and `bytearray` objects in addition to file-like
     objects.
   - Provide type annotations for the public API.
