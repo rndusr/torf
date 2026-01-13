@@ -28,6 +28,8 @@ ignore =
     E701,
     # multiple statements on one line (def)
     E704,
+    # ambiguous variable name 'l'
+    E741,
     # line break before binary operator
     W503,
     # line break after binary operator

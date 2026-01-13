@@ -6,6 +6,10 @@ lint.select = [
   "I",   # isort
 ]
 
+lint.ignore = [
+    "E741",  # Ambiguous variable name: `l`
+]
+
 [lint.per-file-ignores]
 "__init__.py" = [
     # <module> imported but unused
