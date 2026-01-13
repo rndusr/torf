@@ -2,7 +2,7 @@
 name = "torf"
 description = "Python 3 module for creating and parsing torrent files and magnet URIs"
 readme = "README.rst"
-license = {text = "GPL-3.0-or-later"}
+license = "GPL-3.0-or-later"
 authors = [
   { name="Random User", email="rndusr@posteo.de" },
 ]
@@ -11,7 +11,6 @@ dynamic = ["version"]  # Get version from PROJECT/__version__
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
