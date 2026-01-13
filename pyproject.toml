@@ -23,7 +23,6 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "flatbencode==0.2.*",
 ]
 
 [project.optional-dependencies]

@@ -4,10 +4,10 @@ from datetime import datetime
 from hashlib import sha1
 from pathlib import Path
 
-import flatbencode as bencode
 import pytest
 
 import torf
+from torf import _flatbencode as bencode
 from torf import _utils
 
 

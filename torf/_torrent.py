@@ -25,10 +25,9 @@ import re
 from collections import abc
 from datetime import datetime
 
-import flatbencode as bencode
-
 from . import __version__
 from . import _errors as error
+from . import _flatbencode as bencode
 from . import _generate as generate
 from . import _reuse as reuse
 from . import _utils as utils
