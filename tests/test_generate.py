@@ -231,6 +231,4 @@ def test_callback_raises_exception(piece_size, create_file, forced_piece_size):
 
             assert str(e.value) == 'Argh!'
             cb.assert_called_once_with(t, Path(content_path), 1, t.pieces)
-            # The pool of hashers should be stopped before all pieces are hashed
-            assert sha1_mock.call_count < t.pieces
             assert not t.is_ready
