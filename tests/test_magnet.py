@@ -1,6 +1,7 @@
 import base64
 import binascii
 import hashlib
+import re
 import time
 import urllib
 from unittest import mock
@@ -63,11 +64,27 @@ def test_xt_is_base32(hash32):
     assert m.infohash == hash32(b'bar')
     assert str(m) == f'magnet:?xt=urn:btih:{hash32(b"bar")}'
 
-
 def test_xt_is_naked_infohash(hash16, hash32):
     for infohash in (hash16(b'foo'), hash32(b'foo')):
         m = torf.Magnet(infohash)
         assert m.xt == f'urn:btih:{infohash}'
+
+@pytest.mark.parametrize(
+    argnames='infohash, exp_result',
+    argvalues=(
+        ('0123456789abcdef0123456789abcdef01234567GARBAGE', torf.MagnetError('0123456789abcdef0123456789abcdef01234567GARBAGE', 'Invalid exact topic ("xt")')),
+        ('abcdefghijklmnopqrstuvwxyz234567GARBAGE', torf.MagnetError('abcdefghijklmnopqrstuvwxyz234567GARBAGE', 'Invalid exact topic ("xt")')),
+    ),
+    ids=repr,
+)
+def test_xt_has_trailing_garbage(infohash, exp_result):
+    if isinstance(exp_result, Exception):
+        with pytest.raises(type(exp_result), match=rf'^{re.escape(str(exp_result))}$'):
+            torf.Magnet(xt=infohash)
+    else:
+        magnet = torf.Magnet(xt=infohash)
+        assert magnet.xt == exp_result
+
 
 def test_dn(xt):
     m = torf.Magnet(xt, dn='Héllo Wörld!')
